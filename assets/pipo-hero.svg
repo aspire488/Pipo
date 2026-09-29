@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" role="img" aria-label="Pipo, a small 3D-style robot living in a cozy room">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#111827"/><stop offset="1" stop-color="#26364a"/></linearGradient>
+    <linearGradient id="body" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f5f7fa"/><stop offset=".55" stop-color="#c7d0da"/><stop offset="1" stop-color="#7c8794"/></linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e293b"/><stop offset="1" stop-color="#020617"/></linearGradient>
+    <filter id="shadow"><feGaussianBlur stdDeviation="12"/></filter>
+    <style>
+      .pipo { transform-origin: 450px 330px; animation: bob 2.8s ease-in-out infinite; }
+      .head { transform-origin: 450px 205px; animation: look 5s ease-in-out infinite; }
+      .antenna { transform-origin: 450px 105px; animation: antenna 1.8s ease-in-out infinite; }
+      .eye { animation: blink 4.7s infinite; transform-box: fill-box; transform-origin: center; }
+      @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+      @keyframes look { 0%,45%,100%{transform:rotateY(0deg)} 55%,75%{transform:rotateY(8deg)} 85%{transform:rotateY(-5deg)} }
+      @keyframes antenna { 0%,100%{transform:rotate(-4deg)} 50%{transform:rotate(7deg)} }
+      @keyframes blink { 0%,92%,100%{transform:scaleY(1)} 94%,96%{transform:scaleY(.08)} }
+    </style>
+  </defs>
+  <rect width="900" height="520" rx="28" fill="url(#bg)"/>
+  <path d="M0 405 Q230 355 450 400 T900 390 V520 H0Z" fill="#172233"/>
+  <path d="M60 390 L840 390 L900 520 H0Z" fill="#202d3e"/>
+  <path d="M80 390 L820 390" stroke="#34465b" stroke-width="3"/>
+  <circle cx="140" cy="105" r="45" fill="#f8d58a" opacity=".18"/>
+  <rect x="675" y="112" width="125" height="175" rx="10" fill="#1c2a3a" stroke="#53677e" stroke-width="4"/>
+  <path d="M690 260 Q738 215 785 260" fill="#0f1724"/>
+  <g class="pipo">
+    <ellipse cx="450" cy="420" rx="120" ry="22" fill="#000" opacity=".3" filter="url(#shadow)"/>
+    <g class="head">
+      <rect x="360" y="125" width="180" height="160" rx="48" fill="url(#body)" stroke="#687584" stroke-width="5"/>
+      <rect x="383" y="155" width="134" height="100" rx="28" fill="url(#screen)" stroke="#475569" stroke-width="5"/>
+      <g class="eye" fill="#b9f3ff"><circle cx="420" cy="202" r="16"/><circle cx="480" cy="202" r="16"/></g>
+      <path d="M425 228 Q450 245 475 228" fill="none" stroke="#b9f3ff" stroke-width="6" stroke-linecap="round"/>
+      <circle cx="348" cy="205" r="14" fill="#aeb9c4"/><circle cx="552" cy="205" r="14" fill="#aeb9c4"/>
+    </g>
+    <g class="antenna">
+      <path d="M450 125 L450 94" stroke="#9aa6b4" stroke-width="9" stroke-linecap="round"/>
+      <circle cx="450" cy="82" r="14" fill="#8fe8ff"/>
+    </g>
+    <path d="M370 292 Q450 270 530 292 L548 378 Q450 410 352 378Z" fill="url(#body)" stroke="#687584" stroke-width="5"/>
+    <path d="M397 320 Q450 300 503 320 L500 350 Q450 365 400 350Z" fill="#7f8b98" opacity=".65"/>
+    <g stroke="#7b8794" stroke-width="18" stroke-linecap="round"><path d="M370 315 L330 365"/><path d="M530 315 L570 365"/></g>
+    <g fill="#aeb9c4" stroke="#687584" stroke-width="4"><ellipse cx="326" cy="371" rx="24" ry="18"/><ellipse cx="574" cy="371" rx="24" ry="18"/></g>
+    <path d="M402 378 L397 420" stroke="#6e7b88" stroke-width="24" stroke-linecap="round"/><path d="M498 378 L503 420" stroke="#6e7b88" stroke-width="24" stroke-linecap="round"/>
+    <ellipse cx="390" cy="427" rx="38" ry="16" fill="#9ba7b3"/><ellipse cx="510" cy="427" rx="38" ry="16" fill="#9ba7b3"/>
+  </g>
+  <text x="52" y="72" fill="#f8fafc" font-family="system-ui, sans-serif" font-size="28" font-weight="700">PIPO</text>
+  <text x="52" y="104" fill="#a9b8c9" font-family="system-ui, sans-serif" font-size="17">a little robot living inside your phone</text>
+</svg>
