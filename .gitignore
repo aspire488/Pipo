@@ -17,3 +17,8 @@ keystore.properties
 *.hprof
 .env
 .env.*
+
+# Private friend distribution (APKs, intro videos, recordings) — never committed
+dist/
+*.mp4
+*.mov
