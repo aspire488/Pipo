@@ -1,0 +1,464 @@
+package com.pipo.robot.engine
+
+import com.pipo.robot.data.Mood
+import java.util.Calendar
+import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.pow
+import kotlin.random.Random
+
+enum class PhoneCmd {
+    // light
+    FLASH_ON, FLASH_OFF, FLASH_STATUS,
+    // media
+    MEDIA_PLAY, MEDIA_PAUSE, MEDIA_NEXT, MEDIA_PREV, VOLUME_UP, VOLUME_DOWN, MUTE, YOUTUBE, MUSIC_APP,
+    // camera / photos
+    CAMERA, SELFIE, SHOW_PHOTO,
+    // apps + system screens
+    OPEN_APP, SETTINGS,
+    // time
+    TIME, DATE, TIMER, ALARM,
+    // web
+    URL, SEARCH, MAPS,
+    // tiny utilities
+    CALC, CONVERT, COPY, SHARE, BATTERY,
+    // calls (dialer only, never auto-calls)
+    DIAL,
+}
+
+data class PhoneRequest(
+    val cmd: PhoneCmd,
+    val arg: String = "",
+    val seconds: Int = 0,
+    val hour: Int = -1,
+    val minute: Int = 0,
+    /** Pre-computed answer (calc/convert) or settings key. */
+    val extra: String = "",
+    /** User asked to CHANGE something Android won't let apps change directly (Wi-Fi toggle etc). */
+    val blocked: Boolean = false,
+) {
+    /** Real-world consequence → explicit yes/no first. */
+    val needsConfirm: Boolean get() = cmd == PhoneCmd.DIAL || cmd == PhoneCmd.ALARM
+    /** Answered by Pipo himself, no intent needed. */
+    val infoOnly: Boolean get() = cmd in setOf(PhoneCmd.TIME, PhoneCmd.DATE, PhoneCmd.CALC, PhoneCmd.CONVERT, PhoneCmd.BATTERY, PhoneCmd.FLASH_STATUS)
+}
+
+/** Live phone facts Pipo can mention. */
+data class PhoneInfo(
+    val now: Long = System.currentTimeMillis(),
+    val battery: Int = -1,
+    val charging: Boolean = false,
+    val torchOn: Boolean = false,
+)
+
+/**
+ * Local, offline intent recognition. Straightforward phone requests never touch the LLM.
+ * Only runs on something the user explicitly typed or said.
+ */
+object PhoneCommands {
+    private val gameWords = listOf("rock", "paper", "scissors", "memory", "tic", "reaction", "game", "with me", "catch", "hide and seek")
+    private val filler = Regex("\\b(please|pls|pipo|can you|could you|would you|will you|hey|for me|some|the|a|an|now|quickly)\\b")
+
+    private fun clean(s: String) = s.replace(filler, " ").replace(Regex("\\s+"), " ").trim()
+
+    /** Strip "hey pipo, ..." / "pipo please ..." so anchored patterns still work. */
+    private fun normalize(raw: String): String {
+        var s = raw.lowercase(Locale.US).trim().trimEnd('.', '!', '?', ' ')
+        s = s.replace(Regex("^(hey|hi|ok|okay|yo)?\\s*pipo[,!.:]?\\s*"), "")
+        s = s.replace(Regex("^(please|pls|can you|could you|would you|will you)\\s+"), "")
+        s = s.replace(Regex("\\s+please$"), "")
+        return s.trim()
+    }
+
+    private val appAliases = linkedMapOf(
+        "camera" to listOf("camera", "cam"),
+        "gallery" to listOf("gallery", "photos", "google photos", "pictures", "my photos"),
+        "browser" to listOf("browser", "chrome", "internet", "web browser"),
+        "youtube" to listOf("youtube", "yt"),
+        "spotify" to listOf("spotify"),
+        "music" to listOf("music", "music app", "music player", "youtube music"),
+        "maps" to listOf("maps", "google maps", "map"),
+        "clock" to listOf("clock", "alarm", "alarms", "alarm clock", "stopwatch"),
+        "calculator" to listOf("calculator", "calc"),
+        "calendar" to listOf("calendar"),
+        "settings" to listOf("settings", "setting", "phone settings", "system settings"),
+    )
+
+    private val settingsAliases = linkedMapOf(
+        "wifi" to listOf("wifi", "wi-fi", "wi fi", "internet", "network"),
+        "bluetooth" to listOf("bluetooth"),
+        "display" to listOf("display", "brightness", "screen", "dark mode", "theme"),
+        "sound" to listOf("sound", "sounds", "ringtone", "vibration", "silent mode"),
+        "battery" to listOf("battery", "battery saver", "power saving"),
+        "notifications" to listOf("notification", "notifications"),
+        "apps" to listOf("app", "apps", "application", "applications"),
+        "datetime" to listOf("date", "time", "date and time", "timezone", "time zone"),
+        "location" to listOf("location", "gps"),
+        "airplane" to listOf("airplane", "airplane mode", "flight mode", "aeroplane mode"),
+    )
+
+    private fun appKey(name: String): String? {
+        val n = name.trim().removeSuffix(" app").trim()
+        return appAliases.entries.firstOrNull { (_, v) -> n in v }?.key
+    }
+
+    private fun settingsKey(text: String): String? =
+        settingsAliases.entries.firstOrNull { (_, v) -> v.any { Regex("\\b${Regex.escape(it)}\\b").containsMatchIn(text) } }?.key
+
+    fun parse(raw: String): PhoneRequest? {
+        val s = normalize(raw)
+        if (s.isBlank()) return null
+
+        // ---------- light
+        if (Regex("\\b(flashlight|flash light|torch)\\b").containsMatchIn(s)) {
+            return when {
+                Regex("^(is|are)\\b|\\bstill on\\b|status").containsMatchIn(s) -> PhoneRequest(PhoneCmd.FLASH_STATUS)
+                Regex("\\b(off|disable|stop|kill)\\b").containsMatchIn(s) -> PhoneRequest(PhoneCmd.FLASH_OFF)
+                else -> PhoneRequest(PhoneCmd.FLASH_ON)
+            }
+        }
+        if (Regex("^(lights? on|i need (light|a light)|it'?s (too )?dark)$").matches(s)) return PhoneRequest(PhoneCmd.FLASH_ON)
+        if (Regex("^lights? off$").matches(s)) return PhoneRequest(PhoneCmd.FLASH_OFF)
+
+        // ---------- timer
+        if (s.contains("timer")) {
+            Regex("(\\d+)\\s*(seconds?|secs?|minutes?|mins?|hours?|hrs?)").find(s)?.let { m ->
+                val n = m.groupValues[1].toInt()
+                val unit = m.groupValues[2]
+                val secs = when { unit.startsWith("h") -> n * 3600; unit.startsWith("m") -> n * 60; else -> n }
+                if (secs in 1..86_400) return PhoneRequest(PhoneCmd.TIMER, seconds = secs)
+            }
+            return PhoneRequest(PhoneCmd.OPEN_APP, "clock")
+        }
+
+        // ---------- alarm (with a time → confirm; without → open clock)
+        if (s.contains("alarm") || s.startsWith("wake me")) {
+            Regex("(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm|a\\.m\\.|p\\.m\\.)?").find(s)?.let { m ->
+                var h = m.groupValues[1].toInt()
+                val min = m.groupValues[2].ifEmpty { "0" }.toInt()
+                val ap = m.groupValues[3]
+                if (ap.startsWith("p") && h < 12) h += 12
+                if (ap.startsWith("a") && h == 12) h = 0
+                if (h in 0..23 && min in 0..59) return PhoneRequest(PhoneCmd.ALARM, hour = h, minute = min)
+            }
+            return PhoneRequest(PhoneCmd.OPEN_APP, "clock")
+        }
+
+        // ---------- time / date / battery
+        if (Regex("\\b(what time|what's the time|whats the time|time is it|tell me the time|current time)\\b").containsMatchIn(s) || s == "time")
+            return PhoneRequest(PhoneCmd.TIME)
+        if (Regex("\\b(what's the date|whats the date|what is the date|today's date|todays date|what day is it|what day is today|date today|which day)\\b").containsMatchIn(s) || s == "date")
+            return PhoneRequest(PhoneCmd.DATE)
+        if (s.contains("battery") && Regex("\\b(how|much|percent|percentage|level|left|status|charge)\\b").containsMatchIn(s) && !s.contains("setting"))
+            return PhoneRequest(PhoneCmd.BATTERY)
+
+        // ---------- unit conversion: "5 km to miles", "convert 30 c to f"
+        Units.parse(s)?.let { (q, ans) -> return PhoneRequest(PhoneCmd.CONVERT, q, extra = ans) }
+
+        // ---------- calculator: "what's 12*7", "25 percent of 80", "5 plus 3"
+        MiniCalc.fromSentence(s)?.let { (expr, ans) -> return PhoneRequest(PhoneCmd.CALC, expr, extra = ans) }
+
+        // ---------- volume
+        if (Regex("\\b(volume up|louder|turn it up|increase (the )?volume|raise (the )?volume)\\b").containsMatchIn(s)) return PhoneRequest(PhoneCmd.VOLUME_UP)
+        if (Regex("\\b(volume down|quieter|softer|turn it down|decrease (the )?volume|lower (the )?volume)\\b").containsMatchIn(s)) return PhoneRequest(PhoneCmd.VOLUME_DOWN)
+        if (Regex("^(mute|unmute|mute (it|sound|volume|music)|shh+)$").matches(s)) return PhoneRequest(PhoneCmd.MUTE)
+
+        // ---------- media keys
+        if (Regex("\\b(next song|skip (this|song|it|track)|next track|skip)\\b").containsMatchIn(s)) return PhoneRequest(PhoneCmd.MEDIA_NEXT)
+        if (Regex("\\b(previous song|last song|previous track|go back a song|play (that|the) (last|previous) (one|song))\\b").containsMatchIn(s)) return PhoneRequest(PhoneCmd.MEDIA_PREV)
+        if (Regex("^(pause|stop|stop (the )?music|pause (the )?music|pause (the )?song|stop (the )?song|stop playing)$").matches(s)) return PhoneRequest(PhoneCmd.MEDIA_PAUSE)
+        if (Regex("^(resume|unpause|continue( the)?( music| song)?|resume (the )?(music|song)|play( (some|the))? (music|songs?|a song|something)|music on|put on (some )?music)$").matches(s))
+            return PhoneRequest(PhoneCmd.MEDIA_PLAY)
+
+        // ---------- spotify / youtube
+        if (s.contains("spotify")) {
+            val q = clean(s.replace(Regex("\\b(play|put on|search for|search|find|open|launch|on|in|spotify)\\b"), " "))
+            return PhoneRequest(PhoneCmd.MUSIC_APP, q)
+        }
+        if (s.contains("youtube") && !s.contains("youtube music")) {
+            val q = clean(s.replace(Regex("\\b(play|put on|search for|search|find|open|launch|watch|on|in|youtube)\\b"), " "))
+            return PhoneRequest(PhoneCmd.YOUTUBE, q)
+        }
+        if (s.startsWith("play ") && gameWords.none { s.contains(it) }) {
+            val q = clean(s.removePrefix("play "))
+            if (q.isNotBlank()) return PhoneRequest(PhoneCmd.YOUTUBE, q)
+        }
+
+        // ---------- camera / photos
+        if (Regex("\\b(selfie)\\b").containsMatchIn(s)) return PhoneRequest(PhoneCmd.SELFIE)
+        if (Regex("\\b(take (a )?(photo|picture|pic)|click (a )?(photo|pic|picture)|open (the )?camera|camera)\\b").containsMatchIn(s) && !s.contains("setting"))
+            return PhoneRequest(PhoneCmd.CAMERA)
+        if (Regex("\\b(show you|let me show|look at (this|my)|see (this|my)) (a |this |my )?(photo|picture|pic|image)\\b").containsMatchIn(s) ||
+            Regex("^(show|pick) (a |pipo a |you a )?(photo|picture|pic)$").matches(s))
+            return PhoneRequest(PhoneCmd.SHOW_PHOTO)
+
+        // ---------- URLs
+        Regex("((?:https?://)?(?:www\\.)?[a-z0-9-]+(?:\\.[a-z0-9-]+)*\\.(?:com|org|net|in|io|dev|app|edu|gov|co|ai|me|info)(?:/\\S*)?)").find(s)?.let {
+            if (Regex("^(open|go to|visit|load|show me)\\b").containsMatchIn(s) || s == it.value) return PhoneRequest(PhoneCmd.URL, it.value)
+        }
+
+        // ---------- maps
+        Regex("^(?:navigate to|directions to|take me to|show me the way to|how do i get to)\\s+(.+)").find(s)?.let {
+            return PhoneRequest(PhoneCmd.MAPS, clean(it.groupValues[1]))
+        }
+        if (Regex("\\bon (the )?maps?$").containsMatchIn(s) || Regex("^(find|show|where is) .+ on maps?").containsMatchIn(s)) {
+            val q = clean(s.replace(Regex("\\b(open|show|find|search|where is|on|in|google|maps?|me)\\b"), " "))
+            return PhoneRequest(PhoneCmd.MAPS, q)
+        }
+
+        // ---------- web search
+        Regex("^(?:search|google|look up|search the web for|search online for)(?: for)?\\s+(.+)").find(s)?.let {
+            return PhoneRequest(PhoneCmd.SEARCH, clean(it.groupValues[1]))
+        }
+
+        // ---------- clipboard + share
+        Regex("^copy\\s+(.+)").find(s)?.let {
+            val t = raw.trim().replace(Regex("^(?i)(hey\\s+)?(pipo[,!.:]?\\s*)?(please\\s+)?copy\\s+"), "").trim().trim('"', '\'')
+            return PhoneRequest(PhoneCmd.COPY, if (Regex("^(that|this|it|what you said)$").matches(it.groupValues[1])) "" else t)
+        }
+        Regex("^share\\s+(.+)").find(s)?.let {
+            val t = raw.trim().replace(Regex("^(?i)(hey\\s+)?(pipo[,!.:]?\\s*)?(please\\s+)?share\\s+"), "").trim().trim('"', '\'')
+            return PhoneRequest(PhoneCmd.SHARE, if (Regex("^(that|this|it|what you said)$").matches(it.groupValues[1])) "" else t)
+        }
+
+        // ---------- dialer ("call me X" is a name, not a call)
+        Regex("^(?:call|dial|ring|phone)\\s+(.+)").find(s)?.let {
+            val who = it.groupValues[1].trim()
+            if (!who.startsWith("me ") && who != "me") return PhoneRequest(PhoneCmd.DIAL, who)
+        }
+
+        // ---------- things Android won't let an app toggle → open the right screen
+        if (Regex("^(turn|switch|toggle|enable|disable|put)\\b").containsMatchIn(s) || Regex("\\b(brightness|dark mode|airplane mode|flight mode) (up|down|on|off)\\b").containsMatchIn(s)) {
+            settingsKey(s)?.let { return PhoneRequest(PhoneCmd.SETTINGS, extra = it, blocked = true) }
+        }
+
+        // ---------- "<x> settings" / "open <x> settings"
+        if (Regex("\\bsettings?\\b").containsMatchIn(s)) {
+            val rest = s.replace(Regex("\\b(open|show|go to|launch|settings?|my|phone)\\b"), " ").trim()
+            if (rest.isBlank()) return PhoneRequest(PhoneCmd.OPEN_APP, "settings")
+            settingsKey(rest)?.let { return PhoneRequest(PhoneCmd.SETTINGS, extra = it) }
+            return PhoneRequest(PhoneCmd.SETTINGS, extra = "general")
+        }
+
+        // ---------- open <app>
+        Regex("^(?:open|launch|start|go to|show me|show)\\s+(?:the\\s+|my\\s+)?(.+)$").find(s)?.let { m ->
+            val key = appKey(m.groupValues[1]) ?: return@let
+            return when (key) {
+                "camera" -> PhoneRequest(PhoneCmd.CAMERA)
+                "youtube" -> PhoneRequest(PhoneCmd.YOUTUBE)
+                "spotify" -> PhoneRequest(PhoneCmd.MUSIC_APP)
+                else -> PhoneRequest(PhoneCmd.OPEN_APP, key)
+            }
+        }
+        if (s == "browser" || s == "calculator" || s == "gallery") return PhoneRequest(PhoneCmd.OPEN_APP, s)
+        return null
+    }
+
+    // =====================================================================================
+    //  Pipo's side of it. Never "Certainly." Never "Action completed."
+    // =====================================================================================
+
+    fun line(r: PhoneRequest, mood: Mood, rng: Random, info: PhoneInfo = PhoneInfo()): String {
+        fun p(vararg o: String) = o[rng.nextInt(o.size)]
+        val grumpy = mood == Mood.GRUMPY
+        val sleepy = mood == Mood.SLEEPY
+        val cal = Calendar.getInstance().apply { timeInMillis = info.now }
+        val h = cal.get(Calendar.HOUR_OF_DAY)
+        val timeStr = "%d:%02d".format(if (h % 12 == 0) 12 else h % 12, cal.get(Calendar.MINUTE)) + if (h < 12) " AM" else " PM"
+        return when (r.cmd) {
+            PhoneCmd.FLASH_ON -> when {
+                grumpy -> "Fine. Light."
+                sleepy -> "...bright. Ow. Okay, it's on."
+                else -> p("Emergency sunshine.", "Let there be light.", "Lighthouse mode.", "Bright! My eyes! Worth it.")
+            }
+            PhoneCmd.FLASH_OFF -> p("Lights out. Cozy.", "Darkness again. I liked the sunshine.", "Off. The shadows are back.")
+            PhoneCmd.FLASH_STATUS -> if (info.torchOn) p("Yep, it's on. I'm glowing.", "It's on. Look at my antenna.") else p("It's off.", "Nope. Dark mode.")
+
+            PhoneCmd.MEDIA_PLAY -> if (grumpy) "Fine. Music." else p("Music! Yes.", "On it.", "Ooh, my song. Probably.")
+            PhoneCmd.MEDIA_PAUSE -> p("Pause.", "Shh. Okay.", "Stopping. My legs were just warming up.")
+            PhoneCmd.MEDIA_NEXT -> p("Next!", "Skipping. That one was mid.", "Next one. Make it a good one.")
+            PhoneCmd.MEDIA_PREV -> p("Back one.", "Again? Okay, that one was good.")
+            PhoneCmd.VOLUME_UP -> p("Louder!", "Turning it up.", "More!")
+            PhoneCmd.VOLUME_DOWN -> p("Shh. Quieter.", "Turning it down.", "Softer. Got it.")
+            PhoneCmd.MUTE -> p("Shh.", "Quiet mode.", "Mute. Or unmute. One of those.")
+            PhoneCmd.YOUTUBE -> if (r.arg.isBlank()) p("YouTube. Pick something good.", "Opening YouTube.") else p("Finding \"${r.arg}\". I'll dance if it's good.", "\"${r.arg}\". Loading vibes.")
+            PhoneCmd.MUSIC_APP -> if (r.arg.isBlank()) p("Opening your music.", "Music app. Yes.") else "Looking for \"${r.arg}\"."
+
+            PhoneCmd.CAMERA -> p("Camera time. Say screws!", "Opening the camera. Get my good side. All sides.", "Photo? Wait, let me pose.")
+            PhoneCmd.SELFIE -> p("Selfie! I'll stay out of it. Probably.", "Front camera. You look great. I'd know.")
+            PhoneCmd.SHOW_PHOTO -> p("Ooh. Show me.", "A photo? For me? Okay. Pick one.", "I love looking at things. Go.")
+
+            PhoneCmd.OPEN_APP -> when (r.arg) {
+                "gallery" -> p("Your photos. I won't peek. I'll peek a little.", "Gallery. Memories!")
+                "browser" -> p("Browser. The internet is very big.", "Opening the internet.")
+                "maps" -> p("Maps. Don't get lost.", "Where are we going?")
+                "clock" -> p("Clock. Tick tock.", "Opening the clock.")
+                "calculator" -> p("Calculator. I could've done it. Probably.", "Numbers!")
+                "calendar" -> p("Calendar. So many days.", "Opening the calendar.")
+                "settings" -> p("Settings. Be careful in there.", "Opening settings.")
+                "music" -> p("Opening your music.", "Music app!")
+                else -> p("Gotcha.", "On it.")
+            }
+            PhoneCmd.SETTINGS -> {
+                val what = when (r.extra) {
+                    "wifi" -> "Wi-Fi"; "bluetooth" -> "Bluetooth"; "display" -> "display"; "sound" -> "sound"
+                    "battery" -> "battery"; "notifications" -> "notification"; "apps" -> "app"; "datetime" -> "date and time"
+                    "location" -> "location"; "airplane" -> "airplane mode"; else -> "phone"
+                }
+                if (r.blocked) p("Android won't let me touch that one. Here's the switch.", "I'm not allowed to flip that. You do it. Here.", "Too important for me, apparently. Opening $what settings.")
+                else p("$what settings. Here.", "Opening $what settings.", "Gotcha. $what settings.")
+            }
+
+            PhoneCmd.TIME -> when {
+                h >= 23 || h < 5 -> p("It's $timeStr. Why are we awake?", "$timeStr. ...I'm sleepy.")
+                h < 9 -> "It's $timeStr. Early. Very early."
+                else -> p("It's $timeStr.", "$timeStr. Time is weird.", "My clock says $timeStr.")
+            }
+            PhoneCmd.DATE -> {
+                val day = cal.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.LONG, Locale.US)
+                val mon = cal.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale.US)
+                "It's $day, $mon ${cal.get(Calendar.DAY_OF_MONTH)}." + if (day == "Friday") " Friday! Good day." else ""
+            }
+            PhoneCmd.TIMER -> "Timer: ${formatSecs(r.seconds)}. I'll be counting too. In my head."
+            PhoneCmd.ALARM -> "Alarm at ${"%02d:%02d".format(r.hour, r.minute)}. Done. Don't snooze."
+
+            PhoneCmd.URL -> p("Opening it.", "Gotcha. Off to ${r.arg.removePrefix("https://").removePrefix("www.").substringBefore('/')}.")
+            PhoneCmd.SEARCH -> p("Searching \"${r.arg}\". The internet knows things.", "\"${r.arg}\". Let's see.")
+            PhoneCmd.MAPS -> if (r.arg.isBlank()) "Opening maps." else "Finding ${r.arg}."
+
+            PhoneCmd.CALC -> if (r.extra.isBlank()) "My brain did a weird thing. That math is broken." else p("${r.extra}.", "That's ${r.extra}. Easy.", "Um... ${r.extra}! Yep.")
+            PhoneCmd.CONVERT -> "${r.extra}." + if (rng.nextFloat() < 0.3f) " I didn't even use my fingers." else ""
+            PhoneCmd.COPY -> if (r.arg.isBlank()) "Copied what I said. Treasure it." else p("Copied!", "Got it. It's in the clipboard.")
+            PhoneCmd.SHARE -> p("Sharing! Pick where.", "Okay. Where's it going?")
+            PhoneCmd.BATTERY -> when {
+                info.battery < 0 -> "I can't see the battery right now. Weird."
+                info.charging -> "${info.battery}% and charging. Ahhh. Power."
+                info.battery <= 15 -> "${info.battery}%. We're getting crispy."
+                info.battery <= 40 -> "${info.battery}%. We should find a charger soon."
+                else -> p("${info.battery}%. We're good.", "${info.battery}%. Plenty of juice.")
+            }
+            PhoneCmd.DIAL -> "Opening the dialer for ${r.arg}. You press call. I get shy on the phone."
+        }
+    }
+
+    fun confirmQuestion(r: PhoneRequest): String = when (r.cmd) {
+        PhoneCmd.DIAL -> "Open the dialer for \"${r.arg}\"?"
+        PhoneCmd.ALARM -> "An alarm for ${"%02d:%02d".format(r.hour, r.minute)}?"
+        else -> "Do it?"
+    }
+
+    fun formatSecs(s: Int): String = when {
+        s >= 3600 && s % 3600 == 0 -> "${s / 3600} hour${if (s >= 7200) "s" else ""}"
+        s >= 60 && s % 60 == 0 -> "${s / 60} minute${if (s >= 120) "s" else ""}"
+        else -> "$s seconds"
+    }
+}
+
+/** Tiny safe arithmetic evaluator: + - * / % ^ ( ). No eval, no scripting. */
+object MiniCalc {
+    fun fromSentence(s: String): Pair<String, String>? {
+        var e = s.replace(Regex("^(what's|whats|what is|calculate|calc|compute|solve|how much is|tell me)\\s+"), "")
+        e = e.replace(Regex("(\\d+(?:\\.\\d+)?)\\s*(percent|%)\\s*of\\s*(\\d+(?:\\.\\d+)?)"), "($1/100*$3)")
+        e = e.replace(Regex("\\bsquared\\b"), "^2").replace(Regex("\\bcubed\\b"), "^3")
+            .replace(Regex("\\b(plus|and)\\b"), "+").replace(Regex("\\bminus\\b"), "-")
+            .replace(Regex("\\b(times|multiplied by|into)\\b"), "*").replace(Regex("(?<=\\d)\\s*x\\s*(?=\\d)"), "*")
+            .replace(Regex("\\bdivided by\\b|\\bover\\b"), "/").replace(Regex("\\b(to the power of|power)\\b"), "^")
+            .replace("×", "*").replace("÷", "/").replace(Regex("\\s+"), "")
+        if (!Regex("^[0-9.+\\-*/%^()]+$").matches(e)) return null
+        if (!Regex("\\d[+\\-*/%^(]|\\)").containsMatchIn(e) || !Regex("\\d").containsMatchIn(e)) return null
+        if (!Regex("[+\\-*/%^]").containsMatchIn(e)) return null
+        val v = eval(e) ?: return null
+        return e to format(v)
+    }
+
+    fun format(v: Double): String = when {
+        v.isNaN() || v.isInfinite() -> ""
+        abs(v - Math.round(v)) < 1e-9 && abs(v) < 1e15 -> Math.round(v).toString()
+        else -> "%.4f".format(Locale.US, v).trimEnd('0').trimEnd('.')
+    }
+
+    fun eval(src: String): Double? = try {
+        val p = P(src); val v = p.expr(); if (p.i != src.length) null else v
+    } catch (_: Exception) { null }
+
+    private class P(val s: String) {
+        var i = 0
+        fun peek() = if (i < s.length) s[i] else '\u0000'
+        fun expr(): Double {
+            var v = term()
+            while (peek() == '+' || peek() == '-') { val op = s[i++]; val r = term(); v = if (op == '+') v + r else v - r }
+            return v
+        }
+        fun term(): Double {
+            var v = pow()
+            while (peek() == '*' || peek() == '/' || peek() == '%') {
+                val op = s[i++]; val r = pow()
+                v = when (op) { '*' -> v * r; '/' -> if (r == 0.0) throw ArithmeticException() else v / r; else -> v % r }
+            }
+            return v
+        }
+        fun pow(): Double { val b = unary(); return if (peek() == '^') { i++; b.pow(pow()) } else b }
+        fun unary(): Double = if (peek() == '-') { i++; -unary() } else if (peek() == '+') { i++; unary() } else atom()
+        fun atom(): Double {
+            if (peek() == '(') { i++; val v = expr(); if (peek() != ')') throw IllegalStateException(); i++; return v }
+            val st = i
+            while (peek().isDigit() || peek() == '.') i++
+            if (st == i) throw IllegalStateException()
+            return s.substring(st, i).toDouble()
+        }
+    }
+}
+
+/** Basic unit conversions. Offline, tiny table. */
+object Units {
+    private data class U(val dim: String, val factor: Double, val label: String)
+
+    private val table: Map<String, U> = buildMap {
+        fun add(names: List<String>, u: U) = names.forEach { put(it, u) }
+        add(listOf("km", "kilometer", "kilometers", "kilometre", "kilometres"), U("len", 1000.0, "km"))
+        add(listOf("m", "meter", "meters", "metre", "metres"), U("len", 1.0, "m"))
+        add(listOf("cm", "centimeter", "centimeters", "centimetre", "centimetres"), U("len", 0.01, "cm"))
+        add(listOf("mm", "millimeter", "millimeters"), U("len", 0.001, "mm"))
+        add(listOf("mi", "mile", "miles"), U("len", 1609.344, "miles"))
+        add(listOf("ft", "foot", "feet"), U("len", 0.3048, "ft"))
+        add(listOf("in", "inch", "inches"), U("len", 0.0254, "inches"))
+        add(listOf("yd", "yard", "yards"), U("len", 0.9144, "yards"))
+        add(listOf("kg", "kilo", "kilos", "kilogram", "kilograms"), U("mass", 1.0, "kg"))
+        add(listOf("g", "gram", "grams"), U("mass", 0.001, "g"))
+        add(listOf("mg", "milligram", "milligrams"), U("mass", 1e-6, "mg"))
+        add(listOf("lb", "lbs", "pound", "pounds"), U("mass", 0.45359237, "lb"))
+        add(listOf("oz", "ounce", "ounces"), U("mass", 0.028349523125, "oz"))
+        add(listOf("l", "liter", "liters", "litre", "litres"), U("vol", 1.0, "L"))
+        add(listOf("ml", "milliliter", "milliliters", "millilitre", "millilitres"), U("vol", 0.001, "mL"))
+        add(listOf("gal", "gallon", "gallons"), U("vol", 3.785411784, "gallons"))
+        add(listOf("cup", "cups"), U("vol", 0.24, "cups"))
+        add(listOf("kmh", "kph", "km/h"), U("speed", 1 / 3.6, "km/h"))
+        add(listOf("mph"), U("speed", 0.44704, "mph"))
+        add(listOf("sec", "secs", "second", "seconds"), U("time", 1.0, "seconds"))
+        add(listOf("min", "mins", "minute", "minutes"), U("time", 60.0, "minutes"))
+        add(listOf("hr", "hrs", "hour", "hours"), U("time", 3600.0, "hours"))
+        add(listOf("day", "days"), U("time", 86400.0, "days"))
+        add(listOf("week", "weeks"), U("time", 604800.0, "weeks"))
+        add(listOf("kb"), U("data", 1e3, "KB")); add(listOf("mb"), U("data", 1e6, "MB"))
+        add(listOf("gb"), U("data", 1e9, "GB")); add(listOf("tb"), U("data", 1e12, "TB"))
+        add(listOf("c", "°c", "celsius", "centigrade"), U("temp", 0.0, "°C"))
+        add(listOf("f", "°f", "fahrenheit"), U("temp", 1.0, "°F"))
+        add(listOf("k", "kelvin"), U("temp", 2.0, "K"))
+    }
+
+    private val re = Regex("(-?\\d+(?:\\.\\d+)?)\\s*(°?[a-z/]+)(?:\\s+(?:degrees?))?\\s+(?:to|in|into|as)\\s+(°?[a-z/]+)$")
+
+    fun parse(sentence: String): Pair<String, String>? {
+        val s = sentence.replace(Regex("^(convert|what's|whats|what is|how many|how much is)\\s+"), "").replace("degrees ", "")
+        val m = re.find(s) ?: return null
+        val v = m.groupValues[1].toDouble()
+        val a = table[m.groupValues[2]] ?: return null
+        val b = table[m.groupValues[3]] ?: return null
+        if (a.dim != b.dim) return null
+        val out = if (a.dim == "temp") {
+            val c = when (a.factor) { 0.0 -> v; 1.0 -> (v - 32) * 5 / 9; else -> v - 273.15 }
+            when (b.factor) { 0.0 -> c; 1.0 -> c * 9 / 5 + 32; else -> c + 273.15 }
+        } else v * a.factor / b.factor
+        return "${MiniCalc.format(v)} ${a.label} to ${b.label}" to "${MiniCalc.format(v)} ${a.label} is ${MiniCalc.format(out)} ${b.label}"
+    }
+}
