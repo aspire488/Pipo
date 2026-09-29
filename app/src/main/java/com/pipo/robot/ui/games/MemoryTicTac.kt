@@ -52,7 +52,7 @@ private class Card(val shape: ItemShape) {
 
 @Composable
 fun MemoryGame(onExit: () -> Unit) {
-    val gp = rememberGamePipo()
+    val gp = rememberGamePipo("memory")
     val scope = rememberCoroutineScope()
     fun deal(): List<Card> {
         val pool = listOf(ItemShape.GEAR, ItemShape.BATTERY, ItemShape.MARBLE, ItemShape.KEY, ItemShape.PEBBLE, ItemShape.BUTTON, ItemShape.SPRING, ItemShape.TUBE)
@@ -177,7 +177,7 @@ private fun minimax(b: MutableList<Int>, pipoToMove: Boolean, depth: Int): Int {
 
 @Composable
 fun TicTacToeGame(onExit: () -> Unit) {
-    val gp = rememberGamePipo()
+    val gp = rememberGamePipo("tictactoe")
     val scope = rememberCoroutineScope()
     val board = remember { mutableStateListOf(0, 0, 0, 0, 0, 0, 0, 0, 0) }
     var youStart by remember { mutableStateOf(true) }

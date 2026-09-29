@@ -30,6 +30,38 @@ object Dialogue {
         else line.replace("{N}", n.uppercase()).replace("{n}", n)
     }
 
+    /**
+     * "While you were gone..." — up to three highlights of what he actually did.
+     * Never a guilt trip: it's a report, not a complaint.
+     */
+    fun awayDigest(items: List<String>, rng: Random): String? {
+        val xs = items.takeLast(3)
+        if (xs.isEmpty()) return null
+        val outro = pick(listOf("Normal day.", "I regret nothing.", "Don't ask about the second one.", "Busy, busy.", "Big day for a small robot."), rng)
+        return when (xs.size) {
+            1 -> "While you were gone I ${xs[0]}. " + pick(listOf("Normal day.", "That's it. That's the news.", "Very productive."), rng)
+            2 -> "While you were gone I ${xs[0]} and ${xs[1]}. $outro"
+            else -> "Okay, recap: I ${xs[0]}, ${xs[1]}, and ${xs[2]}. $outro"
+        }
+    }
+
+    val peekIn = listOf("...hi.", "Oh! There you are. I was... around.", "Boo. Did it work?", "(I wasn't hiding.)")
+    val fakeSleepCaught = listOf("BOO! I was awake the whole time.", "Ha! Got you. I wasn't sleeping.", "I was pretending! Did you buy it?")
+    val fakeSleepGiveUp = listOf("...you didn't even notice I was pretending. Rude.", "Fine. I'm awake. I was always awake.")
+    val absorbedHold = listOf("One sec. I'm in the zone.", "Shh. Almost. Almost.", "Hold on. This is the good part.", "Not now. Genius in progress.")
+    val absorbedDone = listOf("Okay! I'm back. What?", "Sorry. I was very busy being brilliant.", "Where was I? Oh. Here.")
+    val distractedBall = listOf("Wait. Did the ball just move?", "Ball! BALL.", "The ball is looking at me.")
+    val distractedCritter = listOf("Something moved.", "There's a thing. A flying thing.", "Hello? Who's there?")
+    val distractedNoise = listOf("Did you hear that?", "What was that noise?", "Hm? Something went click.")
+    val distractedThought = listOf("...", "Wait. What was I doing?", "Hold on. I just had a thought. It's gone.", "Hmm.")
+    val forgotTask = listOf("...what was I doing?", "I forgot what I was doing. It was important. Probably.", "Anyway.", "I'll finish that later. Maybe.")
+    val streakPipo = listOf("That's {k} in a row. Should I go easy on you?", "{k} wins in a row. I'm getting a trophy. I'm making the trophy.", "{k} in a row. I'm not bragging. I'm counting.")
+    val streakUser = listOf("{k}. In. A. Row. I'm not talking to you.", "{k} times? You're cheating. Somehow.", "That's {k} losses. I'm writing this down. For revenge.")
+    val sulkLines = listOf("Hmph.", "I'm not upset. I'm facing the wall for fun.", "Don't look at me.")
+    val getUpLines = listOf("I'm okay!", "Floor inspected. It's fine.", "I meant to do that.")
+    val dizzyLines = listOf("The room is spinning. Is the room spinning?", "Whoa. Three of you.", "I can see sounds.")
+    val lieDownLines = listOf("I'm looking at the ceiling. It's doing nothing. Same.", "Floor time.", "Don't mind me. I'm resting my everything.")
+
     /* ---------------- greetings ---------------- */
     val sleepMumble = listOf("...five more minutes.", "...mmh. not now.", "zz... ...the screws are talking...", "...I'm not asleep. I'm buffering.")
     val foundWhileAway = listOf("I found this while you were gone.", "Look. Look what I found.", "You missed it. I found a thing.")

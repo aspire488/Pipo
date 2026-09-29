@@ -68,7 +68,7 @@ private fun DrawScope.drawHand(h: Hand, c: Color) {
 
 @Composable
 fun RpsGame(onExit: () -> Unit) {
-    val gp = rememberGamePipo()
+    val gp = rememberGamePipo("rps")
     val scope = rememberCoroutineScope()
     var you by remember { mutableIntStateOf(0) }
     var pipo by remember { mutableIntStateOf(0) }
@@ -149,7 +149,7 @@ private fun HandSlot(label: String, h: Hand?, c: Color) {
 
 @Composable
 fun ReactionGame(onExit: () -> Unit) {
-    val gp = rememberGamePipo()
+    val gp = rememberGamePipo("reaction")
     val scope = rememberCoroutineScope()
     var round by remember { mutableIntStateOf(0) }
     var you by remember { mutableIntStateOf(0) }

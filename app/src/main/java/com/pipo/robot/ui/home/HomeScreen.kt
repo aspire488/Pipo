@@ -81,6 +81,8 @@ import com.pipo.robot.ui.common.GlyphIcon
 import com.pipo.robot.ui.common.RoundButton
 import com.pipo.robot.ui.render.drawBlanket
 import com.pipo.robot.ui.render.drawEmote
+import com.pipo.robot.ui.render.drawForeground
+import androidx.compose.ui.graphics.drawscope.withTransform
 import com.pipo.robot.ui.render.drawItem
 import com.pipo.robot.ui.render.drawLighting
 import com.pipo.robot.ui.render.drawPipo
@@ -192,15 +194,20 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
             vm.setViewport(size.width, size.height)
             val g = vm.geo ?: return@Canvas
             val t = vm.clock
-            val room = vm.room.copy(ballU = vm.ballU, torch = vm.rig.torch)
+            val room = vm.roomNow()
             val inBed = vm.bedBlend > 0.5f
-            drawRoom(g, vm.camU, room, t, inBed)
-            val foot = vm.footScreen()
-            drawPipo(vm.rig, foot.x, foot.y, g.pipoH, vm.lift * g.u, shadow = !inBed)
-            if (inBed) drawBlanket(g, vm.camU, t)
-            val head = vm.headScreen()
-            drawLighting(g, vm.camU, room, head, vm.glowColor(), t)
-            drawEmote(vm.rig, head.x, head.y, g.pipoH / 100f)
+            val z = vm.camZoom
+            // Camera: a gentle dolly towards Pipo when he talks to you or shows you something.
+            withTransform({ scale(z, z, pivot = vm.zoomPivotPublic()) }) {
+                drawRoom(g, vm.camU, room, t, inBed)
+                val foot = vm.footScreen()
+                drawPipo(vm.rig, foot.x, foot.y, g.pipoH, vm.lift * g.u, shadow = !inBed, light = vm.lightNow(room))
+                if (inBed) drawBlanket(g, vm.camU, t)
+                val head = vm.headScreen()
+                drawLighting(g, vm.camU, room, head, vm.glowColor(), t)
+                drawForeground(g, vm.camU, room)
+                drawEmote(vm.rig, head.x, head.y, g.pipoH / 100f)
+            }
         }
 
         // ---------------- speech bubble, anchored above Pipo's head every frame
@@ -215,7 +222,7 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
                         @Suppress("UNUSED_VARIABLE") val tick = vm.frame
                         val p = m.measure(c.copy(minWidth = 0, minHeight = 0, maxWidth = min(c.maxWidth, maxW)))
                         layout(c.maxWidth, c.maxHeight) {
-                            val h = vm.headScreen()
+                            val h = vm.headView()
                             val x = (h.x - p.width / 2f).coerceIn(16f, (c.maxWidth - p.width - 16f).coerceAtLeast(16f))
                             val lo = gap * 5
                             val hi = (c.maxHeight - p.height).toFloat().coerceAtLeast(lo)
@@ -402,6 +409,12 @@ private fun RevealCard(r: Reveal) {
                     color = PipoPalette.ink.copy(alpha = 0.6f), fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(8.dp))
                 Text(r.project.result, color = PipoPalette.ink.copy(alpha = 0.85f), textAlign = TextAlign.Center)
+                // how it got here: the little story of the build
+                val story = r.project.log.takeLast(3)
+                if (story.isNotEmpty()) {
+                    Spacer(Modifier.height(10.dp))
+                    story.forEach { Text("· $it", color = PipoPalette.ink.copy(alpha = 0.55f), fontSize = 13.sp, textAlign = TextAlign.Center) }
+                }
             }
         }
         Spacer(Modifier.height(14.dp))

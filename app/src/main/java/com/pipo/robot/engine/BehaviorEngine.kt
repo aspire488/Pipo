@@ -12,6 +12,8 @@ import com.pipo.robot.data.PipoProject
 import com.pipo.robot.data.PipoState
 import com.pipo.robot.data.ProjectState
 import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.pow
 import kotlin.random.Random
 
 sealed class Outcome {
@@ -25,6 +27,22 @@ sealed class Outcome {
 }
 
 enum class OfferKind { PLAY_GAME, SURPRISE, THOUGHT }
+
+/** Something that pulls Pipo's attention away from what he was doing. */
+enum class DistractionKind { BALL, CRITTER, NOISE, SHINY, THOUGHT }
+
+/** Which room object a "suggest:<id>" memory refers to → the activity it nudges him towards. */
+internal fun suggestedActivity(obj: String): List<ActivityType> = when (obj) {
+    "plant" -> listOf(INSPECT_PLANT)
+    "desk" -> listOf(READ, WORK_COMPUTER)
+    "arcade" -> listOf(PLAY_ARCADE)
+    "toys" -> listOf(PLAY_TOY)
+    "workbench" -> listOf(BUILD, EXPERIMENT)
+    "window" -> listOf(THINK)
+    "shelf" -> listOf(EXAMINE)
+    "charger" -> listOf(CHARGE)
+    else -> emptyList()
+}
 
 object BehaviorEngine {
 
@@ -64,6 +82,36 @@ object BehaviorEngine {
         add(SEEK_USER, if (env.userPresent) t.sociability * 1.0f + m.loneliness * 0.8f + t.affection * 0.4f else 0f)
         add(NOTHING, t.laziness * 0.6f + 0.2f)
 
+        // ---- context: what's going on in his life right now
+        val bonus = mutableMapOf<ActivityType, Float>()
+        fun plus(a: ActivityType, v: Float) { bonus[a] = (bonus[a] ?: 0f) + v }
+        // unfinished projects pull him back; missing parts send him exploring
+        if (project?.state == ProjectState.GATHERING && Discovery.neededTags(s).isNotEmpty()) plus(EXPLORE, 0.5f)
+        if (project == null && Projects.retryCandidate(s, now) != null) { plus(THINK, 0.35f + t.stubbornness * 0.3f); plus(WORK_COMPUTER, 0.2f) }
+        // time of day
+        when (env.hour) {
+            in 6..10 -> { plus(INSPECT_PLANT, 0.3f); plus(THINK, 0.2f) }
+            in 18..22 -> { plus(READ, 0.35f); plus(REST, 0.2f) }
+        }
+        // the user: just saw them → less need to seek them out, more urge to show off
+        val sinceUser = now - s.lastUserInteractionAt
+        if (env.userPresent && sinceUser < 2 * MINUTE) {
+            plus(SEEK_USER, -0.5f)
+            if (m.happiness > 0.6f) { plus(DANCE, 0.2f); plus(PLAY_TOY, 0.15f) }
+        }
+        // the relationship shows up as wanting to be near you — never as a number
+        if (env.userPresent) plus(SEEK_USER, s.profile.relationship * 0.5f)
+        // memories: things you encouraged, games you play together
+        for (mem in s.memories) {
+            if (mem.key.startsWith("suggest:")) suggestedActivity(mem.key.removePrefix("suggest:")).forEach { plus(it, min(mem.count, 5) * 0.07f) }
+        }
+        val gamesTogether = s.games.values.sumOf { it.plays }
+        if (gamesTogether > 0) plus(PLAY_ARCADE, min(gamesTogether, 10) * 0.02f) // practising
+        for (i in out.indices) bonus[out[i].type]?.let { out[i] = Scored(out[i].type, max(0f, out[i].score + it)) }
+
+        // variety: recently repeated activities lose their appeal (sleep and real work excepted)
+        val recent = s.recentActivities.takeLast(5)
+
         // Mood colours every decision.
         return out.map { c ->
             val mult = when (mood) {
@@ -78,7 +126,9 @@ object BehaviorEngine {
                 else -> 1f
             }
             val cool = s.cooldowns["act:${c.type.name}"] ?: 0L
-            Scored(c.type, if (now < cool) 0f else c.score * mult)
+            val repeats = if (c.type == SLEEP || c.type == BUILD) 0 else recent.count { it == c.type }
+            val variety = 0.6f.pow(repeats)
+            Scored(c.type, if (now < cool) 0f else c.score * mult * variety)
         }
     }
 
@@ -116,11 +166,24 @@ object BehaviorEngine {
         return (base * (0.75f + rng.nextFloat() * 0.5f)).toLong()
     }
 
+    private val absorbable = setOf(BUILD, EXPERIMENT, READ, WORK_COMPUTER, EXAMINE, INSPECT_PLANT, PLAY_ARCADE, THINK)
+
+    fun absorbChance(s: PipoState, type: ActivityType): Float {
+        if (type !in absorbable) return 0f
+        val t = s.profile.traits
+        return (0.1f + t.patience * 0.22f + t.curiosity * 0.08f + (if (s.mood.current == Mood.CURIOUS) 0.12f else 0f) -
+            (if (s.mood.current == Mood.BORED || s.mood.current == Mood.SLEEPY) 0.08f else 0f)).coerceIn(0f, 0.5f)
+    }
+
     fun start(s: PipoState, type: ActivityType, now: Long, rng: Random) {
         s.activity.type = type
         s.activity.startedAt = now
         s.activity.durationMs = durationMs(type, s, rng)
         s.activity.result = ""
+        s.activity.absorbed = rng.nextFloat() < absorbChance(s, type)
+        if (s.activity.absorbed) s.activity.durationMs = (s.activity.durationMs * 2.2f).toLong()
+        s.recentActivities.add(type)
+        if (s.recentActivities.size > 8) s.recentActivities.removeAt(0)
         val cd = when (type) {
             EXPLORE -> 70_000L; PREPARE_SURPRISE -> 20 * MINUTE; SEEK_USER -> 90_000L; DANCE -> 40_000L
             PLAY_ARCADE -> 50_000L; REARRANGE -> 3 * MINUTE; EXAMINE -> 60_000L; INSPECT_PLANT -> 60_000L
@@ -217,7 +280,11 @@ object BehaviorEngine {
                 val p = Projects.maybeStart(s, rng, now, if (offline) 0.35f else 0.25f)
                 if (p != null) {
                     out += Outcome.Emote(EmoteKind.IDEA)
-                    if (!offline) out += Outcome.Say(Catalog.project(p.templateId)?.idea ?: "I have an idea.", Sfx.SURPRISED)
+                    val def = Catalog.project(p.templateId)
+                    if (!offline) out += Outcome.Say(
+                        if (p.attempts > 0) "Okay. The ${p.title.lowercase()}. Again. This time I know what went wrong."
+                        else def?.idea ?: "I have an idea.", Sfx.SURPRISED)
+                    else Chronicle.event(s, EventType.THOUGHT, 0.42f + t.sociability * 0.15f, now, "idea:${p.title}")
                 } else if (!offline && rng.nextFloat() < 0.55f) {
                     out += Outcome.Say(if (type == THINK) Dialogue.thought(s, rng) else Dialogue.pick(Dialogue.computerLines, rng))
                 } else if (offline && rng.nextFloat() < 0.08f) {
@@ -264,6 +331,42 @@ object BehaviorEngine {
         val mem = Chronicle.recall(s, rng, now, setOf(MemoryType.JOKE, MemoryType.GAME, MemoryType.MOMENT, MemoryType.USER_FACT))
         if (mem != null && rng.nextFloat() < 0.5f) return listOf(Outcome.Say(Dialogue.callback(mem, s, rng), Sfx.BEEP))
         return listOf(Outcome.Say(Dialogue.thought(s, rng), Sfx.BEEP))
+    }
+
+    /**
+     * While doing something, Pipo might get distracted. Absorbed Pipo never does; an impatient,
+     * curious or bored one does more. Pure except for the cooldown and counter it sets.
+     */
+    fun distraction(s: PipoState, type: ActivityType, env: Env, rng: Random, now: Long): DistractionKind? {
+        if (type == SLEEP || type == SEEK_USER || type == CHARGE || s.activity.absorbed) return null
+        if (now < (s.cooldowns["distract"] ?: 0L)) return null
+        val t = s.profile.traits
+        val mood = s.mood.current
+        val chance = 0.05f + (1f - t.patience) * 0.1f + t.curiosity * 0.05f +
+            (if (mood == Mood.CURIOUS || mood == Mood.BORED) 0.06f else 0f) - (if (mood == Mood.SLEEPY) 0.04f else 0f)
+        if (rng.nextFloat() >= chance) return null
+        s.cooldowns["distract"] = now + 3 * MINUTE
+        s.count("distracted")
+        val evening = env.hour >= 20 || env.hour < 6
+        val w = linkedMapOf(
+            DistractionKind.BALL to 1f,
+            DistractionKind.CRITTER to if (evening) 1.3f else 0.7f,
+            DistractionKind.NOISE to 0.8f,
+            DistractionKind.SHINY to 0.3f + t.curiosity * 0.4f,
+            DistractionKind.THOUGHT to 0.6f,
+        )
+        var r = rng.nextFloat() * w.values.sum()
+        for ((k, v) in w) { r -= v; if (r <= 0f) return k }
+        return DistractionKind.THOUGHT
+    }
+
+    /** Chasing a distraction sometimes leads somewhere. Respects the normal discovery cooldown. */
+    fun stumble(s: PipoState, rng: Random, now: Long): OwnedItem? {
+        if (now < (s.cooldowns["discover"] ?: 0L) || rng.nextFloat() > 0.5f + s.profile.traits.curiosity * 0.2f) return null
+        val item = Discovery.roll(s, rng, now) ?: return null
+        s.cooldowns["discover"] = now + 6 * MINUTE
+        Chronicle.remember(s, MemoryType.DISCOVERY, "I got distracted and found something anyway", 0.45f, now, "stumble")
+        return item
     }
 
     fun favoriteGame(s: PipoState): String? =

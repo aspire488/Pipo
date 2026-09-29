@@ -273,7 +273,7 @@ object NotificationPolicy {
                 Voice.SHY -> p("Um... I found something.", "I found a thing. If you want to see. No pressure.")
                 Voice.SLEEPY -> p("I found something... tomorrow.", "found a thing... ...zz")
                 Voice.MISCHIEVOUS -> p("I found something. It's mine now.", "I found a thing. Don't ask where.")
-                Voice.NORMAL -> p("I found something weird.", "I found a thing. Come see.")
+                Voice.NORMAL -> p("{n}. I found something weird.", "I found something weird.", "I found a thing. Come see.")
             }
             EventType.REVEAL -> p("I figured out what the thing does.", "Okay. I know what it is now. Come see.")
             EventType.PROJECT_DONE -> when (v) {
@@ -281,16 +281,21 @@ object NotificationPolicy {
                 Voice.SHY -> p("I made a thing. It's small. Do you want to see?")
                 Voice.SLEEPY -> p("made a thing... showing you... later...")
                 Voice.MISCHIEVOUS -> p("I made something. It's probably fine.")
-                Voice.NORMAL -> p("I finally finished my little project!", "I made something.")
+                Voice.NORMAL -> p("I finally finished it.", "I finally finished my little project!", "I made something.")
             }
             EventType.PROJECT_FAILED, EventType.PROJECT_EVOLVED, EventType.PRANK -> when (v) {
                 Voice.MISCHIEVOUS -> p("I did something. You probably shouldn't ask.", "I have done a small crime. A very small one.")
                 Voice.SHY -> p("Um. Something happened. It wasn't me. It was me.")
                 Voice.SLEEPY -> p("did something... explain later...")
-                else -> p("I did something. Don't be mad.", "So. Funny story.")
+                else -> p("Don't judge me.", "I did something. Don't be mad.", "So. Funny story.")
             }
             EventType.SURPRISE -> if (v == Voice.SHY) p("I made you a thing. You don't have to like it.") else p("I made you something.", "{n}. I made you something.")
-            EventType.THOUGHT -> when (v) {
+            EventType.THOUGHT -> if (ev.payload.startsWith("idea:")) when (v) {
+                Voice.SLEEPY -> p("...idea. big one. tomorrow.")
+                Voice.SHY -> p("I have an idea. It's probably nothing.")
+                Voice.EXCITED -> p("I HAVE AN IDEA.", "{n}. I have an idea.")
+                else -> p("I have an idea.", "{n}. I have an idea.")
+            } else when (v) {
                 Voice.SLEEPY -> p("...had a thought. forgot it.")
                 Voice.MISCHIEVOUS -> p("I have an extremely questionable idea.")
                 else -> p("{n}. I have a thought.", "I have a thought. It's a good one. Probably.")

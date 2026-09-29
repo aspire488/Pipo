@@ -132,6 +132,8 @@ data class PipoActivity(
     var startedAt: Long = 0L,
     var durationMs: Long = 0L,
     var result: String = "",
+    /** Completely absorbed: takes longer, and he may hold up a finger instead of stopping. */
+    var absorbed: Boolean = false,
 )
 
 /* ------------------------------------------------------------------ */
@@ -153,6 +155,8 @@ data class PipoProject(
     val startedAt: Long = 0L,
     var finishedAt: Long = 0L,
     var attempts: Int = 0,
+    /** Little story beats that happened while building (stages, setbacks, surprises). */
+    val log: MutableList<String> = mutableListOf(),
 ) {
     val active: Boolean get() = state == ProjectState.GATHERING || state == ProjectState.BUILDING
 }
@@ -286,6 +290,10 @@ data class PipoState(
     var lastSimulatedAt: Long = 0L,
     var lastSeenByUserAt: Long = 0L,
     var lastUserInteractionAt: Long = 0L,
+    /** Most recent activities (newest last) so he doesn't loop on the same few things. */
+    var recentActivities: MutableList<ActivityType> = mutableListOf(),
+    /** Short "what I did while you were away" highlights, told (and cleared) when you come back. */
+    var awayLog: MutableList<String> = mutableListOf(),
 ) {
     fun nextId(): Long = ++idCounter
     fun count(key: String, by: Int = 1): Int {

@@ -41,6 +41,8 @@ import com.pipo.robot.engine.ChatAction
 import com.pipo.robot.engine.ChatResult
 import com.pipo.robot.engine.Chronicle
 import com.pipo.robot.engine.Dialogue
+import com.pipo.robot.engine.DistractionKind
+import com.pipo.robot.engine.MINUTE
 import com.pipo.robot.engine.EmoteKind
 import com.pipo.robot.engine.Env
 import com.pipo.robot.engine.Expr
@@ -48,6 +50,7 @@ import com.pipo.robot.engine.GreetKind
 import com.pipo.robot.engine.Greeter
 import com.pipo.robot.engine.Greeting
 import com.pipo.robot.engine.HOUR
+import com.pipo.robot.engine.DAY as DAY_MS
 import com.pipo.robot.engine.LocalBrain
 import com.pipo.robot.engine.MoodEngine
 import com.pipo.robot.engine.OfferKind
@@ -68,10 +71,17 @@ import com.pipo.robot.phone.PhoneActions
 import com.pipo.robot.phone.PhoneAwareness
 import com.pipo.robot.phone.PhoneState
 import com.pipo.robot.ui.games.GameLog
+import com.pipo.robot.ui.render.Critters
+import com.pipo.robot.ui.render.Fidget
+import com.pipo.robot.ui.render.PipoLight
 import com.pipo.robot.ui.render.PipoRig
 import com.pipo.robot.ui.render.RoomState
 import com.pipo.robot.ui.render.SceneGeo
+import com.pipo.robot.ui.render.dayFactor
+import com.pipo.robot.ui.render.pipoLight
 import com.pipo.robot.voice.PipoVoice
+import com.pipo.robot.voice.charsPerSecond
+import com.pipo.robot.engine.SpeechStyles
 import com.pipo.robot.voice.SpeechInput
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -89,7 +99,7 @@ import kotlin.random.Random
 /* Small scripted steps Pipo performs in order. The autonomy engine decides WHAT; beats are HOW. */
 sealed class Beat {
     /** x = world position in u; null = come to the front, towards the user. */
-    class Move(val x: Float?, val run: Boolean = false) : Beat()
+    class Move(val x: Float?, val run: Boolean = false, val sneak: Boolean = false) : Beat()
     class Act(val anim: AnimState?, val secs: Float, val expr: Expr? = null) : Beat()
     class Say(val text: String, val sfx: Sfx? = null, val choices: List<Choice> = emptyList()) : Beat()
     class Emote(val kind: EmoteKind) : Beat()
@@ -214,6 +224,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private val sensors = app.getSystemService(SensorManager::class.java)
     private val shakeListener = object : SensorEventListener {
         override fun onSensorChanged(e: SensorEvent) {
+            tiltX += ((-e.values[0] / 9.81f).coerceIn(-1f, 1f) - tiltX) * 0.08f
+            tiltY += ((e.values[2] / 9.81f - 0.55f).coerceIn(-1f, 1f) - tiltY) * 0.08f
             val g = sqrt(e.values[0] * e.values[0] + e.values[1] * e.values[1] + e.values[2] * e.values[2]) / 9.81f
             if (g > 2.4f) {
                 val t = SystemClock.elapsedRealtime()
@@ -224,6 +236,27 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
     }
     private var sounds = true
+
+    // ---- evolution pass: presence
+    private var sneaking = false
+    /** Phone tilt, low-passed (-1..1). Drives parallax depth. */
+    var tiltX = 0f
+        private set
+    var tiltY = 0f
+        private set
+    /** Camera dolly: leans in when Pipo talks to you or shows you something. */
+    var camZoom = 1f
+        private set
+    private var plantRustle = 0f
+    private var attentionAt = 3f
+    private var restPose: AnimState? = null
+    private var absorbed = false
+    private var absorbedPokeAt = -100f
+    private var fakeSleeping = false
+    private var fakeSleepUntil = 0f
+    private var lastYawnSound = -100f
+    private var sociability = 0.55f
+    private var relationship = 0.1f
 
     init {
         viewModelScope.launch {
@@ -256,6 +289,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         sensors?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.let { sensors.registerListener(shakeListener, it, SensorManager.SENSOR_DELAY_UI) }
         brain = if (settings.aiEnabled && settings.aiApiKey.isNotBlank()) ClaudeBrain(settings.aiApiKey.trim()) else NoBrain
 
+        var digest: String? = null
         val (greet, notNowRecently) = repo.mutate { s ->
             val away = if (s.lastSeenByUserAt == 0L) Long.MAX_VALUE / 4 else now - s.lastSeenByUserAt
             Simulator.catchUp(s, now, rng)
@@ -270,6 +304,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             val nn = last != null && last.response == UserResponse.NOT_NOW && now - last.timestamp < 12 * HOUR
             s.lastSeenByUserAt = now
             s.lastSimulatedAt = now
+            if (away > 45 * MINUTE && s.awayLog.isNotEmpty()) digest = Dialogue.awayDigest(s.awayLog, rng)
             g to nn
         }
         refreshMood()
@@ -292,8 +327,19 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 enqueue(Beat.Move(null), Beat.Do { rig.lookAt(0f, 0.35f, 3f) }, Beat.Act(AnimState.CURIOUS, 0.6f, Expr.CURIOUS),
                     Beat.Say(Dialogue.pick(Reactions.cameraBack, rng), Sfx.BEEP))
             }
-            else -> stage(greet, notNowRecently)
+            else -> {
+                stage(greet, notNowRecently)
+                val tellable = greet.kind !in setOf(GreetKind.SLEEPING, GreetKind.FAKE_SLEEP, GreetKind.FIRST_WAKE, GreetKind.BRIEF)
+                digest?.let { d ->
+                    if (tellable) {
+                        enqueue(Beat.Wait(0.5f), Beat.Do { rig.lookAt(0f, 0.35f, 3f) }, say(d, Sfx.BEEP), Beat.Act(AnimState.CHEERFUL, 0.8f, Expr.HAPPY))
+                        repo.mutate { it.awayLog.clear() }
+                    }
+                }
+            }
         }
+        // He notices you arrive.
+        if (!inBed && greet.kind != GreetKind.PEEK_IN) rig.lookAt(0f, 0.35f, 1.4f)
         buildRoom()
     }
 
@@ -339,9 +385,13 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         if (engineAcc >= 1f) { engineAcc -= 1f; engineTick() }
         stepBeats(dt)
         stepMovement(dt)
+        stepAttention(dt)
         resolveRig()
         rig.update(dt)
+        if (rig.takeFidgetEvent() == Fidget.YAWN && sounds && clock - lastYawnSound > 25f) { lastYawnSound = clock; voice.synth.sfx(Sfx.YAWN) }
         stepCamera(dt)
+        stepZoom(dt)
+        plantRustle *= exp(-dt * 1.8f)
         if (bubbleHideAt in 0f..clock) { bubble = null; bubbleHideAt = -1f }
         if (userLine != null && clock > userLineUntil) userLine = null
         frame++
@@ -361,6 +411,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             s.lastSimulatedAt = now
             if (a != null) s.activity.type = a
             energy = s.mood.energy
+            sociability = s.profile.traits.sociability
+            relationship = s.profile.relationship
             mm
         }
         mood = m
@@ -389,6 +441,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 battery = phoneState.battery,
                 arcadeActive = activity == ActivityType.PLAY_ARCADE && activityArrived,
                 torch = phoneActions.torchOn,
+                computerActive = activity == ActivityType.WORK_COMPUTER && activityArrived,
+                benchActive = (activity == ActivityType.BUILD || activity == ActivityType.EXPERIMENT) && activityArrived,
+                music = phoneState.music,
             )
         }
     }
@@ -411,6 +466,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         cur = null
         targetX = null
         running = false
+        sneaking = false
+        fakeSleeping = false
         if (!activityArrived) activity = null
         voice.stop()
         rig.talking = false
@@ -435,6 +492,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 val x = b.x ?: frontX()
                 targetX = x.coerceIn(4f, SceneGeo.WORLD_W - 6f)
                 running = b.run
+                sneaking = b.sneak
+                if (b.run && sounds && rng.nextFloat() < 0.3f) voice.synth.sfx(Sfx.SERVO)
             }
             is Beat.Say -> {
                 sayDone = false
@@ -445,6 +504,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 if (b.choices.isEmpty() && b.text.length > 3) lastSpoken = b.text
                 sayMin = 1.3f + b.text.length * 0.045f
                 if (sounds) b.sfx?.let { voice.synth.sfx(it) }
+                rig.speak(b.text, charsPerSecond(mood, SpeechStyles.style(b.text), voice.mode))
                 voice.speak(b.text, mood) { if (sayBubbleId == id) sayDone = true }
             }
             is Beat.Emote -> rig.showEmote(b.kind)
@@ -481,6 +541,14 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     /** Nothing queued: continue or choose an activity. This is where autonomy lives. */
     private fun idle() {
         if (aiThinking || !booted) return
+        if (fakeSleeping) {
+            if (clock > fakeSleepUntil) {
+                fakeSleeping = false
+                enqueue(Beat.Do { inBed = false }, Beat.Act(AnimState.STRETCH, 0.8f, Expr.WINK),
+                    Beat.Say(Dialogue.pick(Dialogue.fakeSleepGiveUp, rng), Sfx.GRUMBLE), Beat.Act(AnimState.ARMS_CROSSED, 1.2f, Expr.MISCHIEF))
+            }
+            return
+        }
         if (maybeAskSomething()) return
         val a = activity
         if (a == null) { chooseNext(); return }
@@ -524,7 +592,14 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 Beat.Move(wanderX()), Beat.Act(AnimState.LOOK_AROUND, 1.8f, Expr.CURIOUS),
                 Beat.Move(wanderX()), Beat.Act(AnimState.PEEK, 1.2f, Expr.CURIOUS),
                 Beat.Move(wanderX()), Beat.Do { arrive(dur * 0.4f) })
-            ActivityType.REARRANGE -> enqueue(Beat.Move(wanderX()), Beat.Act(AnimState.MISCHIEVOUS, 1.5f, Expr.MISCHIEF), Beat.Move(wanderX(), run = true), Beat.Do { arrive(dur * 0.5f) })
+            ActivityType.REARRANGE -> enqueue(
+                Beat.Move(wanderX(), sneak = true), Beat.Do { rig.lookAt(0f, 0.35f, 1.4f) }, Beat.Act(AnimState.MISCHIEVOUS, 1.2f, Expr.SUSPICIOUS),
+                Beat.Move(wanderX(), sneak = true), Beat.Act(AnimState.PEEK, 0.8f, Expr.MISCHIEF), Beat.Do { arrive(dur * 0.5f) })
+            ActivityType.REST, ActivityType.NOTHING -> {
+                // The closer you two are, the more he likes to hang out near the front, near you.
+                if (relationship > 0.45f && rng.nextFloat() < 0.4f) enqueue(Beat.Move(frontX()))
+                enqueue(Beat.Do { arrive(dur) })
+            }
             else -> {
                 val st = type.station
                 if (st != Station.STAY) enqueue(Beat.Move(if (st == Station.FRONT) null else stationX(st)))
@@ -535,9 +610,24 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun arrive(durSecs: Float) {
         activityArrived = true
-        activityEnd = clock + durSecs.coerceIn(3f, 120f)
+        activityEnd = clock + durSecs.coerceIn(3f, 240f)
         microAt = clock + 3f + rng.nextFloat() * 4f
-        if (activity == ActivityType.SEEK_USER) rig.lookAt(0f, 0.35f, 3f)
+        absorbed = repo.read { it.activity.absorbed }
+        restPose = null
+        val a = activity
+        if (a == ActivityType.REST || a == ActivityType.NOTHING) {
+            // Doing nothing is a real activity. It comes in flavours.
+            val lazy = repo.read { it.profile.traits.laziness }
+            val r = rng.nextFloat() * (2.1f + lazy)
+            restPose = when {
+                r < 1f -> AnimState.SITTING
+                r < 1.6f -> AnimState.IDLE
+                else -> AnimState.LIE_DOWN
+            }
+            if (restPose == AnimState.LIE_DOWN && rng.nextFloat() < 0.3f) enqueue(Beat.Say(Dialogue.pick(Dialogue.lieDownLines, rng), Sfx.SIGH))
+        }
+        if (absorbed) rig.showEmote(EmoteKind.SPARKLE)
+        if (a == ActivityType.SEEK_USER) rig.lookAt(0f, 0.35f, 3f)
     }
 
     private fun completeActivity(a: ActivityType) {
@@ -550,6 +640,10 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             o
         }
         activity = null
+        if (restPose == AnimState.LIE_DOWN) enqueue(Beat.Act(AnimState.GET_UP, 1.1f, Expr.CONTENT))
+        restPose = null
+        if (absorbed && rng.nextFloat() < 0.4f) enqueue(Beat.Do { rig.lookAt(0f, 0.35f, 2f) }, Beat.Say(Dialogue.pick(Dialogue.absorbedDone, rng), Sfx.BEEP))
+        absorbed = false
         refreshMood()
         if (a == ActivityType.SLEEP && outs.none { it is Outcome.Say }) {
             // natural wake-up
@@ -603,6 +697,16 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun micro(a: ActivityType) {
+        val now = System.currentTimeMillis()
+        val env = currentEnv()
+        val d = repo.mutate(notify = false) { s -> BehaviorEngine.distraction(s, a, env, rng, now) }
+        if (d != null) { stageDistraction(d, a); return }
+        if (absorbed) {
+            // eyes locked on the work, the occasional thinking noise
+            if (sounds && rng.nextFloat() < 0.3f) voice.synth.sfx(Sfx.HMM)
+            if (rng.nextFloat() < 0.4f) rig.showEmote(EmoteKind.SPARKLE)
+            return
+        }
         when (a) {
             ActivityType.BUILD, ActivityType.EXPERIMENT -> { rig.showEmote(EmoteKind.SPARKLE); if (sounds && rng.nextFloat() < 0.4f) voice.synth.sfx(Sfx.BOOP) }
             ActivityType.THINK -> rig.showEmote(if (rng.nextBoolean()) EmoteKind.DOTS else EmoteKind.QUESTION)
@@ -621,6 +725,113 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             else -> Unit
         }
     }
+
+    /**
+     * Something caught his attention mid-activity. He goes to look; sometimes he comes back to
+     * what he was doing, sometimes he forgets it entirely, and sometimes it leads somewhere.
+     */
+    private fun stageDistraction(kind: DistractionKind, a: ActivityType) {
+        activity = null
+        restPose = null
+        val comeBack = rng.nextFloat() < 0.35f
+        val night = dayFactor(room.hour) < 0.5f
+        when (kind) {
+            DistractionKind.BALL -> {
+                ballTarget = (196f + rng.nextFloat() * 42f)
+                enqueue(Beat.Emote(EmoteKind.EXCLAIM), Beat.Do { rig.lookAt(((ballTarget - pipoX) / 35f), 0.4f, 1.5f) },
+                    Beat.Act(AnimState.SURPRISED, 0.5f, Expr.SURPRISED), Beat.Say(Dialogue.pick(Dialogue.distractedBall, rng), Sfx.SURPRISED),
+                    Beat.Move(ballTarget - 4f, run = true), Beat.Act(AnimState.PLAYING, 2.4f, Expr.HAPPY))
+            }
+            DistractionKind.CRITTER -> if (night) {
+                val (mx, _) = Critters.moth(clock)
+                enqueue(Beat.Emote(EmoteKind.QUESTION), Beat.Say(Dialogue.pick(Dialogue.distractedCritter, rng), Sfx.HMM),
+                    Beat.Move(mx - 9f), Beat.Act(AnimState.CURIOUS, 2.6f, Expr.CURIOUS), Beat.Act(AnimState.HOP, 0.6f, Expr.EXCITED))
+            } else {
+                enqueue(Beat.Emote(EmoteKind.QUESTION), Beat.Move(104f), Beat.Do { rig.lookAt(0.2f, -0.9f, 2.5f) },
+                    Beat.Act(AnimState.CURIOUS, 2.2f, Expr.CURIOUS), Beat.Say(Dialogue.pick(Dialogue.distractedCritter, rng), Sfx.HMM))
+            }
+            DistractionKind.NOISE -> enqueue(Beat.Act(AnimState.LOOK_AROUND, 1.5f, Expr.CURIOUS), Beat.Emote(EmoteKind.QUESTION),
+                Beat.Say(Dialogue.pick(Dialogue.distractedNoise, rng), Sfx.HMM), Beat.Act(AnimState.PEEK, 1.1f, Expr.SUSPICIOUS))
+            DistractionKind.SHINY -> enqueue(Beat.Emote(EmoteKind.EXCLAIM), Beat.Move(wanderX(), run = true), Beat.Act(AnimState.PEEK, 1.2f, Expr.CURIOUS),
+                Beat.Do {
+                    val now = System.currentTimeMillis()
+                    val item = repo.mutate { s ->
+                        BehaviorEngine.stumble(s, rng, now).also {
+                            // shown live right now, so it isn't "revealed" again on the next visit
+                            if (it != null) s.events.filter { e -> now - e.createdAt < 5_000 }.forEach { e -> e.shownInApp = true }
+                        }
+                    }
+                    if (item != null) beats.addAll(0, outcomeBeats(Outcome.Found(item)))
+                    else beats.addFirst(Beat.Say(Dialogue.pick(listOf("Oh. Just a reflection.", "It was a crumb. A shiny crumb.", "False alarm. Still exciting."), rng), Sfx.BOOP))
+                })
+            DistractionKind.THOUGHT -> enqueue(Beat.Act(AnimState.THINKING, 1.6f, Expr.CURIOUS), Beat.Emote(EmoteKind.DOTS), Beat.Say(Dialogue.pick(Dialogue.distractedThought, rng)))
+        }
+        if (comeBack && kind != DistractionKind.SHINY) enqueue(Beat.Say("Anyway.", Sfx.BEEP), Beat.Do { forceActivity(a) })
+        else if (rng.nextFloat() < 0.5f) enqueue(Beat.Act(AnimState.IDLE, 0.5f, Expr.CONTENT), Beat.Say(Dialogue.pick(Dialogue.forgotTask, rng), Sfx.BOOP))
+    }
+
+    /**
+     * Where his eyes go when nobody is directing them: you, the ball, the moth, a bird at the
+     * window, whatever he's working on. This is what makes the room feel reactive.
+     */
+    private fun stepAttention(dt: Float) {
+        if (inBed || dragging || listening || rig.isHoldingLook()) return
+        val c = cur
+        if (c is Beat.Say || c is Beat.Move || targetX != null) return
+        attentionAt -= dt
+        if (attentionAt > 0f) return
+        attentionAt = 1.8f + rng.nextFloat() * 3.5f
+        data class T(val x: Float?, val h: Float, val w: Float)
+        val cands = mutableListOf(
+            T(null, 0f, 0.35f + sociability * 0.4f + relationship * 0.6f), // you
+            T(104f, 57f, 0.25f), T(62f, 60f, 0.1f),
+        )
+        if (abs(ballTarget - ballU) > 3f) cands += T(ballU, 2f, 2.5f)
+        if (dayFactor(room.hour) < 0.5f) { val (mx, mh) = Critters.moth(clock); if (abs(mx - pipoX) < 70f) cands += T(mx, mh, 0.9f) }
+        Critters.bird(clock)?.let { cands += T(Critters.birdX(it), 58f, 1.8f) }
+        val a = activity
+        if (a != null && activityArrived && a.station != Station.STAY && a.station != Station.FRONT && a.station != Station.WANDER) cands += T(SceneGeo.station(a.station), 20f, if (absorbed) 3f else 0.7f)
+        if (phoneState.charging) cands += T(84f, 3f, 0.4f)
+        var r = rng.nextFloat() * cands.sumOf { it.w.toDouble() }.toFloat()
+        var pick = cands.first()
+        for (t in cands) { r -= t.w; if (r <= 0f) { pick = t; break } }
+        val x = pick.x
+        if (x == null) rig.lookAt(0f, 0.35f, 1.2f + rng.nextFloat())
+        else rig.lookAt(((x - pipoX) / 35f).coerceIn(-1f, 1f), (-(pick.h - 26f) / 35f).coerceIn(-1f, 1f), 1.2f + rng.nextFloat() * 1.3f)
+    }
+
+    private fun stepZoom(dt: Float) {
+        val c = cur
+        val g = geo
+        val near = g != null && abs(pipoX - (camU + g.viewU / 2f)) < 30f
+        val target = when {
+            dragging || reveal != null -> 1f
+            c is Beat.Act && c.anim == AnimState.PRESENTING -> 1.12f
+            c is Beat.Say && targetX == null && near && !inBed -> 1.08f
+            listening -> 1.06f
+            inBed && dayFactor(room.hour) < 0.3f -> 1.04f
+            else -> 1f
+        }
+        camZoom += (target - camZoom) * (1f - exp(-dt * 1.6f))
+    }
+
+    /** Zoom pivot: Pipo's middle, so the camera leans in on him. */
+    private fun zoomPivot(): Offset {
+        val g = geo ?: return Offset.Zero
+        val f = footScreen()
+        return Offset(f.x, f.y - g.pipoH * 0.5f)
+    }
+    fun zoomPivotPublic(): Offset = zoomPivot()
+    private fun toView(o: Offset): Offset { val p = zoomPivot(); return Offset(p.x + (o.x - p.x) * camZoom, p.y + (o.y - p.y) * camZoom) }
+    private fun fromView(x: Float, y: Float): Offset { val p = zoomPivot(); return Offset(p.x + (x - p.x) / camZoom, p.y + (y - p.y) / camZoom) }
+
+    /** Top of Pipo's head in on-screen (zoomed) coordinates — for the speech bubble. */
+    fun headView(): Offset = toView(headScreen())
+
+    /** Room state for this exact frame (per-frame values layered over the per-second snapshot). */
+    fun roomNow(): RoomState = room.copy(ballU = ballU, torch = rig.torch, plantRustle = plantRustle, tiltX = tiltX, tiltY = tiltY)
+
+    fun lightNow(r: RoomState): PipoLight = pipoLight(r, if (bedBlend > 0.5f) SceneGeo.BED_PIVOT else pipoX, glowColor(), rig.torch)
 
     /** Asking the user something at a natural pause (name, notifications). Returns true if it asked. */
     private fun maybeAskSomething(): Boolean {
@@ -656,13 +867,22 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             if (lift <= 0f) { lift = 0f; liftVel = 0f; land() }
             return
         }
-        val tx = targetX ?: return
-        val speed = if (running) 38f else 14f * (0.7f + energy * 0.5f)
+        val tx = targetX
+        if (tx == null) { rig.moveDir = 0f; rig.bodyVel = 0f; return }
+        val speed = if (running) 38f else if (sneaking) 8f else 14f * (0.7f + energy * 0.5f)
         val d = tx - pipoX
-        if (abs(d) < 0.5f) { pipoX = tx; targetX = null; running = false }
-        else {
-            pipoX += sign(d) * min(abs(d), speed * dt)
-            rig.lookAt(sign(d) * 0.8f, 0f, 0.3f)
+        if (abs(d) < 0.5f) {
+            pipoX = tx; targetX = null
+            if (running) rig.impact(0.22f) // skid to a stop
+            running = false; sneaking = false
+            rig.moveDir = 0f; rig.bodyVel = 0f
+        } else {
+            val step = sign(d) * min(abs(d), speed * dt)
+            pipoX += step
+            rig.moveDir = sign(d)
+            rig.bodyVel = step / dt
+            if (!sneaking) rig.lookAt(sign(d) * 0.8f, 0f, 0.3f)
+            if (abs(pipoX - 61f) < 9f) plantRustle = min(1f, plantRustle + dt * (if (running) 4f else 2f))
         }
     }
 
@@ -750,6 +970,27 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             GreetKind.WORKING -> enqueue(look, Beat.Act(null, 0.6f, Expr.SURPRISED), say(g.line, Sfx.BEEP))
             GreetKind.MISCHIEF_HIDE -> { interrupt(); leaveBed(); enqueue(look, Beat.Act(AnimState.HIDING, 1.2f, Expr.SURPRISED), say(g.line, Sfx.LAUGH), Beat.Act(AnimState.MISCHIEVOUS, 1.6f, Expr.MISCHIEF)) }
             GreetKind.NOTHING -> enqueue(look, Beat.Wait(0.8f), say("...", null), Beat.Act(AnimState.BORED, 1.5f, Expr.BORED))
+            GreetKind.FAKE_SLEEP -> {
+                interrupt(); activity = null
+                inBed = true; bedBlend = 1f; pipoX = SceneGeo.BED_PIVOT
+                geo?.let { camU = clampCam(pipoX - it.viewU / 2f) }
+                fakeSleeping = true
+                fakeSleepUntil = clock + 13f + rng.nextFloat() * 5f
+                enqueue(Beat.Wait(1.2f), Beat.Emote(EmoteKind.ZZZ))
+            }
+            GreetKind.PEEK_IN -> {
+                interrupt(); activity = null
+                inBed = false; bedBlend = 0f
+                val gg = geo
+                if (gg != null) {
+                    val fromLeft = camU > 10f || camU + gg.viewU + 8f > SceneGeo.WORLD_W - 6f
+                    pipoX = if (fromLeft) (camU - 7f).coerceAtLeast(4f) else (camU + gg.viewU + 7f).coerceAtMost(SceneGeo.WORLD_W - 6f)
+                    val peekX = if (fromLeft) camU + 9f else camU + gg.viewU - 9f
+                    camHoldUntil = clock + 5f
+                    enqueue(Beat.Wait(0.9f), Beat.Move(peekX, sneak = true), Beat.Do { rig.lookAt(0f, 0.35f, 3f) }, Beat.Act(AnimState.PEEK, 1.3f, Expr.SUSPICIOUS),
+                        say(g.line, Sfx.GIGGLE), Beat.Move(null), Beat.Act(AnimState.WAVE, 1f, Expr.HAPPY))
+                } else enqueue(look, say(g.line, Sfx.GIGGLE))
+            }
             GreetKind.HAPPY, GreetKind.CALM -> {
                 interrupt(); leaveBed()
                 val line = if (notNow) "You said not now earlier. Is it now? It feels like now." else g.line
@@ -789,9 +1030,26 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private fun reactToGame(r: GameLog.Result) {
         interrupt(); leaveBed()
         val look = Beat.Do { rig.lookAt(0f, 0.35f, 3f) }
+        val rec = repo.read { it.games[r.game]?.copy() }
+        val rematch = { Choice("Rematch") { enqueue(Beat.Act(AnimState.HOP, 0.5f, Expr.EXCITED), Beat.Do { navRequest = "game:${r.game}" }) } }
+        if (r.pipoWon == true && rec != null && rec.pipoStreak >= 3) {
+            enqueue(Beat.Move(null), look, Beat.Act(AnimState.CELEBRATE, 1.6f, Expr.PROUD),
+                Beat.Say(Dialogue.pick(Dialogue.streakPipo, rng).replace("{k}", rec.pipoStreak.toString()), Sfx.WIN, listOf(rematch(), Choice("Later") {
+                    enqueue(Beat.Say("Scared. Understandable.", Sfx.LAUGH), Beat.Act(AnimState.PROUD, 1f, Expr.PROUD))
+                })))
+            return
+        }
+        if (r.pipoWon == false && rec != null && rec.userStreak >= 3) {
+            enqueue(Beat.Move(null), Beat.Act(AnimState.SULK, 2.2f, Expr.ANNOYED),
+                Beat.Say(Dialogue.pick(Dialogue.streakUser, rng).replace("{k}", rec.userStreak.toString()), Sfx.GRUMBLE),
+                look, Beat.Say("...rematch?", Sfx.BEEP, listOf(rematch(), Choice("Later") {
+                    enqueue(Beat.Say(Dialogue.pick(Dialogue.sulkLines, rng), Sfx.SIGH), Beat.Act(AnimState.TURN_AWAY, 1.5f, Expr.ANNOYED))
+                })))
+            return
+        }
         when (r.pipoWon) {
             true -> enqueue(Beat.Move(null), look, Beat.Act(AnimState.DANCING, 2f, Expr.PROUD), Beat.Say(Dialogue.pick(Dialogue.pipoWinsGame, rng), Sfx.WIN))
-            false -> enqueue(Beat.Move(null), look, Beat.Act(AnimState.SAD, 1.2f, Expr.SAD), Beat.Say(Dialogue.pick(Dialogue.pipoLosesGame, rng), Sfx.LOSE), Beat.Act(AnimState.ANNOYED, 1f, Expr.SUSPICIOUS))
+            false -> enqueue(Beat.Move(null), look, Beat.Act(AnimState.SAD, 1.2f, Expr.SAD), Beat.Say(Dialogue.pick(Dialogue.pipoLosesGame, rng), Sfx.LOSE), Beat.Act(AnimState.ARMS_CROSSED, 1.3f, Expr.SUSPICIOUS))
             null -> enqueue(Beat.Move(null), look, Beat.Say("Good game. I think. Who won? Me.", Sfx.BEEP))
         }
     }
@@ -815,14 +1073,16 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun react(e: Expr, secs: Float = 1.2f) { reactExpr = e; reactUntil = clock + secs }
 
-    fun onPointer(x: Float, y: Float) {
+    fun onPointer(vx: Float, vy: Float) {
+        val (x, y) = fromView(vx, vy)
         val h = headScreen()
         val g = geo ?: return
         if (inBed) return
         rig.lookAt((x - h.x) / (g.w * 0.45f), (y - (h.y + g.pipoH * 0.3f)) / (g.h * 0.35f), 1.2f)
     }
 
-    fun onTap(x: Float, y: Float) {
+    fun onTap(vx: Float, vy: Float) {
+        val (x, y) = fromView(vx, vy)
         val g = geo ?: return
         if (reveal != null) { reveal = null; return }
         if (hitPipo(x, y)) { tapPipo(); return }
@@ -846,6 +1106,32 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private fun tapPipo() {
         registerInteraction()
         if (firstWakePending) { firstWake(); return }
+        if (fakeSleeping) {
+            interrupt()
+            val now = System.currentTimeMillis()
+            repo.mutate { s ->
+                MoodEngine.bump(s, happiness = 0.08f, excitement = 0.1f)
+                Chronicle.remember(s, MemoryType.JOKE, "I pretended to be asleep and got you", 0.5f, now, "fakesleep")
+                if (now - (s.cooldowns["journal:fakesleep"] ?: 0L) > DAY_MS) {
+                    s.cooldowns["journal:fakesleep"] = now
+                    Chronicle.journal(s, "Pipo faked a nap", "He pretended to be asleep until you poked him. One eye was open the whole time.", JournalCategory.MISCHIEF, now)
+                }
+            }
+            enqueue(Beat.Do { inBed = false; activity = null }, Beat.Emote(EmoteKind.EXCLAIM), Beat.Act(AnimState.EXCITED, 0.6f, Expr.MISCHIEF),
+                Beat.Say(Dialogue.pick(Dialogue.fakeSleepCaught, rng), Sfx.LAUGH), Beat.Act(AnimState.LAUGH, 1.4f, Expr.LAUGH))
+            return
+        }
+        if (absorbed && activityArrived && activity != null && !inBed) {
+            if (clock - absorbedPokeAt > 8f) {
+                // Completely absorbed: one finger up, eyes stay on the work.
+                absorbedPokeAt = clock
+                beats.clear(); cur = null
+                enqueue(Beat.Act(AnimState.FINGER_UP, 1.5f, Expr.FOCUSED), Beat.Say(Dialogue.pick(Dialogue.absorbedHold, rng), Sfx.HMM))
+                return
+            }
+            absorbed = false
+            repo.mutate(notify = false) { it.activity.absorbed = false }
+        }
         if (inBed) {
             val ignore = repo.read { it.mood.energy < 0.3f && rng.nextFloat() < 0.5f + it.profile.traits.laziness * 0.3f }
             if (ignore) {
@@ -872,9 +1158,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         interrupt()
         when {
             n >= 9 -> enqueue(Beat.Act(AnimState.HIDING, 2.5f, Expr.CLOSED), Beat.Say(line ?: "...", Sfx.GRUMBLE), Beat.Act(AnimState.PEEK, 1.2f, Expr.SUSPICIOUS))
-            n >= 6 -> enqueue(Beat.Emote(EmoteKind.ANGER), Beat.Say(line ?: "Hey.", Sfx.GRUMBLE), Beat.Act(AnimState.ANNOYED, 1.4f, Expr.ANNOYED))
+            n >= 6 -> enqueue(Beat.Emote(EmoteKind.ANGER), Beat.Say(line ?: "Hey.", Sfx.GRUMBLE), Beat.Act(AnimState.TURN_AWAY, 1.8f, Expr.ANNOYED))
             n >= 4 -> enqueue(Beat.Act(AnimState.SHAKE, 0.4f, Expr.ANNOYED), Beat.Say(line ?: "Hey.", Sfx.BOOP))
-            m == Mood.GRUMPY -> { enqueue(Beat.Act(AnimState.ANNOYED, 1f, Expr.ANNOYED)); line?.let { enqueue(Beat.Say(it, Sfx.GRUMBLE)) } }
+            m == Mood.GRUMPY -> { enqueue(Beat.Act(AnimState.ARMS_CROSSED, 1.4f, Expr.ANNOYED)); line?.let { enqueue(Beat.Say(it, Sfx.GRUMBLE)) } }
             m == Mood.SLEEPY -> enqueue(Beat.Act(AnimState.SLEEPY, 0.8f, Expr.SLEEPY), Beat.Say(line ?: "...hm?", Sfx.SLEEPY))
             m == Mood.MISCHIEVOUS && n <= 2 && rng.nextFloat() < 0.6f -> {
                 val away = (pipoX + (if (pipoX < 120f) 1f else -1f) * (28f + rng.nextFloat() * 22f)).coerceIn(8f, SceneGeo.WORLD_W - 8f)
@@ -897,8 +1183,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             if (grumpy) MoodEngine.bump(s, irritation = 0.15f)
             s.activity.type = ActivityType.REST
         }
-        enqueue(Beat.Act(AnimState.SLEEPING, 0.6f, Expr.SURPRISED), Beat.Do { inBed = false }, Beat.Act(AnimState.STRETCH, 1.2f, Expr.SLEEPY),
-            Beat.Do { rig.lookAt(0f, 0.35f, 3f) }, Beat.Say(Dialogue.pick(Dialogue.wokenUp, rng), Sfx.SLEEPY))
+        enqueue(Beat.Act(AnimState.SLEEPING, 0.6f, Expr.SURPRISED), Beat.Do { inBed = false }, Beat.Act(AnimState.STRETCH, 1.2f, Expr.SLEEPY))
+        if (energy < 0.55f) enqueue(Beat.Do { if (sounds) voice.synth.sfx(Sfx.YAWN) }, Beat.Act(AnimState.YAWN, 2f, Expr.SLEEPY))
+        enqueue(Beat.Do { rig.lookAt(0f, 0.35f, 3f) }, Beat.Say(Dialogue.pick(Dialogue.wokenUp, rng), Sfx.SLEEPY))
         val ev = repo.read { Greeter.topEvent(it) }
         if (ev != null) {
             repo.mutate { ev.shownInApp = true }
@@ -935,8 +1222,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
-    fun onDoubleTap(x: Float, y: Float) {
-        if (!hitPipo(x, y)) { onTap(x, y); return }
+    fun onDoubleTap(vx: Float, vy: Float) {
+        val (x, y) = fromView(vx, vy)
+        if (!hitPipo(x, y)) { onTap(vx, vy); return }
         if (inBed || firstWakePending) { tapPipo(); return }
         registerInteraction()
         val stubborn = repo.read { it.profile.traits.stubbornness }
@@ -945,11 +1233,13 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         if (refuse) enqueue(Beat.Say(Dialogue.pick(Dialogue.doubleTapNo, rng), Sfx.GRUMBLE), Beat.Act(AnimState.BORED, 1f, Expr.BORED))
         else {
             repo.mutate(notify = false) { s -> MoodEngine.bump(s, happiness = 0.05f, boredom = -0.1f) }
-            enqueue(Beat.Act(AnimState.SPIN, 1.1f, Expr.HAPPY), Beat.Act(AnimState.HOP, 0.6f, Expr.HAPPY), Beat.Say(Dialogue.pick(Dialogue.doubleTapYes, rng), Sfx.HAPPY))
+            if (rng.nextFloat() < 0.25f) enqueue(Beat.Act(AnimState.SPIN, 1.6f, Expr.HAPPY), Beat.Act(AnimState.DIZZY, 1.6f, Expr.DIZZY), Beat.Say(Dialogue.pick(Dialogue.dizzyLines, rng), Sfx.BOOP))
+            else enqueue(Beat.Act(AnimState.SPIN, 1.1f, Expr.HAPPY), Beat.Act(AnimState.HOP, 0.6f, Expr.HAPPY), Beat.Say(Dialogue.pick(Dialogue.doubleTapYes, rng), Sfx.HAPPY))
         }
     }
 
-    fun onLongPress(x: Float, y: Float) {
+    fun onLongPress(vx: Float, vy: Float) {
+        val (x, y) = fromView(vx, vy)
         if (!hitPipo(x, y)) return
         if (inBed || firstWakePending) { tapPipo(); return }
         registerInteraction()
@@ -973,7 +1263,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** @return true if the drag grabbed Pipo (otherwise it pans the camera). */
-    fun onDragStart(x: Float, y: Float): Boolean {
+    fun onDragStart(vx: Float, vy: Float): Boolean {
+        val (x, y) = fromView(vx, vy)
         if (hitPipo(x, y) && !firstWakePending) {
             registerInteraction()
             interrupt()
@@ -995,8 +1286,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     fun onDrag(dx: Float, dy: Float) {
         val g = geo ?: return
         if (dragging) {
-            pipoX = (pipoX + dx / g.u).coerceIn(4f, SceneGeo.WORLD_W - 6f)
-            lift = (lift - dy / g.u).coerceIn(0f, 80f)
+            pipoX = (pipoX + dx / g.u / camZoom).coerceIn(4f, SceneGeo.WORLD_W - 6f)
+            lift = (lift - dy / g.u / camZoom).coerceIn(0f, 80f)
+            rig.bodyVel = dx / g.u * 60f
             rig.lookAt(sign(dx) * 0.6f, -0.4f, 0.4f)
         } else {
             camU = clampCam(camU - dx / g.u)
@@ -1013,19 +1305,22 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             val g = geo
             if (g != null && abs(vx) > 1400f) {
                 val x = (pipoX + vx / g.u * 0.22f).coerceIn(8f, SceneGeo.WORLD_W - 8f)
-                enqueue(Beat.Move(x, run = true), Beat.Say(Dialogue.pick(Reactions.tossed, rng), if (mood == Mood.GRUMPY) Sfx.GRUMBLE else Sfx.HAPPY))
+                enqueue(Beat.Move(x, run = true))
+                if (rng.nextFloat() < 0.5f) enqueue(Beat.Act(AnimState.DIZZY, 1.4f, Expr.DIZZY))
+                enqueue(Beat.Say(Dialogue.pick(Reactions.tossed, rng), if (mood == Mood.GRUMPY) Sfx.GRUMBLE else Sfx.HAPPY))
             }
             if (lift <= 0f) land() else liftVel = 0f
         }
     }
 
     private fun land() {
+        rig.impact((0.25f + dropFrom / 40f).coerceAtMost(1f))
         val high = dropFrom > 22f
         dropFrom = 0f
         if (high && rng.nextFloat() < 0.65f) {
             repo.mutate(notify = false) { s -> MoodEngine.setTransient(s, Mood.EMBARRASSED, System.currentTimeMillis(), 10_000) }
             if (sounds) voice.synth.sfx(Sfx.SURPRISED)
-            enqueue(Beat.Act(AnimState.FALLEN, 1.4f, Expr.SURPRISED), Beat.Say(Dialogue.pick(Dialogue.droppedFell, rng)), Beat.Act(AnimState.SHAKE, 0.5f, Expr.EMBARRASSED))
+            enqueue(Beat.Act(AnimState.FALLEN, 1.4f, Expr.DIZZY), Beat.Say(Dialogue.pick(Dialogue.droppedFell, rng)), Beat.Act(AnimState.GET_UP, 1.1f, Expr.EMBARRASSED), Beat.Act(AnimState.SHAKE, 0.5f, Expr.EMBARRASSED))
         } else {
             enqueue(Beat.Act(AnimState.HOP, 0.6f, Expr.HAPPY), Beat.Say(Dialogue.pick(Dialogue.droppedOk, rng), Sfx.HAPPY))
         }
@@ -1037,6 +1332,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         bubble = Bubble(id, text, emptyList())
         bubbleHideAt = clock + 2.5f
         if (sounds) sfx?.let { voice.synth.sfx(it) }
+        rig.speak(text, charsPerSecond(mood, SpeechStyles.style(text), voice.mode))
         voice.speak(text, mood) {}
     }
 
@@ -1315,7 +1611,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 enqueue(Beat.Act(AnimState.SHAKE, 0.7f, Expr.EXCITED), Beat.Act(AnimState.HOP, 0.5f, Expr.HAPPY), Beat.Say(Dialogue.pick(Reactions.shakeBrave, rng), Sfx.HAPPY))
             }
             else -> enqueue(Beat.Act(AnimState.FALLEN, 1.2f, Expr.SURPRISED), Beat.Emote(EmoteKind.SWEAT),
-                Beat.Say(Dialogue.pick(Reactions.shakeNervous, rng), Sfx.SURPRISED), Beat.Act(AnimState.SHAKE, 0.5f, Expr.NERVOUS))
+                Beat.Say(Dialogue.pick(Reactions.shakeNervous, rng), Sfx.SURPRISED), Beat.Act(AnimState.GET_UP, 1f, Expr.WORRIED), Beat.Act(AnimState.SHAKE, 0.5f, Expr.NERVOUS))
         }
     }
 
@@ -1441,18 +1737,19 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         val anim = when {
             dragging || lift > 0.5f -> AnimState.HELD
             c is Beat.Act && c.anim != null -> c.anim
-            moving -> if (running) AnimState.RUNNING else AnimState.WALKING
+            moving -> if (running) AnimState.RUNNING else if (sneaking) AnimState.SNEAK else AnimState.WALKING
             listening -> AnimState.LISTENING
             aiThinking -> AnimState.THINKING
             patting -> AnimState.IDLE
             inBed -> AnimState.SLEEPING
             a != null && activityArrived -> {
-                val base = Vocab.activityAnim(a)
+                val rp = restPose
+                val base = if ((a == ActivityType.REST || a == ActivityType.NOTHING) && rp != null) rp else Vocab.activityAnim(a)
                 if (base == AnimState.IDLE) Vocab.moodIdle(mood) else base
             }
             else -> Vocab.moodIdle(mood)
         }
-        val talking = c is Beat.Say && !sayDone
+        val talking = (c is Beat.Say && !sayDone) || (voice.speaking && bubble != null)
         rig.anim = if (talking && (anim == AnimState.IDLE || anim == AnimState.WAVE)) AnimState.TALKING else anim
         rig.talking = talking
         rig.expr = when {
@@ -1461,11 +1758,20 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             patting -> if (mood == Mood.GRUMPY && clock - patStart < 1.5f) Expr.SUSPICIOUS else Expr.LOVE
             listening -> Expr.CURIOUS
             aiThinking -> Expr.CURIOUS
+            inBed && fakeSleeping -> {
+                // one eye opens to check whether you're looking
+                val ph = (clock % 4.6f)
+                if (ph in 3.2f..4.3f) { rig.lookAt(0f, 0.35f, 0.3f); Expr.WINK } else Expr.CLOSED
+            }
             inBed -> Expr.CLOSED
+            a != null && activityArrived && !moving && restPose == AnimState.LIE_DOWN -> Expr.CONTENT
             a != null && activityArrived && !moving -> Vocab.activityExpr(a, mood)
             else -> Vocab.moodExpr(mood)
         }
         rig.speed = 0.6f + energy * 0.6f
+        rig.energy = energy
+        rig.mood = mood
+        rig.fidgetsEnabled = c == null || c is Beat.Wait || c is Beat.Do
         rig.glow = moodGlow(mood)
         rig.eyeGlow = 0.45f + energy * 0.55f
         rig.torch = phoneActions.torchOn

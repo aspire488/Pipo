@@ -12,16 +12,18 @@ import com.pipo.robot.data.PipoState
 import com.pipo.robot.data.ProjectState
 import kotlin.random.Random
 
-data class PrankDef(val key: String, val journal: String, val line: String)
+data class PrankDef(val key: String, val journal: String, val line: String, val digest: String = "did something to the room")
 
 object Pranks {
     val all = listOf(
-        PrankDef("plant_hat", "Pipo put a tiny hat on the plant.", "The plant looked cold. You're welcome, plant."),
-        PrankDef("lamp_sock", "Pipo put a sock on the desk lamp.", "Mood lighting. Don't touch it."),
-        PrankDef("screen_note", "Pipo stuck a note on the computer that says PIPO WAS HERE.", "Someone was here. Not me. Probably."),
-        PrankDef("ball_on_bed", "Pipo tucked the ball into his bed.", "The ball was tired. I let it have my bed."),
-        PrankDef("arcade_score", "Pipo set a new arcade high score. Possibly by unplugging it.", "I'm the arcade champion now. Officially."),
-        PrankDef("screw_tower", "Pipo built a tower of screws on the workbench.", "It's art. It's called Tower. Don't breathe on it."),
+        PrankDef("plant_hat", "Pipo put a tiny hat on the plant.", "The plant looked cold. You're welcome, plant.", "gave the plant a hat"),
+        PrankDef("lamp_sock", "Pipo put a sock on the desk lamp.", "Mood lighting. Don't touch it.", "improved the lamp. With a sock"),
+        PrankDef("screen_note", "Pipo stuck a note on the computer that says PIPO WAS HERE.", "Someone was here. Not me. Probably.", "left a note on the computer. Anonymously"),
+        PrankDef("ball_on_bed", "Pipo tucked the ball into his bed.", "The ball was tired. I let it have my bed.", "put the ball to bed"),
+        PrankDef("arcade_score", "Pipo set a new arcade high score. Possibly by unplugging it.", "I'm the arcade champion now. Officially.", "became arcade champion. Don't check how"),
+        PrankDef("screw_tower", "Pipo built a tower of screws on the workbench.", "It's art. It's called Tower. Don't breathe on it.", "built a tower. Out of screws"),
+        PrankDef("ball_behind_plant", "Pipo hid the ball behind the plant pot and pretended not to know where it went.", "The ball? No idea. It left. Balls do that.", "hid the ball. Somewhere. Not telling"),
+        PrankDef("clock_sideways", "Pipo turned the clock sideways. He says time looks better that way.", "Time looks better sideways. Trust me.", "fixed the clock. It's sideways now"),
     )
 
     fun active(s: PipoState) = all.filter { s.world.objectStates["prank:${it.key}"] == "1" }
@@ -95,6 +97,20 @@ object Projects {
         val tagsOwned = s.world.items.filter { it.usedInProjectId == 0L }
             .flatMap { Catalog.item(it.catalogId)?.tags ?: emptySet() }.toSet()
         val doneIds = s.projects.filter { it.state == ProjectState.DONE }.map { it.templateId }.toSet()
+        // Unfinished business: a recent failure he hasn't let go of.
+        retryCandidate(s, now)?.let { failed ->
+            if (rng.nextFloat() < 0.35f + t.stubbornness * 0.4f + t.patience * 0.2f) {
+                val def = Catalog.project(failed.templateId)!!
+                val p = PipoProject(s.nextId(), def.id, def.title, components = def.needs.toMutableList(), startedAt = now, attempts = failed.attempts)
+                p.log.add("Attempt ${failed.attempts + 1}. He says he knows what went wrong last time.")
+                s.projects.add(p)
+                if (s.projects.size > 40) s.projects.removeAt(0)
+                gather(s, p)
+                Chronicle.journal(s, "Pipo is trying again", "The ${def.title.lowercase()}, attempt ${failed.attempts + 1}. \"This time it's personal.\"", JournalCategory.PROJECT, now)
+                Chronicle.remember(s, MemoryType.PROJECT, "I'm trying the ${def.title.lowercase()} again", 0.55f, now, "project:${p.id}")
+                return p
+            }
+        }
         val options = Catalog.projects.filter { it.id !in doneIds && it.needs.any { n -> n in tagsOwned } }
             .ifEmpty { Catalog.projects.filter { it.needs.any { n -> n in tagsOwned } } }
         if (options.isEmpty()) return null
@@ -106,6 +122,13 @@ object Projects {
         Chronicle.journal(s, "Pipo started a project", "${def.title}. \"${def.idea}\"", JournalCategory.PROJECT, now)
         Chronicle.remember(s, MemoryType.PROJECT, "I started building a ${def.title.lowercase()}", 0.5f, now, "project:${p.id}")
         return p
+    }
+
+    /** The most recent failed project (last 3 days) he never finished since. */
+    fun retryCandidate(s: PipoState, now: Long): PipoProject? {
+        val done = s.projects.filter { it.state == ProjectState.DONE }.map { it.templateId }.toSet()
+        return s.projects.lastOrNull { it.state == ProjectState.FAILED && now - it.finishedAt < 3 * DAY && it.templateId !in done }
+            ?.takeIf { f -> s.projects.none { it.active && it.templateId == f.templateId } && Catalog.project(f.templateId) != null }
     }
 
     /** Uses owned, unused items that match missing component tags. */
@@ -127,7 +150,20 @@ object Projects {
         gather(s, p)
         if (p.state != ProjectState.BUILDING) return null
         val t = s.profile.traits
+        val before = p.progress
         p.progress += (0.16f + rng.nextFloat() * 0.14f) * (0.6f + t.confidence * 0.5f + t.patience * 0.3f) * effort
+        // Projects don't go in a straight line.
+        val r = rng.nextFloat()
+        if (p.progress < 1f && r < 0.12f) {
+            p.progress = (p.progress - 0.18f).coerceAtLeast(0.05f)
+            logBeat(p, listOf("Something fell off. He thinks it was important.", "A small fire. Very small. He blew it out.", "He glued his hand to it for a while.").random(rng))
+        } else if (p.progress < 1f && r > 0.9f) {
+            p.progress += 0.2f
+            logBeat(p, listOf("Breakthrough at 3am. Robot time.", "He found a shortcut. It might even work.", "He figured out the wobbly part.").random(rng))
+        } else {
+            if (before < 0.34f && p.progress >= 0.34f) logBeat(p, "The frame is done. It stands up on its own. Mostly.")
+            if (before < 0.67f && p.progress >= 0.67f) logBeat(p, "It hums now. He's not sure if it should.")
+        }
         if (p.progress < 1f) return null
         p.progress = 1f
         val def = Catalog.project(p.templateId)!!
@@ -139,7 +175,8 @@ object Projects {
             roll < successChance -> {
                 p.state = ProjectState.DONE
                 p.result = def.success
-                Chronicle.journal(s, "Pipo finished his ${def.title.lowercase()}", def.success, JournalCategory.PROJECT, now)
+                val persist = if (p.attempts > 1) " Attempt ${p.attempts}. He never gave up, and he'd like that noted." else ""
+                Chronicle.journal(s, "Pipo finished his ${def.title.lowercase()}", def.success + persist, JournalCategory.PROJECT, now)
                 Chronicle.remember(s, MemoryType.PROJECT, "I built a ${def.title.lowercase()}", 0.8f, now, "project:${p.id}")
                 Chronicle.event(s, EventType.PROJECT_DONE, 0.8f, now, p.id.toString())
                 Personality.nudge(s, Trait.CONFIDENCE, 0.03f)
@@ -172,4 +209,12 @@ object Projects {
     }
 
     fun lastFinished(s: PipoState): PipoProject? = s.projects.lastOrNull { !it.active }
+
+    private fun logBeat(p: PipoProject, line: String) {
+        p.log.add(line)
+        if (p.log.size > 6) p.log.removeAt(0)
+    }
+
+    /** The newest story beat of the active project, for him to mention while building. */
+    fun latestBeat(s: PipoState): String? = s.activeProject()?.log?.lastOrNull()
 }

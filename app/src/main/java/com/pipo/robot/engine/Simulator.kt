@@ -6,6 +6,7 @@ import com.pipo.robot.data.EventType
 import com.pipo.robot.data.Mood
 import com.pipo.robot.data.PendingEvent
 import com.pipo.robot.data.PipoState
+import com.pipo.robot.data.ProjectState
 import kotlin.math.max
 import kotlin.random.Random
 
@@ -20,10 +21,31 @@ object Simulator {
 
     data class Report(val steps: Int, val discoveries: Int, val finishedProjects: Int)
 
+    /** One line for the "while you were gone" recap, or null if the outcome isn't worth telling. */
+    fun digestOf(s: PipoState, o: Outcome): String? = when (o) {
+        is Outcome.Found -> Catalog.item(o.item.catalogId)?.let { "found ${article(it.name)} ${it.name.lowercase()}" }
+        is Outcome.Finished -> Catalog.project(o.project.templateId)?.let { d ->
+            when (o.project.state) {
+                ProjectState.DONE -> "finished the ${d.title.lowercase()}"
+                ProjectState.EVOLVED -> "accidentally turned the ${d.title.lowercase()} into ${article(d.evolvedTitle)} ${d.evolvedTitle.lowercase()}"
+                else -> "broke the ${d.title.lowercase()}"
+            }
+        }
+        is Outcome.Prank -> Pranks.all.firstOrNull { it.key == o.key }?.digest
+        is Outcome.Emote -> if (o.kind == EmoteKind.IDEA) s.activeProject()?.let { "had an idea. ${article(it.title).replaceFirstChar { c -> c.uppercase() }} ${it.title.lowercase()}" } else null
+        else -> null
+    }
+
+    fun noteAway(s: PipoState, line: String) {
+        if (line in s.awayLog) return
+        s.awayLog.add(line)
+        if (s.awayLog.size > 5) s.awayLog.removeAt(0)
+    }
+
     fun catchUp(s: PipoState, now: Long, rng: Random): Report {
         if (s.lastSimulatedAt <= 0L) { s.lastSimulatedAt = now; return Report(0, 0, 0) }
         var t = max(s.lastSimulatedAt, now - MAX_CATCH_UP)
-        var steps = 0; var found = 0; var finished = 0
+        var steps = 0; var found = 0; var finished = 0; var naps = 0; var windowTime = 0
         while (t + STEP <= now) {
             val hour = hourOf(t)
             val env = Env(hour = hour, userPresent = false)
@@ -39,10 +61,20 @@ object Simulator {
             val outcomes = BehaviorEngine.complete(s, type, env, t + STEP, rng, offline = true)
             found += outcomes.count { it is Outcome.Found }
             finished += outcomes.count { it is Outcome.Finished }
+            for (o in outcomes) digestOf(s, o)?.let { noteAway(s, it) }
+            if (type == ActivityType.SLEEP) naps++ else if (type == ActivityType.THINK) windowTime++
             t += STEP
             steps++
         }
         Discovery.updateReveals(s, now)
+        if (steps >= 3 && s.awayLog.isEmpty()) {
+            // Nothing dramatic happened. That's also worth reporting, in his own way.
+            when {
+                windowTime >= 3 -> noteAway(s, "stared out the window for a really long time")
+                naps >= 6 -> noteAway(s, "slept. A lot. It was great")
+                else -> noteAway(s, "did absolutely nothing. On purpose")
+            }
+        }
         // Occasionally Pipo just wants to say hi or wants to play — but only if he actually feels it.
         val tr = s.profile.traits
         if (steps >= 6) {
@@ -69,7 +101,11 @@ object Simulator {
 
 enum class GreetKind {
     FIRST_WAKE, BRIEF, SLEEPING, REVEAL_ITEM, REVEAL_PROJECT, PRANK, SURPRISE,
-    RUN_TO_USER, WORKING, HAPPY, MISCHIEF_HIDE, CALM, NOTHING
+    RUN_TO_USER, WORKING, HAPPY, MISCHIEF_HIDE, CALM, NOTHING,
+    /** Mischief: pretending to be asleep, one eye open. */
+    FAKE_SLEEP,
+    /** Mischief: pops in from the edge of the screen. */
+    PEEK_IN
 }
 
 data class Greeting(val kind: GreetKind, val line: String, val event: PendingEvent? = null)
@@ -108,10 +144,17 @@ object Greeter {
         }
         val mood = s.mood.current
         return when {
-            mood == Mood.MISCHIEVOUS -> Greeting(GreetKind.MISCHIEF_HIDE, Dialogue.pick(Dialogue.mischiefGreeting, rng))
+            mood == Mood.MISCHIEVOUS -> {
+                val r = rng.nextFloat()
+                when {
+                    t.mischief > 0.5f && r < 0.35f -> Greeting(GreetKind.FAKE_SLEEP, "")
+                    r < 0.65f -> Greeting(GreetKind.PEEK_IN, Dialogue.pick(Dialogue.peekIn, rng))
+                    else -> Greeting(GreetKind.MISCHIEF_HIDE, Dialogue.pick(Dialogue.mischiefGreeting, rng))
+                }
+            }
             s.activity.type in setOf(ActivityType.BUILD, ActivityType.EXPERIMENT, ActivityType.WORK_COMPUTER, ActivityType.READ) ->
                 Greeting(GreetKind.WORKING, Dialogue.pick(Dialogue.workingGreeting, rng))
-            awayMs > 8 * HOUR && (t.sociability > 0.42f || s.mood.excitement > 0.5f) ->
+            awayMs > 8 * HOUR && (t.sociability > 0.42f || s.mood.excitement > 0.5f || s.profile.relationship > 0.35f) ->
                 Greeting(GreetKind.RUN_TO_USER, if (name.isNotBlank()) "${name.uppercase()}!" else "YOU'RE BACK!")
             s.activity.type == ActivityType.NOTHING && t.laziness > 0.45f -> Greeting(GreetKind.NOTHING, "...")
             mood == Mood.HAPPY || mood == Mood.EXCITED -> Greeting(GreetKind.HAPPY, Dialogue.pick(Dialogue.happyGreeting, rng))

@@ -12,6 +12,9 @@ import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import com.pipo.robot.data.Mood
 import com.pipo.robot.data.VoiceMode
+import com.pipo.robot.engine.Sfx
+import com.pipo.robot.engine.SpeechStyle
+import com.pipo.robot.engine.SpeechStyles
 import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -24,8 +27,24 @@ interface VoiceEngine {
     fun shutdown()
 }
 
-/** Delivery per mood: pitch + rate. Young, bright, a bit robotic. */
-data class Delivery(val pitch: Float, val rate: Float)
+/** Delivery per mood: pitch + rate (+ volume for whispers). Young, bright, a bit robotic. */
+data class Delivery(val pitch: Float, val rate: Float, val volume: Float = 1f)
+
+/** Mood sets the baseline; the line itself (whisper, excited, sigh…) adjusts it. */
+fun deliveryFor(m: Mood, style: SpeechStyle): Delivery {
+    val d = deliveryFor(m)
+    return when (style) {
+        SpeechStyle.WHISPER -> Delivery(d.pitch - 0.1f, d.rate * 0.88f, 0.45f)
+        SpeechStyle.EXCITED -> Delivery(d.pitch + 0.15f, d.rate * 1.08f)
+        SpeechStyle.SIGH -> Delivery(d.pitch - 0.15f, d.rate * 0.88f, 0.85f)
+        SpeechStyle.QUESTION -> Delivery(d.pitch + 0.05f, d.rate)
+        else -> d
+    }
+}
+
+/** Roughly how many characters per second the mouth should move at for this delivery. */
+fun charsPerSecond(m: Mood, style: SpeechStyle, mode: VoiceMode): Float =
+    if (mode == VoiceMode.SPOKEN) 13.5f * deliveryFor(m, style).rate else 11f
 
 fun deliveryFor(m: Mood): Delivery = when (m) {
     Mood.SLEEPY -> Delivery(1.35f, 0.78f)
@@ -68,13 +87,14 @@ class AndroidTtsVoice(ctx: Context) : VoiceEngine, TextToSpeech.OnInitListener {
     override fun speak(text: String, mood: Mood, onDone: () -> Unit) {
         val t = tts
         if (!available || t == null) { onDone(); return }
-        val d = deliveryFor(mood)
+        val d = deliveryFor(mood, SpeechStyles.style(text))
         t.setPitch(d.pitch)
         t.setSpeechRate(d.rate)
-        val spoken = text.replace("*", "").replace("...", ", ").replace("{N}", "").trim()
+        val spoken = text.replace("*", "").replace("...", ", ").replace("{N}", "").replace("(", "").replace(")", "").trim()
         val id = UUID.randomUUID().toString()
         callbacks[id] = onDone
-        t.speak(spoken, TextToSpeech.QUEUE_FLUSH, null, id)
+        val params = Bundle().apply { putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, d.volume) }
+        t.speak(spoken, TextToSpeech.QUEUE_FLUSH, params, id)
     }
 
     override fun stop() {
@@ -90,7 +110,8 @@ class AndroidTtsVoice(ctx: Context) : VoiceEngine, TextToSpeech.OnInitListener {
 class BabbleVoice(private val synth: SoundSynth) : VoiceEngine {
     private val main = Handler(Looper.getMainLooper())
     override val available = true
-    override fun speak(text: String, mood: Mood, onDone: () -> Unit) = synth.babble(text, mood) { main.post(onDone) }
+    override fun speak(text: String, mood: Mood, onDone: () -> Unit) =
+        synth.babble(text, mood, deliveryFor(mood, SpeechStyles.style(text)).volume) { main.post(onDone) }
     override fun stop() {}
     override fun shutdown() {}
 }
@@ -110,6 +131,12 @@ class PipoVoice(ctx: Context) {
     fun speak(text: String, mood: Mood, onDone: () -> Unit) {
         val done = { speaking = false; onDone() }
         speaking = true
+        // Non-verbal colour on top of the words: a giggle before a laugh line, a sigh before a sigh.
+        if (mode != VoiceMode.SILENT) when (SpeechStyles.style(text)) {
+            SpeechStyle.LAUGH -> synth.sfx(Sfx.GIGGLE)
+            SpeechStyle.SIGH -> synth.sfx(Sfx.SIGH)
+            else -> Unit
+        }
         when {
             mode == VoiceMode.SILENT -> done()
             mode == VoiceMode.SPOKEN && tts.available -> tts.speak(text, mood, done)

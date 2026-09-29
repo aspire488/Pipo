@@ -91,11 +91,17 @@ class SoundSynth {
             Sfx.GRUMBLE -> listOf(Note(240f, 200f, 300, vol = 0.28f, vibrato = 0.08f))
             Sfx.WIN -> listOf(Note(660f, 660f, 90, gapMs = 20), Note(880f, 880f, 90, gapMs = 20), Note(1320f, 1400f, 180))
             Sfx.LOSE -> listOf(Note(520f, 500f, 140, gapMs = 30), Note(420f, 400f, 140, gapMs = 30), Note(330f, 250f, 260))
+            Sfx.YAWN -> listOf(Note(380f, 560f, 380, vol = 0.16f, vibrato = 0.03f), Note(560f, 260f, 520, vol = 0.14f, vibrato = 0.05f))
+            Sfx.SERVO -> listOf(Note(180f, 240f, 110, vol = 0.1f, vibrato = 0.2f))
+            Sfx.GIGGLE -> listOf(Note(1250f, 1180f, 35, vol = 0.18f, gapMs = 25), Note(1300f, 1200f, 35, vol = 0.18f, gapMs = 25), Note(1220f, 1100f, 45, vol = 0.16f))
+            Sfx.HMM -> listOf(Note(520f, 560f, 160, vol = 0.2f, gapMs = 20), Note(560f, 500f, 200, vol = 0.18f))
         }
     )
 
-    /** Robot babble: one chirp per syllable, pitch/speed shaped by mood. */
-    fun babble(text: String, mood: Mood, onDone: () -> Unit) {
+    /** Robot babble: one chirp per syllable, pitch/speed shaped by mood. [volume] < 1 = whisper. */
+    fun babble(text: String, mood: Mood, onDone: () -> Unit) = babble(text, mood, 1f, onDone)
+
+    fun babble(text: String, mood: Mood, volume: Float, onDone: () -> Unit) {
         val syll = Regex("[aeiouy]+", RegexOption.IGNORE_CASE).findAll(text).count().coerceIn(1, 18)
         val (base, len, gap) = when (mood) {
             Mood.EXCITED, Mood.PROUD -> Triple(980f, 55, 18)
@@ -108,7 +114,7 @@ class SoundSynth {
         val rng = Random(text.hashCode())
         val notes = (0 until syll).map {
             val f = base * (0.85f + rng.nextFloat() * 0.35f)
-            Note(f, f * (0.9f + rng.nextFloat() * 0.25f), len + rng.nextInt(20), vol = 0.22f, gapMs = gap)
+            Note(f, f * (0.9f + rng.nextFloat() * 0.25f), len + rng.nextInt(20), vol = 0.22f * volume, gapMs = gap)
         }
         play(notes, onDone)
     }

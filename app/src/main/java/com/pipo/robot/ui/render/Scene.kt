@@ -2,7 +2,9 @@ package com.pipo.robot.ui.render
 
 import com.pipo.robot.data.ItemShape
 import com.pipo.robot.data.Station
+import kotlin.math.cos
 import kotlin.math.min
+import kotlin.math.sin
 
 /** Screen geometry. World positions are in "u" (1u = 1% of a phone's width). */
 class SceneGeo(val w: Float, val h: Float) {
@@ -43,11 +45,11 @@ class SceneGeo(val w: Float, val h: Float) {
 
         fun prankX(key: String) = when (key) {
             "plant_hat" -> 61f; "lamp_sock", "screen_note" -> 140f; "ball_on_bed" -> 22f
-            "arcade_score" -> 215f; "screw_tower" -> 196f; else -> 120f
+            "arcade_score" -> 215f; "screw_tower" -> 196f; "ball_behind_plant" -> 66f; "clock_sideways" -> 62f; else -> 120f
         }
         fun prankObject(key: String) = when (key) {
             "plant_hat" -> "plant"; "lamp_sock", "screen_note" -> "desk"; "ball_on_bed" -> "bed"
-            "arcade_score" -> "arcade"; "screw_tower" -> "workbench"; else -> ""
+            "arcade_score" -> "arcade"; "screw_tower" -> "workbench"; "ball_behind_plant" -> "plant"; "clock_sideways" -> "clock"; else -> ""
         }
     }
 }
@@ -64,6 +66,14 @@ data class RoomState(
     val arcadeActive: Boolean = false,
     val ballU: Float = 233f,
     val torch: Boolean = false,
+    /** 0..1, leaves shake when Pipo brushes past the plant. */
+    val plantRustle: Float = 0f,
+    val computerActive: Boolean = false,
+    val benchActive: Boolean = false,
+    val music: Boolean = false,
+    /** Phone tilt (-1..1), used for parallax depth. */
+    val tiltX: Float = 0f,
+    val tiltY: Float = 0f,
 )
 
 fun dayFactor(hour: Float): Float = when {
@@ -74,3 +84,27 @@ fun dayFactor(hour: Float): Float = when {
     else -> 0f
 }
 
+
+/**
+ * Tiny living things in the room. Deterministic functions of time so the painter draws them
+ * and Pipo's attention system can look at exactly the same spot.
+ */
+object Critters {
+    const val LAMP_X = 150.5f
+    const val LAMP_H = 30f
+
+    /** A moth circling the desk lamp at night. World (x, height above floor) in u. */
+    fun moth(t: Float): Pair<Float, Float> {
+        val x = LAMP_X + sin(t * 1.3f) * 7f + sin(t * 3.1f) * 2f
+        val h = LAMP_H + cos(t * 1.7f) * 5f + sin(t * 4.3f) * 1.5f
+        return x to h
+    }
+
+    /** A bird crossing the window every ~47 s in daytime. Returns progress 0..1 or null. */
+    fun bird(t: Float): Float? {
+        val ph = (t % 47f) / 3.2f
+        return if (ph < 1f) ph else null
+    }
+
+    fun birdX(progress: Float) = 90f + progress * 28f
+}
