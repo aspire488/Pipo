@@ -343,6 +343,28 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
         }
         item {
+            Section("Phone control") {
+                val actions = remember { com.pipo.robot.phone.PhoneActions(ctx) }
+                var status by remember { mutableStateOf(actions.accessStatus()) }
+                val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+                DisposableEffect(owner) {
+                    val obs = androidx.lifecycle.LifecycleEventObserver { _, e -> if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) status = actions.accessStatus() }
+                    owner.lifecycle.addObserver(obs)
+                    onDispose { owner.lifecycle.removeObserver(obs) }
+                }
+                Text("Pipo only touches your phone when you ask him (“brighter”, “do not disturb”, “what's playing?”, “play lo-fi on Spotify”, “open Netflix”). " +
+                    "Some of it needs your okay first. Tap one to open Android's page for it. He never calls, texts, buys or posts anything.",
+                    color = PipoPalette.muted, style = MaterialTheme.typography.bodyMedium)
+                listOf(
+                    Triple("write_settings", "Brightness & auto-rotate", "Modify system settings"),
+                    Triple("dnd", "Do not disturb & silent mode", "Do Not Disturb access"),
+                    Triple("notification_access", "What's playing, and media controls", "Notification access"),
+                ).forEach { (key, what, page) ->
+                    ToggleRow("$what\n${if (status[key] == true) "Allowed" else "Tap to allow ($page)"}", status[key] == true) { _ -> actions.openAccessPage(key) }
+                }
+            }
+        }
+        item {
             Section("Pipo's voice") {
                 Segmented(VoiceMode.entries, st.voiceMode, { it.label }) { m -> edit { it.voiceMode = m } }
                 ToggleRow("Beeps and sound effects", st.sounds) { on -> edit { it.sounds = on } }

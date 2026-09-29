@@ -233,7 +233,15 @@ Playing should feel like playing with him:
 Pipo only acts on the phone **when you ask him** in chat or by voice. Every action is staged as him doing it:
 
 - **Flashlight** on, off or status via `CameraManager.setTorchMode` (no CAMERA permission). *"Emergency sunshine."* His antenna becomes the light source for the whole scene.
-- **Music:** play, pause, next, previous, volume up and down, open YouTube or a music app with a query. When music plays, **he dances**, the plant sways and the monitor shows a visualizer.
+- **Music:** play, pause, next, previous, volume up and down. When music plays, **he dances**, the plant sways and the monitor shows a visualizer. With Notification access, play, pause and skip go **straight to the app that's actually playing** (Android media sessions). Without it he falls back to media keys.
+- **Any media app you have** (`MediaApps`): *"play arijit singh on spotify"*, *"watch stranger things on netflix"*, *"open hotstar"*, *"open reels"*. There are 21 known apps with aliases: YouTube, YouTube Music, Spotify, JioSaavn, Gaana, Wynk, Apple Music, Amazon Music, SoundCloud, Netflix, JioHotstar, Prime Video, Amazon miniTV, Airtel Xstream, MX Player, VLC, Google TV, Samsung Video, Podcasts, Audible and Instagram Reels. Where the app supports it, he uses a search deep link. Only installed apps count: ask for one you don't have and he says so instead of leaving.
+- **"What's playing?"** reads the current track and app from the media session. **"What music apps do I have?"** lists the installed ones.
+- **Open any app by name**, fuzzy-matched against your launcher: *"open whatsapp"*.
+- **Device controls, only with access you grant** (Settings → *Phone control* shows each one and opens Android's page for it):
+  - **Brightness** up, down, to a percentage, max or min, and **auto-rotate** on/off, via *Modify system settings*.
+  - **Do Not Disturb** on/off and **ringer** silent/vibrate/normal, via *Do Not Disturb access*.
+  - Without the access, he says what he needs and opens exactly that page. He never pretends it worked.
+  - **Wi-Fi, Bluetooth and airplane mode** can't be toggled by apps on modern Android, so he opens the right panel.
 - **Charging:** plug your phone in and he **heads straight to his charging station**. The station shows your real battery level.
 - **Camera and selfie:** a confident Pipo poses, a shy one hides.
 - **Photos:** say something like "look at this photo" or "let me show you a picture" and the **system photo picker** opens (no storage permission). He reacts to the photo you explicitly chose, based on local color and brightness analysis. The photo is never stored or uploaded.
@@ -284,7 +292,7 @@ Outside the app he may send **one** notification about something that **actually
 - **if you ignore three in a row, he goes quiet**, and the gap stretches 2.5×
 - "Not now" is respected and remembered, without guilt
 
-Tapping a notification opens his room, where he shows you what he meant.
+Tapping a notification opens his room, where he shows you what he meant, **even if he was asleep**: he messaged you, so he gets up and tells you (for example, the project card of the flying machine that "flew. Downward."). This was verified on the device.
 
 ---
 
@@ -297,7 +305,10 @@ Tapping a notification opens his room, where he shows you what he meant.
   - `POST_NOTIFICATIONS` (Android 13+): requested only after Pipo asks you in-app whether he may message you.
   - `INTERNET`: only for chat replies (Gemini / Groq).
   - `ACCESS_NETWORK_STATE`, `SET_ALARM`: normal, auto-granted.
-  - **Notification access** (a special access, not a runtime permission): only if you switch it on yourself in Android settings. It's used as described under *Noticing your notifications*.
+  - **Notification access** (a special access, not a runtime permission): only if you switch it on yourself in Android settings. It's used as described under *Noticing your notifications*, and for "what's playing" and media controls.
+  - `WRITE_SETTINGS` (*Modify system settings*) and `ACCESS_NOTIFICATION_POLICY` (*Do Not Disturb access*): declared, but they do nothing until you allow them in Android settings. Used only for brightness, auto-rotate, Do Not Disturb and the ringer, and only when you ask.
+  - Launcher visibility (`<queries>` for launcher apps): used only when you ask him to open an app or list your media apps.
+  - **He never calls, texts, buys, posts or replies to anything.** Dialing opens the dialer after a yes/no, and alarms ask first.
   - The torch needs **no** CAMERA permission. Photos go through the system picker and need **no** storage permission.
 - **What leaves the phone:** only what you type or say in chat, plus his mood, activity and a few memories, sent to Google (Gemini) or Groq to word his reply. Nothing else: no notifications, no phone actions, no photos, no recordings. Settings says this in plain words.
 - The microphone is used **only after you tap the mic**, while the listening pill is visible.
@@ -376,7 +387,7 @@ This section is deliberately literal.
 Everything described above: the procedural 2.5D renderer and lighting, parallax and camera, the animation rig (springs, fidgets, speech-driven mouth, poses and expressions), attention and gaze, absorption and distraction, rest variants, memory-driven habits, project stages and retries, the away recap, mischief, game personality, the toddler voice, the Gemini/Groq chat brain, his phone and console with screen-time limits, opt-in notification noticing, and notification safeguards.
 
 ### 🧪 Automated-tested
-**61 JVM unit tests pass**: `EngineTest` 15, `EvolutionTest` 21, `PhoneCommandTest` 4, `PhoneNotifsTest` 6, `ScreenTimeTest` 6, `ToddlerVoiceTest` 5, `PipoPromptTest` 2, `ColorMathTest` 2. They cover:
+**68 JVM unit tests pass**: `EngineTest` 15, `EvolutionTest` 21, `PhoneCommandTest` 5, `PhoneNotifsTest` 6, `ScreenTimeTest` 6, `ToddlerVoiceTest` 5, `ProjectRetryTest` 3, `GreeterTest` 2, `PipoPromptTest` 2, `ColorMathTest` 2, `LongLifeSimulationTest` 1. They cover:
 - mood derivation, personality-weighted choice, bounded offline simulation, projects reaching an ending, memory dedupe and prune, notification cooldowns, quiet hours and backoff, greetings, chat name-learning with a "never sounds like an assistant" guard, and phone-command parsing and maths
 - variety, habits, absorption, distraction, retries, the away recap and its no-guilt wording, mischief, speech-style detection
 - **animation rig:** turning his back when sulking, facing where he walks (three-quarter, face visible), mouth shapes, landing squash, every pose × expression stays finite
@@ -385,6 +396,9 @@ Everything described above: the procedural 2.5D renderer and lighting, parallax 
 - **voice:** WAV parsing (padding, unset lengths, garbage) and that the toddler pitch lands in the 220–400 Hz range at toddler pace for every mood and style
 - **chat:** reply cleaning (stage directions, quotes, length) and the prompt keeping his character and the offline brain's decision
 - **colour maths** for the fast painter blend
+- **phone commands:** media apps and aliases (the longest alias wins; talking *about* reels isn't a request), open-any-app, what's playing, brightness, rotation, Do Not Disturb, ringer, natural battery phrasing, web-search queries
+- **projects:** retries only when the *latest* attempt failed (never after it worked or evolved), and a **two-week life simulation** across 6 personalities where he finds things, starts projects, fails, retries and succeeds (for example "IT FLEW. For two seconds. Attempt 2.")
+- **greetings:** tapping his message wakes him to explain it, and the recap never says "nothing happened" next to real events
 
 **On-device instrumentation:** `PoseGalleryTest` (6 tests) renders turntable angles, 24 poses, the get-up sequence, all expressions, lighting positions and 7 full rooms with the real painter on the phone's Canvas. It passes on the Galaxy S23, and the images were reviewed.
 
@@ -395,8 +409,8 @@ Everything described above: the procedural 2.5D renderer and lighting, parallax 
 
 ### 📱 Physically tested
 Tested on a **Samsung Galaxy S23 (SM-S911B), Android 15**, over ADB wireless debugging. See **[DEVICE_TEST_REPORT.md](DEVICE_TEST_REPORT.md)** for the full list of what was verified, what was fixed, the measured performance and what is still unverified. In short:
-- **verified:** launch, rendering from every angle, room composition on a tall screen, touch and zoom alignment, carrying, tap-chase, the toddler voice, cold-start speech, Gemini and Groq chat with fallbacks, voice conversation (tested by the owner), all four games (including records, the opening line, boredom and exit), the journal and collection, the away recap, Home/return and process death, the console and screen-time limits
-- **not yet verified on the device:** notification noticing (it needs Notification access switched on), outgoing notification delivery timing, most Android intents (torch, media, settings…), and a long unattended run
+- **verified:** launch, rendering from every angle, room composition on a tall screen, touch and zoom alignment, carrying, tap-chase, the toddler voice, cold-start speech, Gemini and Groq chat with fallbacks, voice conversation (tested by the owner), all four games, the journal and collection, the away recap, Home/return and process death, the console and screen-time limits, **notification noticing** (reel, burst, voice note), **his own notifications** (safeguards, delivery, tap → he explains), and **phone actions** (torch, volume, battery, time, maths, calculator, Wi-Fi panel, camera, maps, web search, the alarm confirmation, Spotify/Netflix/WhatsApp, what's playing, next/pause on Spotify, brightness, auto-rotate, Do Not Disturb, ringer)
+- **not yet verified on the device:** WorkManager's own hourly timing (the same worker code was run on demand), quiet hours at night on the device (unit-tested), timers, share/copy, the selfie camera, tilt parallax and shake, and a long unattended run
 
 CI (`.github/workflows/build-apk.yml`) is committed. Its status on GitHub wasn't checked in this pass.
 

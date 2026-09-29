@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Debug builds only: lets device test scripts run Pipo's hourly worker on demand. -->
+        <receiver android:name=".DebugWorkerReceiver" android:exported="true" tools:ignore="ExportedReceiver"
+            xmlns:tools="http://schemas.android.com/tools" />
+    </application>
+</manifest>

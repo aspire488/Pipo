@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Only when you ask: talking to Pipo with your voice. Requested on first mic tap. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -11,6 +12,11 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Timers/alarms you explicitly ask for. Normal permission, no prompt. -->
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+    <!-- Brightness and auto-rotate when you ask. A special access: nothing happens until YOU allow
+         "Modify system settings" for Pipo in Android settings. -->
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions" />
+    <!-- Do Not Disturb / silent mode when you ask. Also only works after YOU allow "Do Not Disturb access". -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
 
     <!-- The torch is controlled through CameraManager.setTorchMode, which needs no CAMERA permission.
          Pipo never opens the camera himself; he launches your camera app. -->
@@ -38,6 +44,9 @@
         <package android:name="com.google.android.calculator" />
         <package android:name="com.android.calculator2" />
         <package android:name="com.google.android.deskclock" />
+        <!-- "open <any app>" and "what music apps do I have": apps in your launcher, only when you ask -->
+        <intent><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent>
+        <intent><action android:name="android.intent.action.VIEW" /><data android:scheme="spotify" /></intent>
     </queries>
 
     <application

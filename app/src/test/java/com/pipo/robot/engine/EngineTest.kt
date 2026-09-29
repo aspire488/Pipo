@@ -223,7 +223,41 @@ class PhoneCommandTest {
     private fun c(t: String) = PhoneCommands.parse(t)?.cmd
 
     @Test
+    fun mediaAppsAndDeviceControls() {
+        fun r(t: String) = PhoneCommands.parse(t)
+        r("play arijit singh on spotify")!!.let { assertEquals(PhoneCmd.MEDIA_APP, it.cmd); assertEquals("spotify", it.extra); assertEquals("arijit singh", it.arg) }
+        r("watch stranger things on netflix")!!.let { assertEquals("netflix", it.extra); assertEquals("stranger things", it.arg) }
+        r("open hotstar")!!.let { assertEquals(PhoneCmd.MEDIA_APP, it.cmd); assertEquals("hotstar", it.extra); assertEquals("", it.arg) }
+        assertEquals("youtube_music", r("play lofi on youtube music")!!.extra)          // longest alias wins
+        assertEquals(PhoneCmd.YOUTUBE, r("play lofi beats on youtube")!!.cmd)
+        assertEquals("instagram", r("open reels")!!.extra)
+        assertNull(r("my friend sent me reels yesterday"))                                 // talking about it isn't a request
+        assertEquals(PhoneCmd.OPEN_ANY, r("open whatsapp")!!.cmd)
+        assertEquals("whatsapp", r("open whatsapp")!!.arg)
+        assertNull(r("show me something funny"))
+        assertEquals(PhoneCmd.NOW_PLAYING, c("what's playing"))
+        assertEquals(PhoneCmd.NOW_PLAYING, c("what song is this"))
+        assertEquals(PhoneCmd.LIST_MEDIA, c("what music apps do i have"))
+        assertEquals("up", r("make the screen brighter")!!.arg)
+        assertEquals("down", r("turn the brightness down")!!.arg)
+        assertEquals("40", r("set brightness to 40%")!!.arg)
+        assertEquals(PhoneCmd.SETTINGS, c("open brightness settings"))
+        assertEquals("off", r("turn off auto rotate")!!.arg)
+        assertEquals("on", r("turn on do not disturb")!!.arg)
+        assertEquals("off", r("turn off dnd")!!.arg)
+        assertEquals("silent", r("put my phone on silent")!!.arg)
+        assertEquals("vibrate", r("vibrate mode")!!.arg)
+        assertEquals("normal", r("turn off silent mode")!!.arg)
+    }
+
+    @Test
     fun parsesPhoneActions() {
+        // natural phrasings seen on the device
+        assertEquals(PhoneCmd.BATTERY, c("whats my battery"))
+        assertEquals(PhoneCmd.BATTERY, c("what's the battery at"))
+        assertEquals(PhoneCmd.BATTERY, c("is my battery charged"))
+        assertEquals("cute robots", PhoneCommands.parse("search the web for cute robots")?.arg)
+        assertEquals("cute robots", PhoneCommands.parse("search for cute robots")?.arg)
         assertEquals(PhoneCmd.FLASH_ON, c("Pipo, turn on the flashlight."))
         assertEquals(PhoneCmd.FLASH_OFF, c("turn the flashlight off"))
         assertEquals(PhoneCmd.FLASH_STATUS, c("is the torch on?"))
@@ -236,7 +270,7 @@ class PhoneCommandTest {
         assertEquals(PhoneCmd.YOUTUBE, yt.cmd); assertEquals("lofi beats", yt.arg)
         assertEquals(PhoneCmd.YOUTUBE, c("Open YouTube"))
         assertEquals(PhoneCmd.YOUTUBE, c("play arijit singh"))
-        assertEquals(PhoneCmd.MUSIC_APP, c("play coldplay on spotify"))
+        PhoneCommands.parse("play coldplay on spotify")!!.let { assertEquals(PhoneCmd.MEDIA_APP, it.cmd); assertEquals("spotify", it.extra); assertEquals("coldplay", it.arg) }
         assertNull(c("play rock paper scissors"))
         assertEquals(PhoneCmd.CAMERA, c("open the camera"))
         assertEquals(PhoneCmd.CAMERA, c("take a photo"))

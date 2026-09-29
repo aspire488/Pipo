@@ -1,6 +1,12 @@
 package com.pipo.robot.phone
 
+import android.app.NotificationManager
 import android.app.SearchManager
+import android.content.ComponentName
+import android.media.MediaMetadata
+import android.media.session.MediaController
+import android.media.session.MediaSessionManager
+import android.media.session.PlaybackState
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -22,7 +28,9 @@ import android.provider.AlarmClock
 import android.provider.MediaStore
 import android.provider.Settings
 import android.view.KeyEvent
+import com.pipo.robot.engine.MediaApps
 import com.pipo.robot.engine.PhoneCmd
+import com.pipo.robot.notify.PipoNotificationListener
 import com.pipo.robot.engine.PhoneRequest
 import java.net.URLEncoder
 
@@ -154,15 +162,160 @@ class PhoneActions(private val ctx: Context) {
     } + Intent(Settings.ACTION_SETTINGS)
 
     /** @return true if it worked. [lastLine] = what Pipo last said (for "copy that"). */
+    /* ---------------- media apps, any app, and device controls ---------------- */
+
+    /**
+     * Set when an action failed only because an access isn't granted yet; he then opens the exact
+     * Android page for it. Values: "write_settings", "dnd", "notification_access".
+     */
+    @Volatile var needsAccess: String? = null
+        private set
+
+    fun installedMedia(): List<MediaApps.App> = MediaApps.all.filter { a -> a.packages.any { installed(it) } }
+
+    private fun openMedia(id: String, q: String): Boolean {
+        val app = MediaApps.all.firstOrNull { it.id == id } ?: return false
+        val p = app.packages.firstOrNull { installed(it) } ?: return false
+        val deep = when {
+            q.isNotBlank() && app.search != null -> Intent(Intent.ACTION_VIEW, Uri.parse(MediaApps.link(app.search, q))).setPackage(p)
+            q.isBlank() && app.home != null -> Intent(Intent.ACTION_VIEW, Uri.parse(app.home)).setPackage(p)
+            else -> null
+        }
+        return launch(deep, pkg(p))
+    }
+
+    /** Would [r] find something to open? Checked before he announces it, so he never promises an app you don't have. */
+    fun canOpen(r: PhoneRequest): Boolean = when (r.cmd) {
+        PhoneCmd.MEDIA_APP -> installedMedia().any { it.id == r.extra }
+        PhoneCmd.OPEN_ANY -> findApp(r.arg) != null
+        else -> true
+    }
+
+    /** Opens an app from your launcher by (fuzzy) name: exact label, then prefix, then contains. */
+    private fun openAny(name: String): Boolean = findApp(name)?.let { launch(pkg(it)) } ?: false
+
+    private fun findApp(name: String): String? {
+        fun norm(s: String) = s.lowercase().replace(Regex("[^a-z0-9]"), "")
+        val want = norm(name)
+        if (want.length < 2) return null
+        val apps = pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)
+            .map { it.activityInfo.packageName to norm(it.loadLabel(pm).toString()) }
+            .filter { it.first != ctx.packageName }
+        val hit = apps.firstOrNull { it.second == want } ?: apps.firstOrNull { it.second.startsWith(want) } ?: apps.firstOrNull { want.length >= 4 && it.second.contains(want) }
+        return hit?.first
+    }
+
+    /** Media sessions are visible to apps with Notification access (which you may have granted Pipo). */
+    private fun controllers(): List<MediaController> = runCatching {
+        ctx.getSystemService(MediaSessionManager::class.java).getActiveSessions(ComponentName(ctx, PipoNotificationListener::class.java))
+    }.getOrDefault(emptyList())
+
+    private fun activeController(): MediaController? {
+        val all = controllers()
+        return all.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING } ?: all.firstOrNull()
+    }
+
+    /** Runs a transport action on the app that's playing. False if he can't see any (no access / nothing open). */
+    private fun transport(action: (MediaController.TransportControls) -> Unit): Boolean =
+        activeController()?.let { runCatching { action(it.transportControls); true }.getOrDefault(false) } ?: false
+
+    /** "Song — Artist, on Spotify", or null if nothing is playing or he has no access. */
+    fun nowPlaying(): String? {
+        if (!PipoNotificationListener.hasAccess(ctx)) { needsAccess = "notification_access"; return null }
+        val c = controllers().firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING } ?: return null
+        val md = c.metadata ?: return null
+        val title = md.getString(MediaMetadata.METADATA_KEY_TITLE) ?: return null
+        val artist = md.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: md.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
+        val app = runCatching { pm.getApplicationLabel(pm.getApplicationInfo(c.packageName, 0)).toString() }.getOrDefault("")
+        return buildString { append("\"").append(title).append("\""); if (!artist.isNullOrBlank()) append(" by ").append(artist); if (app.isNotBlank()) append(", on ").append(app) }
+    }
+
+    private fun canWriteSettings(): Boolean {
+        if (Settings.System.canWrite(ctx)) return true
+        needsAccess = "write_settings"
+        return false
+    }
+
+    private fun brightness(arg: String): Boolean {
+        if (!canWriteSettings()) return false
+        return runCatching {
+            val cr = ctx.contentResolver
+            Settings.System.putInt(cr, Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL)
+            val cur = Settings.System.getInt(cr, Settings.System.SCREEN_BRIGHTNESS, 128)
+            val next = when (arg) {
+                "up" -> cur + 64
+                "down" -> cur - 64
+                else -> (arg.toIntOrNull() ?: 50) * 255 / 100
+            }.coerceIn(5, 255)
+            Settings.System.putInt(cr, Settings.System.SCREEN_BRIGHTNESS, next)
+        }.getOrDefault(false)
+    }
+
+    private fun autoRotate(on: Boolean): Boolean {
+        if (!canWriteSettings()) return false
+        return runCatching { Settings.System.putInt(ctx.contentResolver, Settings.System.ACCELEROMETER_ROTATION, if (on) 1 else 0) }.getOrDefault(false)
+    }
+
+    private fun policyAccess(): Boolean {
+        if (ctx.getSystemService(NotificationManager::class.java).isNotificationPolicyAccessGranted) return true
+        needsAccess = "dnd"
+        return false
+    }
+
+    private fun dnd(on: Boolean): Boolean {
+        if (!policyAccess()) return false
+        return runCatching {
+            ctx.getSystemService(NotificationManager::class.java).setInterruptionFilter(
+                if (on) NotificationManager.INTERRUPTION_FILTER_PRIORITY else NotificationManager.INTERRUPTION_FILTER_ALL)
+            true
+        }.getOrDefault(false)
+    }
+
+    private fun ringer(mode: String): Boolean {
+        // silent (and leaving silent) needs Do Not Disturb access on modern Android
+        if (!policyAccess()) return false
+        return runCatching {
+            audio.ringerMode = when (mode) { "vibrate" -> AudioManager.RINGER_MODE_VIBRATE; "normal" -> AudioManager.RINGER_MODE_NORMAL; else -> AudioManager.RINGER_MODE_SILENT }
+            true
+        }.getOrDefault(false)
+    }
+
+    /** Opens the Android page where YOU grant [access] to Pipo. */
+    fun openAccessPage(access: String): Boolean = when (access) {
+        "write_settings" -> launch(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:${ctx.packageName}")), Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS))
+        "dnd" -> launch(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
+        "notification_access" -> launch(
+            if (Build.VERSION.SDK_INT >= 30) Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS)
+                .putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME, ComponentName(ctx, PipoNotificationListener::class.java).flattenToString()) else null,
+            Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+        else -> false
+    }
+
+    /** What you've granted Pipo, for Settings. */
+    fun accessStatus(): Map<String, Boolean> = mapOf(
+        "notification_access" to PipoNotificationListener.hasAccess(ctx),
+        "write_settings" to Settings.System.canWrite(ctx),
+        "dnd" to ctx.getSystemService(NotificationManager::class.java).isNotificationPolicyAccessGranted,
+    )
+
     fun execute(r: PhoneRequest, lastLine: String = ""): Boolean {
+        needsAccess = null
         if (r.infoOnly) return true
         return when (r.cmd) {
             PhoneCmd.FLASH_ON -> setTorch(true)
             PhoneCmd.FLASH_OFF -> setTorch(false)
-            PhoneCmd.MEDIA_PLAY -> { mediaKey(KeyEvent.KEYCODE_MEDIA_PLAY); true }
-            PhoneCmd.MEDIA_PAUSE -> { mediaKey(KeyEvent.KEYCODE_MEDIA_PAUSE); true }
-            PhoneCmd.MEDIA_NEXT -> { mediaKey(KeyEvent.KEYCODE_MEDIA_NEXT); true }
-            PhoneCmd.MEDIA_PREV -> { mediaKey(KeyEvent.KEYCODE_MEDIA_PREVIOUS); true }
+            // with Notification access he talks to the app that is actually playing; otherwise media keys
+            PhoneCmd.MEDIA_PLAY -> { if (!transport { it.play() }) mediaKey(KeyEvent.KEYCODE_MEDIA_PLAY); true }
+            PhoneCmd.MEDIA_PAUSE -> { if (!transport { it.pause() }) mediaKey(KeyEvent.KEYCODE_MEDIA_PAUSE); true }
+            PhoneCmd.MEDIA_NEXT -> { if (!transport { it.skipToNext() }) mediaKey(KeyEvent.KEYCODE_MEDIA_NEXT); true }
+            PhoneCmd.MEDIA_PREV -> { if (!transport { it.skipToPrevious() }) mediaKey(KeyEvent.KEYCODE_MEDIA_PREVIOUS); true }
+            PhoneCmd.MEDIA_APP -> openMedia(r.extra, r.arg)
+            PhoneCmd.NOW_PLAYING -> true
+            PhoneCmd.OPEN_ANY -> openAny(r.arg)
+            PhoneCmd.BRIGHTNESS -> brightness(r.arg)
+            PhoneCmd.AUTO_ROTATE -> autoRotate(r.arg == "on")
+            PhoneCmd.DND -> dnd(r.arg == "on")
+            PhoneCmd.RINGER -> ringer(r.arg)
             PhoneCmd.VOLUME_UP -> vol(AudioManager.ADJUST_RAISE)
             PhoneCmd.VOLUME_DOWN -> vol(AudioManager.ADJUST_LOWER)
             PhoneCmd.MUTE -> vol(AudioManager.ADJUST_TOGGLE_MUTE)
@@ -200,7 +353,8 @@ class PhoneActions(private val ctx: Context) {
                 .putExtra(AlarmClock.EXTRA_MESSAGE, "Pipo says wake up")
                 .putExtra(AlarmClock.EXTRA_SKIP_UI, false))
             PhoneCmd.URL -> launch(web(if (r.arg.startsWith("http")) r.arg else "https://${r.arg}"))
-            PhoneCmd.SEARCH -> launch(Intent(Intent.ACTION_WEB_SEARCH).putExtra(SearchManager.QUERY, r.arg), web("https://www.google.com/search?q=${enc(r.arg)}"))
+            // A search URL opens the default browser directly; WEB_SEARCH has several handlers and shows a chooser.
+            PhoneCmd.SEARCH -> launch(web("https://www.google.com/search?q=${enc(r.arg)}"), Intent(Intent.ACTION_WEB_SEARCH).putExtra(SearchManager.QUERY, r.arg))
             PhoneCmd.MAPS -> launch(Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${enc(r.arg.ifBlank { "near me" })}")), web("https://www.google.com/maps/search/${enc(r.arg)}"))
             PhoneCmd.COPY -> copy(r.arg.ifBlank { lastLine })
             PhoneCmd.SHARE -> share(r.arg.ifBlank { lastLine })

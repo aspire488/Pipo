@@ -12,10 +12,16 @@ enum class PhoneCmd {
     FLASH_ON, FLASH_OFF, FLASH_STATUS,
     // media
     MEDIA_PLAY, MEDIA_PAUSE, MEDIA_NEXT, MEDIA_PREV, VOLUME_UP, VOLUME_DOWN, MUTE, YOUTUBE, MUSIC_APP,
+    /** Any known media app (arg = query, extra = MediaApps id); what is playing; which apps you have. */
+    MEDIA_APP, NOW_PLAYING, LIST_MEDIA,
+    // device controls that need an access YOU granted (Modify system settings / Do Not Disturb access)
+    BRIGHTNESS, AUTO_ROTATE, DND, RINGER,
     // camera / photos
     CAMERA, SELFIE, SHOW_PHOTO,
     // apps + system screens
     OPEN_APP, SETTINGS,
+    /** Anything in your launcher, by name. */
+    OPEN_ANY,
     // time
     TIME, DATE, TIMER, ALARM,
     // web
@@ -40,7 +46,7 @@ data class PhoneRequest(
     /** Real-world consequence → explicit yes/no first. */
     val needsConfirm: Boolean get() = cmd == PhoneCmd.DIAL || cmd == PhoneCmd.ALARM
     /** Answered by Pipo himself, no intent needed. */
-    val infoOnly: Boolean get() = cmd in setOf(PhoneCmd.TIME, PhoneCmd.DATE, PhoneCmd.CALC, PhoneCmd.CONVERT, PhoneCmd.BATTERY, PhoneCmd.FLASH_STATUS)
+    val infoOnly: Boolean get() = cmd in setOf(PhoneCmd.TIME, PhoneCmd.DATE, PhoneCmd.CALC, PhoneCmd.CONVERT, PhoneCmd.BATTERY, PhoneCmd.FLASH_STATUS, PhoneCmd.LIST_MEDIA)
 }
 
 /** Live phone facts Pipo can mention. */
@@ -49,6 +55,8 @@ data class PhoneInfo(
     val battery: Int = -1,
     val charging: Boolean = false,
     val torchOn: Boolean = false,
+    /** Installed media apps (labels), for "which apps do I have". */
+    val mediaApps: List<String> = emptyList(),
 )
 
 /**
@@ -149,7 +157,7 @@ object PhoneCommands {
             return PhoneRequest(PhoneCmd.TIME)
         if (Regex("\\b(what's the date|whats the date|what is the date|today's date|todays date|what day is it|what day is today|date today|which day)\\b").containsMatchIn(s) || s == "date")
             return PhoneRequest(PhoneCmd.DATE)
-        if (s.contains("battery") && Regex("\\b(how|much|percent|percentage|level|left|status|charge)\\b").containsMatchIn(s) && !s.contains("setting"))
+        if (s.contains("battery") && Regex("\\b(how|much|what|whats|my|percent|percentage|level|left|status|charge|charged)\\b").containsMatchIn(s) && !s.contains("setting"))
             return PhoneRequest(PhoneCmd.BATTERY)
 
         // ---------- unit conversion: "5 km to miles", "convert 30 c to f"
@@ -157,6 +165,42 @@ object PhoneCommands {
 
         // ---------- calculator: "what's 12*7", "25 percent of 80", "5 plus 3"
         MiniCalc.fromSentence(s)?.let { (expr, ans) -> return PhoneRequest(PhoneCmd.CALC, expr, extra = ans) }
+
+        // ---------- what's playing / which apps
+        if (Regex("^(what'?s|what is) (playing|this song|the song|on the speaker)|what song is (this|playing)|who (sings|is singing) this|what am i listening to").containsMatchIn(s))
+            return PhoneRequest(PhoneCmd.NOW_PLAYING)
+        if (Regex("\\b(what|which) (music |video |media |streaming |movie |song |podcast )?apps (do )?i (have|got)|\\b(list|show) (my )?(music|video|media|streaming) apps").containsMatchIn(s))
+            return PhoneRequest(PhoneCmd.LIST_MEDIA)
+
+        // ---------- device controls (need an access you granted; otherwise he opens the right screen)
+        if (Regex("\\b(brightness|brighter|darker|dim (the )?screen|screen (brighter|darker|dimmer))\\b").containsMatchIn(s) && !s.contains("setting")) {
+            val pct = Regex("(\\d{1,3})\\s*(%|percent)?").find(s)?.groupValues?.get(1)?.toIntOrNull()
+            val arg = when {
+                pct != null -> pct.coerceIn(1, 100).toString()
+                Regex("\\b(max|maximum|full|brightest)\\b").containsMatchIn(s) -> "100"
+                Regex("\\b(min|minimum|lowest|darkest)\\b").containsMatchIn(s) -> "5"
+                Regex("\\b(down|lower|decrease|darker|dim|dimmer|reduce|less)\\b").containsMatchIn(s) -> "down"
+                else -> "up"
+            }
+            return PhoneRequest(PhoneCmd.BRIGHTNESS, arg)
+        }
+        if (Regex("\\b(auto[- ]?rotat(e|ion)|screen rotation|rotation lock|lock (the )?rotation)\\b").containsMatchIn(s) && !s.contains("setting")) {
+            val off = Regex("\\b(off|disable|stop|lock)\\b").containsMatchIn(s) && !s.contains("unlock")
+            return PhoneRequest(PhoneCmd.AUTO_ROTATE, if (off) "off" else "on")
+        }
+        if (Regex("\\b(do not disturb|don'?t disturb|dnd|focus mode)\\b").containsMatchIn(s) && !s.contains("setting")) {
+            val off = Regex("\\b(off|disable|stop|end|exit|cancel)\\b").containsMatchIn(s)
+            return PhoneRequest(PhoneCmd.DND, if (off) "off" else "on")
+        }
+        Regex("\\b(silent|vibrat(e|ion)|ring|normal|sound) mode\\b|\\bon (silent|vibrate)\\b|\\b(silence|unsilence|unmute) (my |the )?phone\\b|\\bringer (on|off)\\b").find(s)?.let {
+            val arg = when {
+                Regex("\\bvibrat").containsMatchIn(s) -> "vibrate"
+                Regex("\\b(unsilence|unmute|ring mode|normal mode|sound mode|ringer on)\\b").containsMatchIn(s) ||
+                    (Regex("\\bsilent mode\\b").containsMatchIn(s) && Regex("\\b(off|disable|turn off)\\b").containsMatchIn(s)) -> "normal"
+                else -> "silent"
+            }
+            return PhoneRequest(PhoneCmd.RINGER, arg)
+        }
 
         // ---------- volume
         if (Regex("\\b(volume up|louder|turn it up|increase (the )?volume|raise (the )?volume)\\b").containsMatchIn(s)) return PhoneRequest(PhoneCmd.VOLUME_UP)
@@ -170,10 +214,13 @@ object PhoneCommands {
         if (Regex("^(resume|unpause|continue( the)?( music| song)?|resume (the )?(music|song)|play( (some|the))? (music|songs?|a song|something)|music on|put on (some )?music)$").matches(s))
             return PhoneRequest(PhoneCmd.MEDIA_PLAY)
 
-        // ---------- spotify / youtube
-        if (s.contains("spotify")) {
-            val q = clean(s.replace(Regex("\\b(play|put on|search for|search|find|open|launch|on|in|spotify)\\b"), " "))
-            return PhoneRequest(PhoneCmd.MUSIC_APP, q)
+        // ---------- any known media app: "play arijit singh on spotify", "watch stranger things on netflix", "open hotstar"
+        MediaApps.mentioned(s)?.let { (app, alias) ->
+            val asked = s == alias || Regex("^(play|put on|watch|listen to|listen|stream|open|launch|start|go to|show me|show|search|find)\\b").containsMatchIn(s) ||
+                Regex("\\b(on|in) $alias\\b").containsMatchIn(s)
+            if (!asked) return@let
+            val q = MediaApps.query(s, alias)
+            return if (app.id == "youtube") PhoneRequest(PhoneCmd.YOUTUBE, q) else PhoneRequest(PhoneCmd.MEDIA_APP, q, extra = app.id)
         }
         if (s.contains("youtube") && !s.contains("youtube music")) {
             val q = clean(s.replace(Regex("\\b(play|put on|search for|search|find|open|launch|watch|on|in|youtube)\\b"), " "))
@@ -207,7 +254,7 @@ object PhoneCommands {
         }
 
         // ---------- web search
-        Regex("^(?:search|google|look up|search the web for|search online for)(?: for)?\\s+(.+)").find(s)?.let {
+        Regex("^(?:search the web for|search online for|search the internet for|look up|google|search)(?: for)?\\s+(.+)").find(s)?.let {
             return PhoneRequest(PhoneCmd.SEARCH, clean(it.groupValues[1]))
         }
 
@@ -242,7 +289,8 @@ object PhoneCommands {
 
         // ---------- open <app>
         Regex("^(?:open|launch|start|go to|show me|show)\\s+(?:the\\s+|my\\s+)?(.+)$").find(s)?.let { m ->
-            val key = appKey(m.groupValues[1]) ?: return@let
+            val key = appKey(m.groupValues[1])
+                ?: if (Regex("^(open|launch|start)\\b").containsMatchIn(s)) return PhoneRequest(PhoneCmd.OPEN_ANY, clean(m.groupValues[1])) else return@let
             return when (key) {
                 "camera" -> PhoneRequest(PhoneCmd.CAMERA)
                 "youtube" -> PhoneRequest(PhoneCmd.YOUTUBE)
@@ -283,6 +331,27 @@ object PhoneCommands {
             PhoneCmd.MUTE -> p("Shh.", "Quiet mode.", "Mute. Or unmute. One of those.")
             PhoneCmd.YOUTUBE -> if (r.arg.isBlank()) p("YouTube. Pick something good.", "Opening YouTube.") else p("Finding \"${r.arg}\". I'll dance if it's good.", "\"${r.arg}\". Loading vibes.")
             PhoneCmd.MUSIC_APP -> if (r.arg.isBlank()) p("Opening your music.", "Music app. Yes.") else "Looking for \"${r.arg}\"."
+            PhoneCmd.MEDIA_APP -> {
+                val label = MediaApps.all.firstOrNull { it.id == r.extra }?.label ?: "that"
+                if (r.arg.isBlank()) p("Opening $label!", "$label. Good choice.", "$label time!")
+                else p("\"${r.arg}\" on $label. Ooh.", "Finding \"${r.arg}\" on $label!", "$label, \"${r.arg}\". Let's go.")
+            }
+            PhoneCmd.NOW_PLAYING -> "" // spoken after he checks, see HomeViewModel
+            PhoneCmd.LIST_MEDIA -> MediaApps.listLine(info.mediaApps)
+            PhoneCmd.OPEN_ANY -> p("Opening ${r.arg}!", "${r.arg.replaceFirstChar { it.uppercase() }}. On it.", "Going to ${r.arg}.")
+            PhoneCmd.BRIGHTNESS -> when (r.arg) {
+                "up" -> p("Brighter! Ow. Worth it.", "More light!")
+                "down" -> p("Dimmer. Cozy.", "Darker. Sneaky mode.")
+                "100" -> "Full brightness. My eyes!"
+                else -> "Brightness ${r.arg}%. Just right."
+            }
+            PhoneCmd.AUTO_ROTATE -> if (r.arg == "on") p("Auto-rotate on. Spin the phone!", "Now the screen turns with you.") else p("Rotation locked. The screen stays put.", "No more spinning.")
+            PhoneCmd.DND -> if (r.arg == "on") p("Do not disturb. Shh. Except me.", "Quiet time. I'll guard the door.") else p("Do not disturb is off. The world can knock again.", "Okay, notifications are back.")
+            PhoneCmd.RINGER -> when (r.arg) {
+                "vibrate" -> p("Vibrate mode. Bzzz.", "Buzz only.")
+                "normal" -> p("Ringer's back on. Ring ring!", "Sound mode on.")
+                else -> p("Silent mode. Shhh.", "Phone's on silent.")
+            }
 
             PhoneCmd.CAMERA -> p("Camera time. Say screws!", "Opening the camera. Get my good side. All sides.", "Photo? Wait, let me pose.")
             PhoneCmd.SELFIE -> p("Selfie! I'll stay out of it. Probably.", "Front camera. You look great. I'd know.")

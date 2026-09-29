@@ -36,7 +36,12 @@ object Simulator {
         else -> null
     }
 
+    /** "Nothing happened" lines: only true while nothing else did. */
+    private val quietLines = setOf("stared out the window for a really long time", "slept. A lot. It was great", "did absolutely nothing. On purpose")
+
     fun noteAway(s: PipoState, line: String) {
+        // a real event makes any earlier "nothing happened" untrue
+        if (line !in quietLines) s.awayLog.removeAll { it in quietLines }
         if (line in s.awayLog) return
         s.awayLog.add(line)
         if (s.awayLog.size > 5) s.awayLog.removeAt(0)
@@ -119,15 +124,24 @@ object Greeter {
     fun topEvent(s: PipoState): PendingEvent? =
         s.events.filter { !it.shownInApp && it.type in revealTypes }.maxByOrNull { it.importance + it.createdAt / 1e13f }
 
-    fun plan(s: PipoState, now: Long, awayMs: Long, rng: Random): Greeting {
-        val t = s.profile.traits
-        val name = s.profile.userName
+    /**
+     * [fromNotification] = the event behind the message you just tapped. That comes first, even if he
+     * was asleep: he messaged you, so he wakes up and tells you what he meant.
+     */
+    fun plan(s: PipoState, now: Long, awayMs: Long, rng: Random, fromNotification: PendingEvent? = null): Greeting {
         if (!s.profile.firstRunDone) return Greeting(GreetKind.FIRST_WAKE, "")
+        fromNotification?.let { ev ->
+            if (ev.type in revealTypes && !ev.shownInApp) return forEvent(s, ev, rng)
+            val idea = ev.payload.removePrefix("idea:").takeIf { ev.payload.startsWith("idea:") }
+            return Greeting(GreetKind.CALM, if (idea != null) "You came! Okay. The idea: a ${idea.lowercase()}. I'm going to build it." else "You came! Okay, so. It was a good thought. I'm still thinking it.", ev)
+        }
         if (awayMs < 3 * MINUTE) return Greeting(GreetKind.BRIEF, "")
         if (s.activity.type == ActivityType.SLEEP) return Greeting(GreetKind.SLEEPING, Dialogue.pick(Dialogue.sleepMumble, rng))
-        val ev = topEvent(s)
-        if (ev != null) {
-            return when (ev.type) {
+        return topEvent(s)?.let { forEvent(s, it, rng) } ?: moodGreeting(s, now, awayMs, rng)
+    }
+
+    private fun forEvent(s: PipoState, ev: PendingEvent, rng: Random): Greeting =
+            when (ev.type) {
                 EventType.DISCOVERY -> Greeting(GreetKind.REVEAL_ITEM, Dialogue.pick(Dialogue.foundWhileAway, rng), ev)
                 EventType.REVEAL -> {
                     val item = s.world.items.firstOrNull { it.id.toString() == ev.payload }
@@ -141,7 +155,10 @@ object Greeter {
                 EventType.SURPRISE -> Greeting(GreetKind.SURPRISE, "Oh! You're here. Look at the wall. No — the other wall. That one.", ev)
                 else -> Greeting(GreetKind.CALM, "Hey.", ev)
             }
-        }
+
+    private fun moodGreeting(s: PipoState, now: Long, awayMs: Long, rng: Random): Greeting {
+        val t = s.profile.traits
+        val name = s.profile.userName
         val mood = s.mood.current
         return when {
             mood == Mood.MISCHIEVOUS -> {

@@ -6,6 +6,8 @@ import android.content.Context
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import androidx.core.app.NotificationManagerCompat
+import com.pipo.robot.BuildConfig
+import com.pipo.robot.DebugFlags
 import com.pipo.robot.engine.PhoneNotifs
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -26,7 +28,7 @@ class PipoNotificationListener : NotificationListenerService() {
     private val seen = ConcurrentHashMap<String, Long>()
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
-        val app = PhoneNotifs.appFor(sbn.packageName) ?: return
+        val app = PhoneNotifs.appFor(sbn.packageName) ?: testApp(sbn.packageName) ?: return
         val n = sbn.notification ?: return
         if (n.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
         val isCall = n.category == Notification.CATEGORY_CALL
@@ -37,10 +39,24 @@ class PipoNotificationListener : NotificationListenerService() {
         val text = n.extras?.let { e ->
             listOfNotNull(e.getCharSequence(Notification.EXTRA_TEXT), e.getCharSequence(Notification.EXTRA_BIG_TEXT)).joinToString(" ")
         }.orEmpty()
-        events.tryEmit(PhoneNotifs.Event(app, PhoneNotifs.classify(app, text, isCall)))
+        val ev = PhoneNotifs.Event(app, PhoneNotifs.classify(app, text, isCall))
+        if (BuildConfig.DEBUG) android.util.Log.d("PipoNotif", "noticed ${ev.app} ${ev.kind}") // app + kind only, never content
+        events.tryEmit(ev)
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) { seen.remove(sbn.key) }
+
+    /**
+     * Debug builds only: with DebugFlags `notifshell=instagram`, notifications posted from ADB
+     * (`adb shell cmd notification post …`, package com.android.shell) count as that app, so the
+     * whole pipeline can be tested on a phone without waiting for a real message.
+     */
+    private fun testApp(pkg: String): PhoneNotifs.App? {
+        if (!BuildConfig.DEBUG || pkg != "com.android.shell") return null
+        DebugFlags.load(applicationContext)
+        val name = DebugFlags["notifshell"].firstOrNull() ?: return null
+        return PhoneNotifs.App.entries.firstOrNull { it.name.equals(name, ignoreCase = true) }
+    }
 
     companion object {
         private val events = MutableSharedFlow<PhoneNotifs.Event>(extraBufferCapacity = 16)

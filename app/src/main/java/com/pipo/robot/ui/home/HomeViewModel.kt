@@ -58,6 +58,7 @@ import com.pipo.robot.engine.DAY as DAY_MS
 import com.pipo.robot.engine.LocalBrain
 import com.pipo.robot.engine.MoodEngine
 import com.pipo.robot.engine.OfferKind
+import com.pipo.robot.engine.MediaApps
 import com.pipo.robot.engine.PhoneNotifs
 import com.pipo.robot.notify.PipoNotificationListener
 import com.pipo.robot.engine.Outcome
@@ -314,6 +315,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         if (brain === NoBrain) brain = Brains.fromBuild()
 
         var digest: String? = null
+        var fromMessage = false
         val (greet, notNowRecently) = repo.mutate { s ->
             val away = if (s.lastSeenByUserAt == 0L) Long.MAX_VALUE / 4 else now - s.lastSeenByUserAt
             Simulator.catchUp(s, now, rng)
@@ -322,7 +324,14 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 r.response = if (action == "play") UserResponse.PLAYED else UserResponse.OPENED
                 Personality.nudge(s, Trait.SOCIABILITY, 0.004f)
             }
-            val g = if (booted && away < 3 * 60_000L) Greeting(GreetKind.BRIEF, "") else Greeter.plan(s, now, away, rng)
+            // Opened by tapping one of his messages: that message is what he wants to talk about.
+            val tapped = if (recordId != 0L && action != "play") s.notifications.firstOrNull { it.id == recordId }?.let { r -> s.events.firstOrNull { it.id == r.eventId } } else null
+            if (tapped != null) fromMessage = true
+            val g = when {
+                tapped != null -> Greeter.plan(s, now, away, rng, fromNotification = tapped)
+                booted && away < 3 * 60_000L -> Greeting(GreetKind.BRIEF, "")
+                else -> Greeter.plan(s, now, away, rng)
+            }
             g.event?.shownInApp = true
             val last = s.notifications.lastOrNull()
             val nn = last != null && last.response == UserResponse.NOT_NOW && now - last.timestamp < 12 * HOUR
@@ -352,7 +361,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                     Beat.Say(Dialogue.pick(Reactions.cameraBack, rng), Sfx.BEEP))
             }
             else -> {
-                debugEvent("greet ${greet.kind} digest=${digest != null}")
+                debugEvent("greet ${greet.kind} digest=${digest != null} fromMessage=$fromMessage")
+                if (fromMessage && (inBed || activity == ActivityType.SLEEP)) { interrupt(); leaveBed() } // he messaged you: he gets up
                 stage(greet, notNowRecently)
                 val tellable = greet.kind !in setOf(GreetKind.SLEEPING, GreetKind.FAKE_SLEEP, GreetKind.FIRST_WAKE, GreetKind.BRIEF)
                 digest?.let { d ->
@@ -1533,7 +1543,15 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun phoneInfo() = PhoneInfo(System.currentTimeMillis(), phoneState.battery, phoneState.charging, phoneActions.torchOn)
+    private fun phoneInfo() = PhoneInfo(System.currentTimeMillis(), phoneState.battery, phoneState.charging, phoneActions.torchOn,
+        mediaApps = runCatching { phoneActions.installedMedia().map { it.label } }.getOrDefault(emptyList()))
+
+    /** He can't do it yet because you haven't allowed it. No pressure, just where the switch is. */
+    private fun accessLine(access: String): String = when (access) {
+        "write_settings" -> "I need your okay to change that. I'll open the page. Turn on \"Modify system settings\" for Pipo, then ask me again."
+        "dnd" -> "I need your okay for that. I'll open the page. Switch on Pipo under \"Do Not Disturb access\", then ask me again."
+        else -> "I need Notification access for that. I'll open the page. Switch Pipo on, then ask me again."
+    }
 
     private fun handlePhone(req: PhoneRequest) {
         if (req.needsConfirm) {
@@ -1551,11 +1569,18 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             PhoneCmd.FLASH_ON, PhoneCmd.FLASH_OFF -> "This phone has no flashlight. Or it's hiding it from me."
             PhoneCmd.VOLUME_UP, PhoneCmd.VOLUME_DOWN, PhoneCmd.MUTE -> "Android won't let me touch the volume right now."
             PhoneCmd.COPY, PhoneCmd.SHARE -> "Nothing to send yet. Say something first. Or I will."
+            PhoneCmd.MEDIA_APP -> "You don't have ${MediaApps.all.firstOrNull { it.id == req.extra }?.label ?: "that"} on this phone. I looked everywhere."
+            PhoneCmd.OPEN_ANY -> "I can't find an app called ${req.arg}. I looked under the bed."
             else -> "Hm. That didn't work. I don't think there's an app for that."
         }
         val exec = Beat.Do {
             val ok = runCatching { phoneActions.execute(req, lastSpoken) }.getOrDefault(false)
-            if (!ok) beats.addFirst(Beat.Say(failLine, Sfx.SIGH))
+            val access = phoneActions.needsAccess
+            if (!ok && access != null) {
+                // Only missing because you haven't allowed it yet: say so, then open that exact page.
+                beats.addFirst(Beat.Do { phoneActions.openAccessPage(access) })
+                beats.addFirst(Beat.Say(accessLine(access), Sfx.BEEP))
+            } else if (!ok) beats.addFirst(Beat.Say(failLine, Sfx.SIGH))
             else when (req.cmd) {
                 PhoneCmd.CAMERA, PhoneCmd.SELFIE -> sessionFlags += "cameraOpened"
                 PhoneCmd.MEDIA_PLAY -> viewModelScope.launch {
@@ -1580,6 +1605,29 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             PhoneCmd.VOLUME_UP -> enqueue(exec, Beat.Act(AnimState.HOP, 0.5f, Expr.EXCITED), Beat.Say(line))
             PhoneCmd.VOLUME_DOWN, PhoneCmd.MUTE -> enqueue(exec, Beat.Act(AnimState.HIDING, 0.6f, Expr.CLOSED), Beat.Say(line))
             PhoneCmd.YOUTUBE, PhoneCmd.MUSIC_APP -> enqueue(Beat.Act(AnimState.DANCING, 1f, Expr.HAPPY), Beat.Say(line, Sfx.HAPPY), exec)
+            // leaving for another app: only announce it if it's really there
+            PhoneCmd.MEDIA_APP, PhoneCmd.OPEN_ANY ->
+                if (!phoneActions.canOpen(req)) enqueue(Beat.Act(AnimState.LOOK_AROUND, 1f, Expr.CURIOUS), Beat.Say(failLine, Sfx.HMM))
+                else enqueue(Beat.Act(if (req.cmd == PhoneCmd.MEDIA_APP) AnimState.DANCING else AnimState.HOP, 0.8f, Expr.HAPPY), Beat.Say(line, Sfx.HAPPY), exec)
+            PhoneCmd.NOW_PLAYING -> enqueue(Beat.Act(AnimState.LISTENING, 0.9f, Expr.CURIOUS), Beat.Do {
+                val np = phoneActions.nowPlaying()
+                val access = phoneActions.needsAccess
+                when {
+                    np != null -> beats.addFirst(Beat.Say(Dialogue.pick(listOf("That's $np. Good taste.", "It's $np! I know this one. I think.", "$np. Dance break?"), rng), Sfx.HAPPY))
+                    access != null -> { beats.addFirst(Beat.Do { phoneActions.openAccessPage(access) }); beats.addFirst(Beat.Say(accessLine(access), Sfx.BEEP)) }
+                    else -> beats.addFirst(Beat.Say(Dialogue.pick(listOf("Nothing's playing. Just my humming.", "Silence. Very peaceful. Suspicious."), rng), Sfx.HMM))
+                }
+            })
+            // device controls: act first, then say what actually happened
+            PhoneCmd.BRIGHTNESS, PhoneCmd.AUTO_ROTATE, PhoneCmd.DND, PhoneCmd.RINGER -> enqueue(Beat.Act(AnimState.PROUD, 0.4f, Expr.FOCUSED), Beat.Do {
+                val ok = runCatching { phoneActions.execute(req, lastSpoken) }.getOrDefault(false)
+                val access = phoneActions.needsAccess
+                when {
+                    ok -> beats.addFirst(Beat.Say(line, Sfx.BEEP))
+                    access != null -> { beats.addFirst(Beat.Do { phoneActions.openAccessPage(access) }); beats.addFirst(Beat.Say(accessLine(access), Sfx.BEEP)) }
+                    else -> beats.addFirst(Beat.Say(failLine, Sfx.SIGH))
+                }
+            })
             PhoneCmd.CAMERA, PhoneCmd.SELFIE ->
                 if (shy) enqueue(Beat.Say("A photo? Don't point it at me.", Sfx.SURPRISED), Beat.Act(AnimState.HIDING, 1f, Expr.EMBARRASSED), exec)
                 else enqueue(Beat.Act(AnimState.PROUD, 0.8f, Expr.HAPPY), Beat.Say(line, Sfx.BEEP), exec)
@@ -1768,6 +1816,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         if (inBed && !call) { pendingNotifs.clear(); return }
         val busy = !booted || firstWakePending || dragging || listening || reveal != null || cur is Beat.Say || beats.isNotEmpty()
         if (busy && waited < 12f) return
+        debugEvent("notif ${pendingNotifs.size} busy=$busy beats=${beats.size} cur=${cur?.javaClass?.simpleName}")
         if (busy || (!call && clock - lastNotifReact < 10f)) { pendingNotifs.clear(); return }
         val evs = pendingNotifs.toList()
         pendingNotifs.clear()

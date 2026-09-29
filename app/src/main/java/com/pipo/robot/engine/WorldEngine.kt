@@ -125,11 +125,16 @@ object Projects {
     }
 
     /** The most recent failed project (last 3 days) he never finished since. */
-    fun retryCandidate(s: PipoState, now: Long): PipoProject? {
-        val done = s.projects.filter { it.state == ProjectState.DONE }.map { it.templateId }.toSet()
-        return s.projects.lastOrNull { it.state == ProjectState.FAILED && now - it.finishedAt < 3 * DAY && it.templateId !in done }
-            ?.takeIf { f -> s.projects.none { it.active && it.templateId == f.templateId } && Catalog.project(f.templateId) != null }
-    }
+    /**
+     * A project worth retrying: the LATEST attempt at it failed recently. A later attempt that
+     * finished (worked, or turned into something else) settles it — regression seen on device,
+     * where an old failure kept pulling him back after the retry had already evolved.
+     */
+    fun retryCandidate(s: PipoState, now: Long): PipoProject? =
+        s.projects.groupBy { it.templateId }.values
+            .mapNotNull { attempts -> attempts.maxByOrNull { it.startedAt } }
+            .filter { it.state == ProjectState.FAILED && now - it.finishedAt < 3 * DAY && Catalog.project(it.templateId) != null }
+            .maxByOrNull { it.finishedAt }
 
     /** Uses owned, unused items that match missing component tags. */
     fun gather(s: PipoState, p: PipoProject) {

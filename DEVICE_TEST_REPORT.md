@@ -14,11 +14,11 @@
 
 | Check | Result |
 | --- | --- |
-| `testDebugUnitTest` | **61 / 61 pass** (8 test classes) |
+| `testDebugUnitTest` | **68 / 68 pass** (11 test classes, including a two-week life simulation) |
 | On-device instrumentation (`PoseGalleryTest`) | **6 / 6 pass** on the S23; rendered sheets reviewed by eye |
 | `lintDebug` | **0 errors, 12 warnings**: 9 × newer dependency available (not upgraded during a polish phase), 2 × intentional portrait lock, 1 × `mipmap-anydpi-v26` (required by `aapt2` for adaptive icons; merging it breaks the build, verified) |
 | `assembleDebug` / `assembleRelease` | Success (≈11.1 MB / ≈7.4 MB) |
-| GitHub CI | **Not checked** in this pass |
+| GitHub CI | **Passed** for the first device-validation commit (`ad453ec`, run 36586565979); the previous `main` run had failed |
 
 ---
 
@@ -80,6 +80,33 @@ Evidence came from screenshots, the `PipoDebug` / `PipoVoice` / `PipoBrain` logc
 - Suggesting again → *"I already played! Screen break."* (the budget is enforced).
 - Tapping him mid-console → he stops and greets you immediately. **(Two bugs found and fixed, see below.)**
 
+**Noticing your notifications** (Notification access granted by the owner in Android settings)
+- The listener is bound by the system. ADB-posted notifications were attributed to Instagram or WhatsApp with a debug-only flag.
+- Instagram "sent you a reel" → `noticed INSTAGRAM REEL` → *"A reel! On Instagram! Can I watch too?"*
+- A burst of 3 WhatsApp messages → **one** reaction, *"WhatsApp keeps buzzing! Is it a party?"*. The message words appear nowhere, not in speech and not in logs.
+- WhatsApp "Voice message (0:07)" → `WHATSAPP VOICE`. No spoken reaction, because he was asleep, and staying quiet while asleep is by design.
+
+**His own notifications** (the worker logic run on demand through a debug-only receiver; WorkManager won't run a periodic job early)
+- You interacted 0 minutes ago, 11 candidate events → **stays quiet** (90-minute interaction gap).
+- You've been away 3 h → **one** notification: *"Joel. I have an idea."* (category social, not-now action).
+- Immediately again → **quiet** (minimum gap). After the gap, but with no event important enough → **quiet** (importance threshold).
+- After more simulated life → *"So. Funny story."*. Tapping it at 9 pm, with Pipo asleep → he **gets up and explains**: *"Okay. Don't look at the workbench."* and the Flying machine card, *"It flew. Downward. Very fast. I'm fine."* **(Bug found and fixed.)**
+
+**Phone actions** (each checked against the system, and everything restored afterwards)
+- **Time** "8:35 PM" ✓. **Maths** 12×7 = "84." ✓. **Battery** "94%" = system 94% ✓ **(phrasing bug fixed)**.
+- **Torch:** the camera service logged it turning on and then off for Pipo's PID ✓. The status question gets "It's off." ✓
+- **Media volume:** 6 → 7 → 6 ✓.
+- **Apps:** calculator ✓, Wi-Fi panel ✓, Samsung Camera ✓ (nothing captured), Maps directions ✓, Chrome search ✓ **(query and chooser bugs fixed)**, YouTube search ✓.
+- **Alarm:** asks "An alarm for 07:00?" first. **No** → no Clock app opened, so no alarm was created ✓.
+- **Media apps:** "what music apps do I have" → YouTube, Spotify, Netflix and 7 more ✓ (10 installed). Spotify search ✓, Netflix ✓, WhatsApp via the launcher ✓. Prime Video (not installed) → *"You don't have Prime Video on this phone"* and he stays put ✓.
+- **Media sessions:** "what's playing" while paused → "Nothing's playing" ✓. "Next song" → Spotify skipped and started playing ✓. "What's playing" → *"'Cringe Paattu' by Eechuu, E3Y, Suhas, on Spotify"* ✓. "Pause" → Spotify session `PAUSED` ✓.
+- **Access flow:** "brighter" without access → *"I need your okay… Turn on 'Modify system settings'…"* and it opened exactly that page ✓. The owner allowed *Modify system settings* and *Do Not Disturb access*.
+- **Brightness** 40% → system 102/255 ✓, then brighter → 166 ✓. **Auto-rotate off** → 0 ✓. **DND on** → `zen_mode=1` ✓, **off** → 0 ✓. **Vibrate** → `VIBRATE` ✓, **silent** → `SILENT` ✓. Brightness 95, rotation on, DND off and ringer silent were all restored.
+
+**Pipo building things**
+- On the device, over simulated days: Flying machine attempt 1 **failed** ("Small explosion") → *"Pipo is trying again"* → attempt 2 **evolved** into a jumping machine. A second, wrong "trying again" exposed a retry-loop bug **(fixed)**.
+- Two-week JVM simulations (6 personalities, the real engine, the clock moving forward): *"IT FLEW. For two seconds. I'm a pilot now. Attempt 2. He never gave up, and he'd like that noted."*, a lamp that "works backwards" and then works, *"I made a periscope… It's just more desk."* No retry loops, and attempt numbers never go backwards.
+
 **Settings, menus and privacy**
 - Settings: name, notification controls, the new "Chatting" disclosure and the notification-noticing section. The owner confirmed scrolling and the layout.
 - Permissions requested at runtime: only `RECORD_AUDIO` (on mic tap) and `POST_NOTIFICATIONS` (when asked). No camera, contacts, SMS, location or storage permissions exist in the manifest. Notification access stays **off** unless the user grants it.
@@ -127,12 +154,19 @@ Each one was reproduced on the S23, fixed, rebuilt, reinstalled and re-checked o
 | 13 | Gaming Pipo sometimes faced away from the TV | The pose yaw was multiplied by a random `awaySide` | Gaming always faces the TV |
 | 14 | Tapping him mid-console said "Phone away." | `activity` was cleared before the line was picked | Gadget captured first; console-specific lines |
 | 15 | Pulled off the console, he went straight to the arcade | The arcade ignored the screen break | The arcade waits out the break (regression test added) |
+| 16 | "whats my battery" went to the chat brain instead of reading the battery | The battery pattern needed "how/level/…" | Natural phrasings added (test) |
+| 17 | "search the web for cute robots" searched for "web for cute robots" | Regex alternation matched the short "search" first | Longest phrase first (test) |
+| 18 | Web search showed an app chooser | `ACTION_WEB_SEARCH` has several handlers | Search URL first, which opens the default browser |
+| 19 | Tapping his notification at night got a sleep mumble instead of what he meant | The greeter checked "asleep" before the tapped message | The tapped message comes first and he gets up (test) |
+| 20 | Recap: "I did absolutely nothing… broke the flying machine…" | "Nothing happened" filler from a quiet hour stayed next to later real events | Real events clear the filler (test) |
+| 21 | After a retry *evolved*, he "tried again" from scratch, and attempt numbers went backwards | The retry candidate ignored later attempts that had evolved | Retry only when the **latest** attempt failed (3 tests + two-week simulation) |
 
 The uncommitted fixes from the previous session (head depth for side and back views, three-quarter walking yaw, hand-depth ordering, the blanket shape, the ceiling and string lights, and ignoring his own voice as "music") were built, run and checked on this phone as part of this pass.
 
 ## Added during this phase, at the owner's request
 - **Toddler boy voice** (on-device pitch plus formant shift).
 - **Chat brain:** Gemini → Groq → offline, with conversation history, and the Anthropic option removed. Keys are kept out of git.
+- **Phone control:** any installed media app, open any app, what's playing and targeted media control, and brightness / auto-rotate / Do Not Disturb / ringer behind accesses you grant, plus a "Phone control" section in Settings.
 - **Notification noticing** (opt-in, app + kind only).
 - **His own phone and game console**, with a screen-time budget so he doesn't become addicted.
 
@@ -140,9 +174,9 @@ The uncommitted fixes from the previous session (head depth for side and back vi
 
 ## NOT YET VERIFIED ON PHYSICAL DEVICE
 
-- **Notification noticing:** Notification access was not granted during testing. The classifier and privacy rules are unit-tested only.
-- **Outgoing notifications:** WorkManager timing, delivery, quiet hours and ignore-backoff on the real device. The policy is unit-tested only.
-- **Android intents:** torch, media keys and volume, camera and selfie, the photo picker, settings pages, browser, YouTube and music, maps, calculator, timers, alarms, clipboard and share.
+- **Notification noticing with real third-party messages:** tested with ADB-posted stand-ins (debug flag). A real Instagram notification arrived while he slept and was correctly classified; the reaction path while awake used the stand-ins.
+- **Outgoing notifications:** WorkManager's own hourly timing (the identical worker code was run on demand), quiet hours at night and ignore-backoff on the device (unit-tested).
+- **Intents not exercised:** timers (they'd ring), the selfie camera, the photo picker, clipboard and share, and dialing.
 - **Truly offline behaviour:** ADB runs over Wi-Fi, so offline was simulated with the `nobrain` debug flag rather than by cutting the network.
 - **Tilt parallax** by physically tilting the phone. **Shake reactions.**
 - **Lock → unlock** as a timed scenario (only observed incidentally), and a long unattended session (hours).

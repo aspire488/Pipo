@@ -12,6 +12,7 @@ import java.io.File
  *
  * `skip`    render layers to leave out (room, pipo, light, fg) for cost attribution.
  * `nobrain` chat providers to treat as down (gemini, groq) to exercise the fallbacks.
+ * `notifshell` treat ADB-posted notifications as this app (whatsapp, instagram…).
  * Always empty in release builds.
  */
 object DebugFlags {

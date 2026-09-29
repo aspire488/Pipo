@@ -59,6 +59,11 @@ class PipoWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
                 d to rec.id
             }
             repo.saveNow()
+            if (com.pipo.robot.BuildConfig.DEBUG) repo.read { s ->
+                android.util.Log.d("PipoNotify", "worker: posted=${result != null} fg=$fg canPost=$canPost quiet=${NotificationPolicy.inQuietHours(s.settings, hourOf(now))} " +
+                    "sinceYouMin=${(now - s.lastUserInteractionAt) / com.pipo.robot.engine.MINUTE} deliveredToday=${s.notifications.count { it.delivered && now - it.timestamp < com.pipo.robot.engine.DAY }} " +
+                    "candidates=${s.events.count { !it.notified }}")
+            }
             result?.let { (d, id) -> Notifier.post(ctx, d, id) }
             return result?.first?.text
         }
