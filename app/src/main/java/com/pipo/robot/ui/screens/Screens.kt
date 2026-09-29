@@ -1,6 +1,8 @@
 package com.pipo.robot.ui.screens
 
 import android.Manifest
+import android.content.Intent
+import android.provider.Settings
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -43,6 +45,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,7 +60,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -71,7 +73,9 @@ import com.pipo.robot.data.ProjectState
 import com.pipo.robot.data.UserResponse
 import com.pipo.robot.data.VoiceMode
 import com.pipo.robot.engine.HOUR
+import com.pipo.robot.ai.Brains
 import com.pipo.robot.notify.Notifier
+import com.pipo.robot.notify.PipoNotificationListener
 import com.pipo.robot.notify.PipoWorker
 import com.pipo.robot.ui.common.PipoTopBar
 import com.pipo.robot.ui.common.clockTime
@@ -278,7 +282,6 @@ fun SettingsScreen(onBack: () -> Unit) {
     val st = remember(v) { repo.read { it.settings.copy(categories = it.settings.categories.toMutableMap()) } }
     val recent = remember(v) { repo.read { it.notifications.takeLast(5).reversed() } }
     var name by remember(v) { mutableStateOf(repo.read { it.profile.userName }) }
-    var key by remember { mutableStateOf(st.aiApiKey) }
     var confirmReset by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val notifPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -317,21 +320,40 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
         }
         item {
+            Section("Pipo notices your notifications") {
+                // Re-checked whenever you come back from Android's settings page.
+                var access by remember { mutableStateOf(PipoNotificationListener.hasAccess(ctx)) }
+                val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+                DisposableEffect(owner) {
+                    val obs = androidx.lifecycle.LifecycleEventObserver { _, e ->
+                        if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) access = PipoNotificationListener.hasAccess(ctx)
+                    }
+                    owner.lifecycle.addObserver(obs)
+                    onDispose { owner.lifecycle.removeObserver(obs) }
+                }
+                Text("When WhatsApp, Instagram, Telegram, Messages and friends buzz while Pipo is on screen, he notices: “Ooh, someone sent you a reel!”. " +
+                    "He only learns which app and what kind of thing it was. He never sees who it's from or what it says, never keeps it, and never opens or answers anything.",
+                    color = PipoPalette.muted, style = MaterialTheme.typography.bodyMedium)
+                ToggleRow(if (access) "On (tap to change in Android settings)" else "Off", access) { _ ->
+                    val detail = if (Build.VERSION.SDK_INT >= 30) Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS)
+                        .putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME, PipoNotificationListener.component(ctx).flattenToString()) else null
+                    val list = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                    runCatching { ctx.startActivity(detail ?: list) }.onFailure { runCatching { ctx.startActivity(list) } }
+                }
+            }
+        }
+        item {
             Section("Pipo's voice") {
                 Segmented(VoiceMode.entries, st.voiceMode, { it.label }) { m -> edit { it.voiceMode = m } }
                 ToggleRow("Beeps and sound effects", st.sounds) { on -> edit { it.sounds = on } }
             }
         }
         item {
-            Section("Smarter chatting (optional)") {
-                Text("Pipo works fully offline. With your own Anthropic API key, his conversation gets more natural. Only what you type/say in chat is sent. Phone actions never leave the phone.",
+            Section("Chatting") {
+                Text(
+                    if (Brains.configured) "When you're online, Pipo thinks up his chat replies with Gemini (Groq as backup). Only what you type or say to him in chat, plus his mood and a few of his memories, is sent to make the reply. Offline he uses his own words. Phone actions never leave the phone."
+                    else "Pipo is chatting with his own offline words.",
                     color = PipoPalette.muted, style = MaterialTheme.typography.bodyMedium)
-                ToggleRow("Use AI for conversation", st.aiEnabled) { on -> edit { it.aiEnabled = on } }
-                if (st.aiEnabled) {
-                    OutlinedTextField(key, { key = it.trim() }, label = { Text("API key (sk-ant-…)") }, singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
-                    TextButton({ edit { it.aiApiKey = key } }) { Text("Save key") }
-                }
             }
         }
         item {

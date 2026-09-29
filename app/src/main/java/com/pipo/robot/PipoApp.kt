@@ -11,6 +11,7 @@ import com.pipo.robot.notify.PipoWorker
 class PipoApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        DebugFlags.load(this)
         Notifier.createChannel(this)
         PipoWorker.schedule(this)
         ProcessLifecycleOwner.get().lifecycle.addObserver(LifecycleEventObserver { _, event ->

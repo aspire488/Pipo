@@ -13,7 +13,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.graphics.lerp
 import com.pipo.robot.data.ItemShape
 import kotlin.math.abs
 import kotlin.math.cos
@@ -45,6 +44,24 @@ fun DrawScope.drawRoom(g: SceneGeo, camU: Float, st: RoomState, t: Float, pipoIn
         fun X(v: Float) = v * u
         fun Y(v: Float) = fy - v * u
         val worldW = X(SceneGeo.WORLD_W)
+
+        // ---- ceiling: mirrors the floor's perspective so the room reads as a box, not a backdrop
+        val ceilY = fy - 104f * u
+        if (ceilY > 0f) {
+            val ceil = lerp(Color(0xFF1C2336), Color(0xFF7D95A0), day)
+            drawRect(Brush.verticalGradient(listOf(lerp(ceil, Color.Black, 0.2f), ceil), startY = 0f, endY = ceilY), Offset(0f, 0f), Size(worldW, ceilY))
+            val vpc = camU * u + size.width / 2f
+            val spreadC = 1f + 1.7f * ceilY / (size.height - fy).coerceAtLeast(1f)
+            var cx0 = -40f
+            while (cx0 < SceneGeo.WORLD_W + 40f) {
+                val x0 = X(cx0)
+                drawLine(Color.Black.copy(alpha = 0.08f), Offset(x0, ceilY), Offset(vpc + (x0 - vpc) * spreadC, 0f), u * 0.3f)
+                cx0 += 22f
+            }
+            // crown molding
+            drawRect(lerp(wall, Color.White, 0.25f), Offset(0f, ceilY), Size(worldW, 1.6f * u))
+            drawRect(Color.Black.copy(alpha = 0.12f), Offset(0f, ceilY + 1.6f * u), Size(worldW, 0.8f * u))
+        }
 
         // ---- wall panels
         var px = 0f
@@ -177,6 +194,41 @@ fun DrawScope.drawRoom(g: SceneGeo, camU: Float, st: RoomState, t: Float, pipoIn
             drawRoundRect(Brush.horizontalGradient(listOf(Color(0xFFB8A998), Color(0xFFD4C6B6), Color(0xFFB8A998)), startX = r - 1f * u, endX = r + 4f * u),
                 Offset(r - 1f * u - sway, tp - 2f * u), Size(5f * u, b - tp + 6f * u), CornerRadius(2f * u))
             drawLine(woodDark, Offset(l - 6f * u, tp - 2f * u), Offset(r + 6f * u, tp - 2f * u), 0.8f * u, StrokeCap.Round)
+        }
+
+        // --- TV + game console on a low stand under the window
+        run {
+            val l = SceneGeo.TV_L; val r = SceneGeo.TV_R; val cx = (l + r) / 2f
+            drawRect(Color.Black.copy(alpha = 0.18f), Offset(X(l - 0.5f), fy - 0.6f * u), Size((r - l + 1f) * u, 1.4f * u))
+            drawRoundRect(Brush.verticalGradient(listOf(lerp(wood, Color.White, 0.08f), woodDark), startY = Y(5f), endY = fy), Offset(X(l), Y(5f)), Size((r - l) * u, 5f * u), CornerRadius(0.6f * u))
+            drawRect(Color.Black.copy(alpha = 0.18f), Offset(X(l + 1f), Y(3.6f)), Size((r - l - 2f) * u, 2.2f * u))
+            // console box on the shelf, light strip on when he plays
+            drawRoundRect(Color(0xFF20242F), Offset(X(l + 1.6f), Y(3.3f)), Size(6.5f * u, 1.7f * u), CornerRadius(0.3f * u))
+            drawRect((if (st.consoleActive) Color(0xFF5AB8FF) else Color(0xFF3A4252)).copy(alpha = if (st.consoleActive) 0.7f + 0.3f * sin(t * 3f) else 1f),
+                Offset(X(l + 2f), Y(2.4f)), Size(5.7f * u, 0.25f * u))
+            // TV: thin bezel, little feet
+            drawRect(Color(0xFF14171F), Offset(X(cx - 0.8f), Y(6f)), Size(1.6f * u, 1f * u))
+            drawRoundRect(Color(0xFF14171F), Offset(X(l + 0.3f), Y(15.5f)), Size((r - l - 0.6f) * u, 9.6f * u), CornerRadius(0.6f * u))
+            val sl = X(l + 0.9f); val st0 = Y(15f); val sw = (r - l - 1.8f) * u; val sh = 8.6f * u
+            if (st.consoleActive) clipRect(sl, st0, sl + sw, st0 + sh) {
+                // a tiny platformer: sky, hills scrolling, a hero hopping over blocks, coins
+                drawRect(Brush.verticalGradient(listOf(Color(0xFF3E6FD8), Color(0xFF8FC3FF)), startY = st0, endY = st0 + sh), Offset(sl, st0), Size(sw, sh))
+                val scroll = (t * 2.2f) % 6f
+                for (i in -1..3) drawCircle(Color(0xFF58B368), 2.2f * u, Offset(sl + (i * 6f - scroll) * u + 1f * u, st0 + sh))
+                drawRect(Color(0xFF8A5A3C), Offset(sl, st0 + sh - 1.2f * u), Size(sw, 1.2f * u))
+                for (i in 0..2) {
+                    val bx = sl + ((i * 4.2f - scroll * 0.7f + 12f) % 12f) * u
+                    if (bx < sl + sw - 0.9f * u) drawRect(Color(0xFFE8A33A), Offset(bx, st0 + sh - 2.1f * u), Size(0.9f * u, 0.9f * u))
+                    val cxn = sl + ((i * 4.2f - scroll * 0.7f + 14f) % 12f) * u
+                    if (cxn < sl + sw - 0.6f * u) drawCircle(Color(0xFFFFE066), 0.3f * u, Offset(cxn, st0 + sh * 0.35f + sin(t * 4f + i) * 0.3f * u))
+                }
+                val hop = abs(sin(t * 3.1f)) * 2.4f * u
+                drawRoundRect(Color(0xFFFF6B6B), Offset(sl + sw * 0.3f, st0 + sh - 2.3f * u - hop), Size(1f * u, 1.1f * u), CornerRadius(0.3f * u))
+            } else {
+                drawRect(Brush.linearGradient(listOf(Color(0xFF232833), Color(0xFF12151C)), start = Offset(sl, st0), end = Offset(sl + sw, st0 + sh)), Offset(sl, st0), Size(sw, sh))
+                // glass reflection of the window above
+                drawLine(Color.White.copy(alpha = 0.06f + 0.06f * day), Offset(sl + sw * 0.15f, st0 + sh), Offset(sl + sw * 0.45f, st0), 1.2f * u)
+            }
         }
 
         // --- rug
@@ -365,6 +417,35 @@ fun DrawScope.drawRoom(g: SceneGeo, camU: Float, st: RoomState, t: Float, pipoIn
             if ("ball_on_bed" !in st.pranks && "ball_behind_plant" !in st.pranks) drawBall(Offset(X(st.ballU), fy + 1.5f * u), u)
         }
 
+        // --- string lights under the molding: faint by day, warm and cozy at night
+        run {
+            val ceilY = fy - 104f * u
+            val top = if (ceilY > 0f) ceilY + 2.6f * u else Y(96f)
+            val bulbCols = listOf(Color(0xFFFFD27A), Color(0xFFFF9E8A), Color(0xFF9FF3E0), Color(0xFFFFE9B0))
+            var hx = 4f
+            var bi = 0
+            while (hx < SceneGeo.WORLD_W - 4f) {
+                val span = 30f
+                val wire = Path()
+                for (i in 0..12) {
+                    val f = i / 12f
+                    val wx = X(hx + f * span); val wy = top + (1f - (2f * f - 1f) * (2f * f - 1f)) * 3.2f * u
+                    if (i == 0) wire.moveTo(wx, wy) else wire.lineTo(wx, wy)
+                }
+                drawPath(wire, Color(0xFF2B3342).copy(alpha = 0.55f), style = Stroke(0.25f * u))
+                for (j in 1..4) {
+                    val f = j / 5f
+                    val bx = X(hx + f * span); val by = top + (1f - (2f * f - 1f) * (2f * f - 1f)) * 3.2f * u + 1f * u
+                    val col = bulbCols[bi++ % bulbCols.size]
+                    val flick = 0.85f + 0.15f * sin(t * 1.3f + bi * 1.7f)
+                    val on = 0.35f + 0.65f * night
+                    if (night > 0.1f) drawCircle(Brush.radialGradient(listOf(col.copy(alpha = 0.35f * night * flick), Color.Transparent), center = Offset(bx, by), radius = 4f * u), 4f * u, Offset(bx, by))
+                    drawOval(lerp(Color(0xFFE8E2D6), col, on).copy(alpha = 0.95f), Offset(bx - 0.6f * u, by - 0.4f * u), Size(1.2f * u, 1.7f * u))
+                }
+                hx += span
+            }
+        }
+
         // --- the night moth (Pipo sometimes watches it)
         if (night > 0.35f) {
             val (mx, mh) = Critters.moth(t)
@@ -384,14 +465,43 @@ private fun DrawScope.drawBall(c: Offset, u: Float) {
     drawCircle(Color.White.copy(alpha = 0.55f), 0.8f * u, Offset(c.x - 1.2f * u, c.y - 1.2f * u))
 }
 
-/** Blanket drawn over Pipo when he's in bed. */
-fun DrawScope.drawBlanket(g: SceneGeo, camU: Float, t: Float) {
+/**
+ * Blanket drawn over Pipo when he's in bed. Positioned from his actual lying pose
+ * ([foot] = his feet on screen, [k] = px per Pipo-unit) so it covers torso and legs and leaves
+ * his head on the pillow, instead of sitting under him.
+ */
+fun DrawScope.drawBlanket(g: SceneGeo, foot: Offset, k: Float, t: Float) {
     val u = g.u
-    val x = (18f - camU) * u
-    val y = g.floorY - 17.5f * u + sin(t * 1.1f) * 0.3f * u
-    drawRoundRect(Brush.verticalGradient(listOf(Color(0xFF7C9CB2), Color(0xFF55758B)), startY = y, endY = y + 9f * u), Offset(x, y), Size(30f * u, 9f * u), CornerRadius(3f * u))
-    drawRoundRect(Color(0xFF86A5BA), Offset(x, y), Size(30f * u, 2.2f * u), CornerRadius(1.1f * u))
-    for (i in 1..3) drawLine(Color.Black.copy(alpha = 0.06f), Offset(x + i * 7.5f * u, y + 2.5f * u), Offset(x + i * 7.5f * u + 1f * u, y + 8.5f * u), 0.4f * u)
+    val pivotY = foot.y - 30f * k                      // lying rotates around this point
+    val breathe = sin(t * 1.1f) * 0.35f * u
+    val l = foot.x - 9f * k                            // just past his neck
+    val r = foot.x + 40f * k                           // to the foot of the bed
+    val top = pivotY - 17f * k + breathe               // over his torso
+    val bottom = g.floorY - SceneGeo.MATTRESS_TOP * u + 3.2f * u
+    val legTop = pivotY - 8f * k + breathe * 0.5f        // lower over his legs
+    fun mound(dx: Float, dy: Float) = Path().apply {
+        moveTo(l + dx, bottom + dy)
+        lineTo(l + dx, top + 2.5f * u + dy)
+        quadraticBezierTo(l + dx, top + dy, l + 3f * u + dx, top + dy)
+        lineTo(foot.x + 6f * k + dx, top + dy)
+        cubicTo(foot.x + 18f * k + dx, top + dy, foot.x + 22f * k + dx, legTop + dy, foot.x + 32f * k + dx, legTop + dy)
+        quadraticBezierTo(r + dx, legTop + dy, r + dx, legTop + 3f * u + dy)
+        lineTo(r + dx, bottom + dy)
+        close()
+    }
+    drawPath(mound(0.6f * u, 0.8f * u), Color.Black.copy(alpha = 0.12f))
+    drawPath(mound(0f, 0f), Brush.verticalGradient(listOf(Color(0xFF86A6BC), Color(0xFF6F8FA6), Color(0xFF4F6E84)), startY = top, endY = bottom))
+    // turned-down hem along the top edge near his neck
+    val hem = Path().apply {
+        moveTo(l, top + 2.5f * u); quadraticBezierTo(l, top, l + 3f * u, top); lineTo(foot.x + 6f * k, top)
+        lineTo(foot.x + 6f * k, top + 2.4f * u); lineTo(l, top + 2.4f * u + 0.01f); close()
+    }
+    drawPath(hem, Brush.verticalGradient(listOf(Color(0xFFEFE9DE), Color(0xFFD2CABE)), startY = top, endY = top + 2.4f * u))
+    // soft folds following the shape of his body
+    for (i in 1..3) {
+        val fx = l + i * (r - l) / 4f
+        drawLine(Color.Black.copy(alpha = 0.07f), Offset(fx, (if (fx > foot.x + 20f * k) legTop else top) + 3f * u), Offset(fx + 1.2f * u, bottom - 1f * u), 0.45f * u)
+    }
 }
 
 /**
@@ -405,23 +515,39 @@ fun DrawScope.drawForeground(g: SceneGeo, camU: Float, st: RoomState) {
     val shade = lerp(Color(0xFF0E121C), Color(0xFF3A2C24), day)
     withTransform({ translate(-camU * u * par + st.tiltX * 5f * u, st.tiltY * 2f * u) }) {
         fun X(v: Float) = v * u * par
-        val base = size.height * 0.965f
-        // a fat screw lying on its side
+        val base = g.foregroundY // in the floor band: between Pipo and the camera, clear of the buttons
+        // near-camera objects: real shapes, dimmed towards the room's shadow colour
+        fun dim(c: Color) = lerp(c, shade, 0.45f)
+        fun ground(cx: Float, w: Float) = drawOval(Color.Black.copy(alpha = 0.22f), Offset(cx - w / 2f, base - 0.8f * u), Size(w, 2.4f * u))
+        // a big screw lying on its side
         run {
-            val c = Offset(X(40f), base)
-            drawRoundRect(shade.copy(alpha = 0.55f), Offset(c.x - 9f * u, c.y - 3f * u), Size(15f * u, 4.5f * u), CornerRadius(2f * u))
-            drawRoundRect(shade.copy(alpha = 0.7f), Offset(c.x + 5f * u, c.y - 4.5f * u), Size(4f * u, 7.5f * u), CornerRadius(1.5f * u))
+            val c = Offset(X(40f), base - 2.4f * u)
+            ground(c.x, 22f * u)
+            drawRoundRect(Brush.verticalGradient(listOf(dim(Color(0xFFC9D0DA)), dim(Color(0xFF7D8794))), startY = c.y - 2f * u, endY = c.y + 2f * u),
+                Offset(c.x - 10f * u, c.y - 2f * u), Size(16f * u, 4f * u), CornerRadius(1.2f * u))
+            for (i in 0 until 7) drawLine(dim(Color(0xFF5E6874)), Offset(c.x - 9f * u + i * 2.2f * u, c.y - 2f * u), Offset(c.x - 8f * u + i * 2.2f * u, c.y + 2f * u), 0.35f * u)
+            drawRoundRect(Brush.verticalGradient(listOf(dim(Color(0xFFD6DCE4)), dim(Color(0xFF8A94A2))), startY = c.y - 4.5f * u, endY = c.y + 4.5f * u),
+                Offset(c.x + 6f * u, c.y - 4.5f * u), Size(3.5f * u, 9f * u), CornerRadius(1.2f * u))
+            drawLine(dim(Color(0xFF4E5864)), Offset(c.x + 7.7f * u, c.y - 3.2f * u), Offset(c.x + 7.7f * u, c.y + 3.2f * u), 0.5f * u)
         }
-        // a coiled cable
+        // a coiled charging cable
         run {
-            val c = Offset(X(118f), base + 1f * u)
-            for (i in 0..2) drawOval(shade.copy(alpha = 0.45f), Offset(c.x - (10f - i * 2f) * u, c.y - (3f - i * 0.6f) * u), Size((20f - i * 4f) * u, (6f - i * 1.2f) * u), style = Stroke(1.6f * u))
+            val c = Offset(X(118f), base - 1.6f * u)
+            ground(c.x, 22f * u)
+            for (i in 0..2) drawOval(dim(Color(0xFF3A4150)), Offset(c.x - (10f - i * 2f) * u, c.y - (3f - i * 0.6f) * u), Size((20f - i * 4f) * u, (6f - i * 1.2f) * u), style = Stroke(1.3f * u))
+            drawOval(Color.White.copy(alpha = 0.08f), Offset(c.x - 8f * u, c.y - 3.4f * u), Size(9f * u, 1.2f * u))
+            drawRoundRect(dim(Color(0xFFE8ECF1)), Offset(c.x + 8.5f * u, c.y - 1.2f * u), Size(4f * u, 2.4f * u), CornerRadius(0.6f * u))
         }
-        // a toy block
+        // a wooden toy block with a letter
         run {
             val c = Offset(X(196f), base)
-            drawRoundRect(shade.copy(alpha = 0.6f), Offset(c.x - 5f * u, c.y - 9f * u), Size(10f * u, 10f * u), CornerRadius(1.5f * u))
-            drawRoundRect(Color.White.copy(alpha = 0.04f), Offset(c.x - 4f * u, c.y - 8f * u), Size(4f * u, 8f * u), CornerRadius(1f * u))
+            ground(c.x, 13f * u)
+            drawRoundRect(Brush.verticalGradient(listOf(dim(Color(0xFFE9B96E)), dim(Color(0xFFB9853F))), startY = c.y - 10f * u, endY = c.y),
+                Offset(c.x - 5f * u, c.y - 10f * u), Size(10f * u, 10f * u), CornerRadius(1.2f * u))
+            drawRoundRect(dim(Color(0xFFE0706A)), Offset(c.x - 3f * u, c.y - 8f * u), Size(6f * u, 6f * u), CornerRadius(0.8f * u), style = Stroke(0.5f * u))
+            drawLine(dim(Color(0xFFE0706A)), Offset(c.x - 1.4f * u, c.y - 3.2f * u), Offset(c.x, c.y - 6.8f * u), 0.6f * u)
+            drawLine(dim(Color(0xFFE0706A)), Offset(c.x + 1.4f * u, c.y - 3.2f * u), Offset(c.x, c.y - 6.8f * u), 0.6f * u)
+            drawLine(dim(Color(0xFFE0706A)), Offset(c.x - 0.8f * u, c.y - 4.6f * u), Offset(c.x + 0.8f * u, c.y - 4.6f * u), 0.5f * u)
         }
     }
 }
@@ -492,12 +618,13 @@ fun DrawScope.drawLighting(g: SceneGeo, camU: Float, st: RoomState, pipoHead: Of
     // desk lamp cone at night
     if (night > 0.05f && "lamp_sock" !in st.pranks) {
         val cone = Path().apply { moveTo(X(147.4f), Y(29.5f)); lineTo(X(153.6f), Y(29.5f)); lineTo(X(162f), Y(19f)); lineTo(X(139f), Y(19f)); close() }
-        drawPath(cone, Brush.verticalGradient(listOf(Color(0xFFFFD08A).copy(alpha = 0.35f * night), Color(0xFFFFB866).copy(alpha = 0.08f * night)), startY = Y(29.5f), endY = Y(19f)), blendMode = BlendMode.Screen)
+        drawPath(cone, Brush.verticalGradient(listOf(Color(0xFFFFD08A).copy(alpha = 0.22f * night), Color(0xFFFFB866).copy(alpha = 0.04f * night)), startY = Y(29.5f), endY = Y(19f)), blendMode = BlendMode.Screen)
     }
 
-    glowAt(150.5f, 30f, 42f, if ("lamp_sock" in st.pranks) Color(0xFFC99BFF) else Color(0xFFFFB866), 0.5f * night)
+    glowAt(150.5f, 30f, 34f, if ("lamp_sock" in st.pranks) Color(0xFFC99BFF) else Color(0xFFFFB866), 0.3f * night)
     glowAt(84f, 2f, 18f, Color(0xFF7FE3F0), if (st.charging) 0.45f + 0.2f * abs(sin(t * 2.2f)) else 0.15f * night)
     glowAt(215f, 32f, 24f, PipoColors.eye, (if (st.arcadeActive) 0.45f else 0.3f) * night)
+    if (st.consoleActive) glowAt((SceneGeo.TV_L + SceneGeo.TV_R) / 2f, 10f, 20f, Color(0xFF7FB8FF), (0.2f + 0.3f * night) * (0.85f + 0.15f * sin(t * 5f)))
     glowAt(137f, 28f, 20f, Color(0xFF9FE7E0), (if (st.computerActive) 0.4f else 0.25f) * night)
     val pr = if (st.torch) 80f * u else 22f * u
     drawCircle(Brush.radialGradient(listOf((if (st.torch) Color(0xFFFFF4D6) else glow).copy(alpha = if (st.torch) 0.55f else 0.22f * night), Color.Transparent),

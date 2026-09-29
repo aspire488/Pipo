@@ -63,5 +63,18 @@
         </activity>
 
         <receiver android:name=".notify.NotificationActionReceiver" android:exported="false" />
+
+        <!-- Optional: Pipo notices chat/social notifications ("ooh, someone sent you a reel!").
+             Does nothing unless you switch on Notification access for Pipo in Android settings.
+             Only the app and a coarse kind are used; content and senders are never kept. -->
+        <service
+            android:name=".notify.PipoNotificationListener"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

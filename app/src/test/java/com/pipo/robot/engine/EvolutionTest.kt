@@ -235,10 +235,11 @@ class EvolutionTest {
         rig.anim = AnimState.WALKING
         rig.moveDir = 1f
         run(rig, 1.5f)
-        assertTrue("yaw=${rig.yaw}", rig.yaw > 0.6f)
+        assertTrue("yaw=${rig.yaw}", rig.yaw > 0.4f && rig.yaw < 1.0f) // three-quarter, face still visible
         rig.moveDir = -1f
         run(rig, 1.5f)
-        assertTrue("yaw=${rig.yaw}", rig.yaw < -0.6f)
+        assertTrue("yaw=${rig.yaw}", rig.yaw < -0.4f && rig.yaw > -1.0f)
+        assertTrue("headYaw=${rig.headYaw}", abs(rig.headYaw) <= 1.0f)
     }
 
     @Test

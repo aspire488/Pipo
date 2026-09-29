@@ -68,7 +68,7 @@ object BehaviorEngine {
         add(CHARGE, if (env.charging) 2.2f + m.excitement else (1f - m.energy) * 0.6f)
         add(EXPLORE, t.curiosity * 1.1f + t.adventurousness * 0.7f + m.boredom * 0.5f + m.energy * 0.3f)
         add(PLAY_TOY, t.playfulness * 0.9f + m.boredom * 0.8f)
-        add(PLAY_ARCADE, t.playfulness * 0.7f + m.boredom * 0.9f + m.energy * 0.2f)
+        add(PLAY_ARCADE, if (ScreenTime.onBreak(s, now)) 0f else t.playfulness * 0.7f + m.boredom * 0.9f + m.energy * 0.2f)
         add(BUILD, if (canBuild) 1.2f + t.confidence * 0.4f + t.patience * 0.4f else 0f)
         add(EXPERIMENT, if (hasItems) t.curiosity * 0.6f + t.mischief * 0.4f else 0f)
         add(EXAMINE, if (hasItems) t.curiosity * 0.5f + 0.15f else 0f)
@@ -81,6 +81,9 @@ object BehaviorEngine {
         add(PREPARE_SURPRISE, if (s.world.items.size >= 2) t.mischief * 0.5f + t.affection * 0.6f else 0f)
         add(SEEK_USER, if (env.userPresent) t.sociability * 1.0f + m.loneliness * 0.8f + t.affection * 0.4f else 0f)
         add(NOTHING, t.laziness * 0.6f + 0.2f)
+        // his gadgets: nice now and then, never the main thing (see ScreenTime)
+        add(SCROLL_PHONE, if (ScreenTime.allowed(s, SCROLL_PHONE, now)) 0.12f + t.playfulness * 0.2f + m.boredom * 0.45f + t.laziness * 0.1f else 0f)
+        add(PLAY_CONSOLE, if (ScreenTime.allowed(s, PLAY_CONSOLE, now)) 0.1f + t.playfulness * 0.35f + m.boredom * 0.4f + m.energy * 0.15f else 0f)
 
         // ---- context: what's going on in his life right now
         val bonus = mutableMapOf<ActivityType, Float>()
@@ -162,6 +165,8 @@ object BehaviorEngine {
             PREPARE_SURPRISE -> 12_000L
             REARRANGE -> 8_000L
             SEEK_USER -> 4_000L
+            SCROLL_PHONE -> 9_000L
+            PLAY_CONSOLE -> 14_000L
         }
         return (base * (0.75f + rng.nextFloat() * 0.5f)).toLong()
     }
@@ -190,6 +195,7 @@ object BehaviorEngine {
             else -> 0L
         }
         if (cd > 0) s.cooldowns["act:${type.name}"] = now + cd
+        if (type in ScreenTime.screens) ScreenTime.used(s, type, now)
     }
 
     /**
@@ -270,6 +276,19 @@ object BehaviorEngine {
                     Personality.nudge(s, Trait.MISCHIEF, 0.006f)
                     out += Outcome.Prank(p.key)
                     if (!offline) out += Outcome.Say(p.line, Sfx.LAUGH)
+                }
+            }
+            SCROLL_PHONE, PLAY_CONSOLE -> {
+                // Fun, but only a little: it helps boredom a bit and costs some energy. He stops on his own.
+                MoodEngine.bump(s, boredom = -0.12f, happiness = 0.03f, energy = -0.03f)
+                val idea = if (rng.nextFloat() < 0.2f) Projects.maybeStart(s, rng, now, 0.6f) else null
+                if (idea != null) {
+                    out += Outcome.Emote(EmoteKind.IDEA)
+                    if (!offline) out += Outcome.Say(
+                        if (type == SCROLL_PHONE) "Ooh! That reel gave me an idea. A ${idea.title.lowercase()}!" else "That game gave me an idea. A ${idea.title.lowercase()}!", Sfx.SURPRISED)
+                    else Chronicle.event(s, EventType.THOUGHT, 0.4f, now, "idea:${idea.title}")
+                } else if (!offline && rng.nextFloat() < 0.75f) {
+                    out += Outcome.Say(Dialogue.pick(if (type == SCROLL_PHONE) ScreenTime.phoneDone else ScreenTime.consoleDone, rng))
                 }
             }
             READ -> {
@@ -379,5 +398,53 @@ object BehaviorEngine {
         BUILD -> "building"; EXAMINE -> "examining his collection"; REARRANGE -> "rearranging things"
         READ -> "reading"; THINK -> "thinking"; WORK_COMPUTER -> "on the computer"; INSPECT_PLANT -> "checking on the plant"
         DANCE -> "dancing"; PREPARE_SURPRISE -> "hiding something"; SEEK_USER -> "looking for you"; NOTHING -> "doing nothing"
+        SCROLL_PHONE -> "scrolling reels on his little phone"; PLAY_CONSOLE -> "playing a game on his console"
     }
+}
+
+/**
+ * Pipo's gadgets (his little phone and his game console) are a small treat, not his life:
+ * a few short sessions a day, a break between any two, and he always puts them down himself.
+ * Both share one budget so he can't just hop from one screen to the other.
+ */
+object ScreenTime {
+    val screens = setOf(ActivityType.SCROLL_PHONE, ActivityType.PLAY_CONSOLE)
+    fun dailyMax(type: ActivityType) = if (type == ActivityType.SCROLL_PHONE) 3 else 2
+    /** Minimum break after ANY screen session before the next one. */
+    const val BREAK_MS = 5 * MINUTE
+
+    private fun dayKey(now: Long) = now / DAY
+    fun sessionsToday(s: PipoState, type: ActivityType, now: Long): Int =
+        if (s.cooldowns["screen:day"] == dayKey(now)) (s.cooldowns["screen:n:${type.name}"] ?: 0L).toInt() else 0
+
+    fun allowed(s: PipoState, type: ActivityType, now: Long): Boolean =
+        now >= (s.cooldowns["screen:break"] ?: 0L) && sessionsToday(s, type, now) < dailyMax(type)
+
+    fun used(s: PipoState, type: ActivityType, now: Long) {
+        if (s.cooldowns["screen:day"] != dayKey(now)) {
+            s.cooldowns["screen:day"] = dayKey(now)
+            screens.forEach { s.cooldowns.remove("screen:n:${it.name}") }
+        }
+        s.cooldowns["screen:n:${type.name}"] = sessionsToday(s, type, now) + 1L
+        s.cooldowns["screen:break"] = now + BREAK_MS
+    }
+
+    val phoneDone = listOf(
+        "Okay. Enough phone. My eyes went square.",
+        "Phone down. Brain on.",
+        "I watched three videos. That's enough. Time to do real stuff.",
+        "That reel had a cat on a robot vacuum. Best day.",
+        "Hehe. Okay, bye phone.",
+    )
+    val consoleDone = listOf(
+        "I beat the level! ...the easy one. Okay, done.",
+        "Game over. For now. I have things to do.",
+        "My thumbs are tired. Break time.",
+        "I got a high score! Now, real stuff.",
+    )
+    /** You tapped him mid-session: you win over any screen, every time. */
+    val phoneAwayForYou = listOf("Oh! Hi! Phone away.", "Ooh, you! Better than reels.", "Hi! I was just... okay, putting it down.")
+    val consoleAwayForYou = listOf("Oh! Hi! Game paused.", "You! Controller down.", "Hi! The game can wait.")
+    /** The arcade machine is a screen too: it waits out the same break. */
+    fun onBreak(s: PipoState, now: Long) = now < (s.cooldowns["screen:break"] ?: 0L)
 }

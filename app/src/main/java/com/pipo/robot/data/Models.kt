@@ -103,7 +103,7 @@ data class PipoWorld(
 /*  Activity                                                           */
 /* ------------------------------------------------------------------ */
 
-enum class Station { BED, PLANT, CHARGER, WINDOW, DESK, SHELF, WORKBENCH, ARCADE, TOYS, RUG, WANDER, FRONT, STAY }
+enum class Station { BED, PLANT, CHARGER, WINDOW, DESK, SHELF, WORKBENCH, ARCADE, TOYS, RUG, CONSOLE, WANDER, FRONT, STAY }
 
 enum class ActivityType(val station: Station) {
     SLEEP(Station.BED),
@@ -123,6 +123,10 @@ enum class ActivityType(val station: Station) {
     DANCE(Station.RUG),
     PREPARE_SURPRISE(Station.WORKBENCH),
     SEEK_USER(Station.FRONT),
+    /** His own tiny phone: a few reels, then he puts it down. Capped per day on purpose. */
+    SCROLL_PHONE(Station.STAY),
+    /** Games on his little console by the window. Also screen time: capped per day. */
+    PLAY_CONSOLE(Station.CONSOLE),
     NOTHING(Station.STAY),
 }
 

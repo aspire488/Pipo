@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +35,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pipo.robot.engine.AnimState
@@ -217,7 +219,8 @@ fun ReactionGame(onExit: () -> Unit) {
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(msg, color = PipoPalette.text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                    Text(msg, color = PipoPalette.text, fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                        lineHeight = 30.sp, modifier = Modifier.padding(horizontal = 24.dp))
                     if (state == "ready" || state == "result") {
                         Spacer(Modifier.height(8.dp))
                         Text("tap to ${if (state == "ready") "start" else "go again"}", color = PipoPalette.muted, style = MaterialTheme.typography.bodyMedium)

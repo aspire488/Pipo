@@ -9,7 +9,10 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.net.Uri
 import android.os.SystemClock
+import android.util.Log
+import com.pipo.robot.BuildConfig
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -19,7 +22,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.pipo.robot.ai.BrainContext
 import com.pipo.robot.ai.ChatBrain
-import com.pipo.robot.ai.ClaudeBrain
+import com.pipo.robot.ai.Brains
+import com.pipo.robot.ai.Turn
 import com.pipo.robot.ai.NoBrain
 import com.pipo.robot.data.ActivityType
 import com.pipo.robot.data.Catalog
@@ -54,6 +58,8 @@ import com.pipo.robot.engine.DAY as DAY_MS
 import com.pipo.robot.engine.LocalBrain
 import com.pipo.robot.engine.MoodEngine
 import com.pipo.robot.engine.OfferKind
+import com.pipo.robot.engine.PhoneNotifs
+import com.pipo.robot.notify.PipoNotificationListener
 import com.pipo.robot.engine.Outcome
 import com.pipo.robot.engine.Personality
 import com.pipo.robot.engine.PhoneCmd
@@ -61,6 +67,7 @@ import com.pipo.robot.engine.PhoneCommands
 import com.pipo.robot.engine.PhoneInfo
 import com.pipo.robot.engine.PhoneRequest
 import com.pipo.robot.engine.Reactions
+import com.pipo.robot.engine.ScreenTime
 import com.pipo.robot.engine.Pranks
 import com.pipo.robot.engine.Sfx
 import com.pipo.robot.engine.Simulator
@@ -169,7 +176,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     var reveal by mutableStateOf<Reveal?>(null)
     var listening by mutableStateOf(false)
     var heard by mutableStateOf("")
-    var micLevel by mutableStateOf(0f)
+    var micLevel by mutableFloatStateOf(0f)
     var userLine by mutableStateOf<String?>(null)
     var openChat by mutableStateOf(false)
     var navRequest by mutableStateOf<String?>(null)
@@ -213,6 +220,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private var bubbleSeq = 0L
     private var userLineUntil = 0f
     private var brain: ChatBrain = NoBrain
+    /** Last few exchanges, so the chat brain can follow the conversation. Session only, never saved. */
+    private val chatHistory = ArrayDeque<Turn>()
     private var brainFailedOnce = false
     private var aiThinking = false
     private val sessionFlags = mutableSetOf<String>()
@@ -255,10 +264,24 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private var fakeSleeping = false
     private var fakeSleepUntil = 0f
     private var lastYawnSound = -100f
+    private var lastDebugLog = 0f
     private var sociability = 0.55f
     private var relationship = 0.1f
+    /** True between onResume and onPause: Pipo is actually on screen. */
+    private var onScreen = false
+    private val pendingNotifs = mutableListOf<PhoneNotifs.Event>()
+    private var firstNotifAt = 0f
+    private var lastNotifReact = -100f
 
     init {
+        viewModelScope.launch {
+            // Opt-in notification noticing: only (app, kind) arrives here, only while he's on screen.
+            PipoNotificationListener.bus.collect { e ->
+                if (!onScreen) return@collect
+                if (pendingNotifs.isEmpty()) firstNotifAt = clock
+                if (pendingNotifs.size < 12) pendingNotifs += e
+            }
+        }
         viewModelScope.launch {
             while (true) {
                 val ps = withContext(Dispatchers.Default) { runCatching { awareness.read() }.getOrNull() }
@@ -281,13 +304,14 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun onResume(action: String?, game: String?, recordId: Long) {
+        onScreen = true
         val now = System.currentTimeMillis()
         val settings = repo.read { it.settings.copy() }
         voice.mode = settings.voiceMode
         sounds = settings.sounds
         voice.synth.enabled = settings.sounds
         sensors?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.let { sensors.registerListener(shakeListener, it, SensorManager.SENSOR_DELAY_UI) }
-        brain = if (settings.aiEnabled && settings.aiApiKey.isNotBlank()) ClaudeBrain(settings.aiApiKey.trim()) else NoBrain
+        if (brain === NoBrain) brain = Brains.fromBuild()
 
         var digest: String? = null
         val (greet, notNowRecently) = repo.mutate { s ->
@@ -328,6 +352,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                     Beat.Say(Dialogue.pick(Reactions.cameraBack, rng), Sfx.BEEP))
             }
             else -> {
+                debugEvent("greet ${greet.kind} digest=${digest != null}")
                 stage(greet, notNowRecently)
                 val tellable = greet.kind !in setOf(GreetKind.SLEEPING, GreetKind.FAKE_SLEEP, GreetKind.FIRST_WAKE, GreetKind.BRIEF)
                 digest?.let { d ->
@@ -344,6 +369,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun onPause() {
+        onScreen = false
+        pendingNotifs.clear()
         val now = System.currentTimeMillis()
         repo.mutate(notify = false) { s -> s.lastSeenByUserAt = now; s.lastSimulatedAt = now }
         voice.stop()
@@ -391,7 +418,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         if (rig.takeFidgetEvent() == Fidget.YAWN && sounds && clock - lastYawnSound > 25f) { lastYawnSound = clock; voice.synth.sfx(Sfx.YAWN) }
         stepCamera(dt)
         stepZoom(dt)
+        stepNotifs()
         plantRustle *= exp(-dt * 1.8f)
+        if (BuildConfig.DEBUG && clock - lastDebugLog > 0.5f) { lastDebugLog = clock; debugPos() }
         if (bubbleHideAt in 0f..clock) { bubble = null; bubbleHideAt = -1f }
         if (userLine != null && clock > userLineUntil) userLine = null
         frame++
@@ -440,6 +469,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 charging = phoneState.charging,
                 battery = phoneState.battery,
                 arcadeActive = activity == ActivityType.PLAY_ARCADE && activityArrived,
+                consoleActive = activity == ActivityType.PLAY_CONSOLE && activityArrived,
                 torch = phoneActions.torchOn,
                 computerActive = activity == ActivityType.WORK_COMPUTER && activityArrived,
                 benchActive = (activity == ActivityType.BUILD || activity == ActivityType.EXPERIMENT) && activityArrived,
@@ -477,6 +507,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         if (dragging) return
         var b = cur
         if (b == null) {
+            // Cold start: the phone's TTS can take a few seconds to wake. Don't start a spoken
+            // line (bubble + mouth) until his voice can say it, so nothing gets mouthed silently.
+            if (beats.firstOrNull() is Beat.Say && !voice.ready && clock < 8f) return
             b = beats.removeFirstOrNull()
             if (b == null) { idle(); return }
             cur = b; curT = 0f
@@ -503,6 +536,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 bubbleHideAt = -1f
                 if (b.choices.isEmpty() && b.text.length > 3) lastSpoken = b.text
                 sayMin = 1.3f + b.text.length * 0.045f
+                debugEvent("say \"${b.text}\"")
                 if (sounds) b.sfx?.let { voice.synth.sfx(it) }
                 rig.speak(b.text, charsPerSecond(mood, SpeechStyles.style(b.text), voice.mode))
                 voice.speak(b.text, mood) { if (sayBubbleId == id) sayDone = true }
@@ -578,6 +612,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun begin(type: ActivityType) {
         val dur = repo.read { it.activity.durationMs } / 1000f
+        debugEvent("begin $type absorbed=${repo.read { it.activity.absorbed }} dur=${dur.toInt()}s")
         activity = type
         activityArrived = false
         lastActivity = type
@@ -720,6 +755,11 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 enqueue(Beat.Act(AnimState.HOP, 0.35f, Expr.HAPPY), Beat.Move(ballTarget - 4f, run = true))
             }
             ActivityType.PLAY_ARCADE -> if (rng.nextFloat() < 0.3f) { rig.showEmote(if (rng.nextBoolean()) EmoteKind.SPARKLE else EmoteKind.ANGER) }
+            ActivityType.PLAY_CONSOLE -> {
+                rig.lookAt(0.7f, 0.15f, 4f) // eyes on the game
+                if (rng.nextFloat() < 0.35f) { rig.showEmote(if (rng.nextFloat() < 0.7f) EmoteKind.SPARKLE else EmoteKind.SWEAT); if (sounds && rng.nextBoolean()) voice.synth.sfx(Sfx.BOOP) }
+            }
+            ActivityType.SCROLL_PHONE -> if (rng.nextFloat() < 0.3f) { if (sounds) voice.synth.sfx(Sfx.GIGGLE); react(Expr.LAUGH, 0.9f) }
             ActivityType.REST, ActivityType.NOTHING -> rig.lookAt(rng.nextFloat() * 2f - 1f, rng.nextFloat() - 0.5f, 1.5f)
             ActivityType.CHARGE -> rig.showEmote(EmoteKind.SPARKLE)
             else -> Unit
@@ -731,6 +771,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
      * what he was doing, sometimes he forgets it entirely, and sometimes it leads somewhere.
      */
     private fun stageDistraction(kind: DistractionKind, a: ActivityType) {
+        debugEvent("distracted $kind from $a")
         activity = null
         restPose = null
         val comeBack = rng.nextFloat() < 0.35f
@@ -828,6 +869,16 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     /** Top of Pipo's head in on-screen (zoomed) coordinates — for the speech bubble. */
     fun headView(): Offset = toView(headScreen())
 
+    /** Debug builds only: where Pipo is on screen (after zoom) + what he's doing, for emulator test scripts. */
+    private fun debugPos() {
+        val g = geo ?: return
+        val h = headView(); val f = toView(footScreen())
+        Log.d("PipoDebug", "pos head=${h.x.toInt()},${h.y.toInt()} body=${f.x.toInt()},${((h.y + f.y) / 2f).toInt()} foot=${f.x.toInt()},${f.y.toInt()} " +
+            "zoom=${"%.3f".format(camZoom)} cam=${camU.toInt()} x=${pipoX.toInt()} inBed=$inBed anim=${rig.anim} expr=${rig.expr} act=$activity mood=$mood talking=${rig.talking} yaw=${"%.2f".format(rig.yaw)} w=${g.w.toInt()}")
+    }
+
+    private fun debugEvent(msg: String) { if (BuildConfig.DEBUG) Log.d("PipoDebug", "event $msg") }
+
     /** Room state for this exact frame (per-frame values layered over the per-second snapshot). */
     fun roomNow(): RoomState = room.copy(ballU = ballU, torch = rig.torch, plantRustle = plantRustle, tiltX = tiltX, tiltY = tiltY)
 
@@ -890,6 +941,18 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun stepCamera(dt: Float) {
         val g = geo ?: return
+        if (dragging) {
+            // Carried: he must stay under the finger, so the camera holds still, and only scrolls
+            // (taking him along) when he's pulled to the edge of the screen.
+            val sx = footScreen().x / g.w
+            val push = when { sx < 0.12f -> -(0.12f - sx); sx > 0.88f -> sx - 0.88f; else -> 0f }
+            if (push != 0f) {
+                val before = camU
+                camU = clampCam(camU + push * 90f * dt / 0.12f)
+                pipoX = (pipoX + camU - before).coerceIn(4f, SceneGeo.WORLD_W - 6f)
+            }
+            return
+        }
         val focus = camFocusU
         val target = when {
             focus != null && clock < camFocusUntil -> focus - g.viewU / 2f
@@ -1121,6 +1184,14 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 Beat.Say(Dialogue.pick(Dialogue.fakeSleepCaught, rng), Sfx.LAUGH), Beat.Act(AnimState.LAUGH, 1.4f, Expr.LAUGH))
             return
         }
+        if (activity in ScreenTime.screens && activityArrived) {
+            // You beat any screen: the phone/controller goes away straight away. Never "one sec".
+            val lines = if (activity == ActivityType.PLAY_CONSOLE) ScreenTime.consoleAwayForYou else ScreenTime.phoneAwayForYou
+            interrupt(); activity = null; restPose = null
+            enqueue(Beat.Act(AnimState.HOP, 0.5f, Expr.HAPPY), Beat.Do { rig.lookAt(0f, 0.35f, 3f) },
+                Beat.Say(Dialogue.pick(lines, rng), Sfx.HAPPY))
+            return
+        }
         if (absorbed && activityArrived && activity != null && !inBed) {
             if (clock - absorbedPokeAt > 8f) {
                 // Completely absorbed: one finger up, eyes stay on the work.
@@ -1291,7 +1362,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             rig.bodyVel = dx / g.u * 60f
             rig.lookAt(sign(dx) * 0.6f, -0.4f, 0.4f)
         } else {
-            camU = clampCam(camU - dx / g.u)
+            camU = clampCam(camU - dx / g.u / camZoom) // room tracks the finger even while zoomed in
             camHoldUntil = clock + 4f
         }
     }
@@ -1365,6 +1436,10 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             "desk" -> if (rng.nextBoolean()) ActivityType.WORK_COMPUTER else ActivityType.READ
             "workbench" -> if (repo.read { it.activeProject()?.state == ProjectState.BUILDING }) ActivityType.BUILD else ActivityType.EXPERIMENT
             "arcade" -> ActivityType.PLAY_ARCADE
+            "console" -> if (repo.read { ScreenTime.allowed(it, ActivityType.PLAY_CONSOLE, System.currentTimeMillis()) }) ActivityType.PLAY_CONSOLE else {
+                enqueue(Beat.Say(Dialogue.pick(listOf("No more games for now. My thumbs need a holiday.", "Console later. I have real stuff to do.", "I already played! Screen break."), rng), Sfx.BEEP), Beat.Act(AnimState.PROUD, 1f, Expr.PROUD))
+                return
+            }
             "toys" -> ActivityType.PLAY_TOY
             "window" -> ActivityType.THINK
             "shelf" -> ActivityType.EXAMINE
@@ -1410,17 +1485,23 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         val phone = res.phone
         if (res.action == ChatAction.PHONE && phone != null) { handlePhone(phone); return }
         val b = brain
-        if (b !== NoBrain && !res.locked) {
+        if (b !== NoBrain && !res.locked && phoneState.online) {
             aiThinking = true
             rig.showEmote(EmoteKind.DOTS)
             viewModelScope.launch {
                 val ctx = brainContext(res.text)
-                val ai = withTimeoutOrNull(12_000) { b.reply(t, ctx) }
+                val ai = withTimeoutOrNull(14_000) { b.reply(t, ctx) }
                 aiThinking = false
                 val line = ai ?: if (!brainFailedOnce) { brainFailedOnce = true; Dialogue.pick(Dialogue.brainWeird, rng) + " " + res.text } else res.text
+                remember(t, line)
                 respond(line, res)
             }
-        } else respond(res.text, res)
+        } else { remember(t, res.text); respond(res.text, res) }
+    }
+
+    private fun remember(user: String, pipo: String) {
+        chatHistory.addLast(Turn(user.take(300), pipo))
+        while (chatHistory.size > 6) chatHistory.removeFirst()
     }
 
     private fun brainContext(local: String): BrainContext = repo.read { s ->
@@ -1432,6 +1513,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             activity = BehaviorEngine.describe(s.activity.type),
             memories = s.memories.sortedByDescending { Chronicle.relevance(it, System.currentTimeMillis()) }.take(5).map { it.content },
             localReply = local,
+            history = chatHistory.toList(),
         )
     }
 
@@ -1673,8 +1755,34 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     /*  Phone awareness                                                  */
     /* ================================================================ */
 
-    private fun onPhoneState(ps: PhoneState) {
+    /**
+     * Your phone buzzed (a chat/social app, and you opted in): he glances up at where
+     * notifications drop in and says what KIND of thing arrived. Never who, never what it says.
+     * A burst is gathered for a moment and gets one reaction; he stays quiet while asleep or busy.
+     */
+    private fun stepNotifs() {
+        if (pendingNotifs.isEmpty()) return
+        val waited = clock - firstNotifAt
+        if (waited < 1.5f) return
+        val call = pendingNotifs.any { it.kind == PhoneNotifs.Kind.CALL }
+        if (inBed && !call) { pendingNotifs.clear(); return }
+        val busy = !booted || firstWakePending || dragging || listening || reveal != null || cur is Beat.Say || beats.isNotEmpty()
+        if (busy && waited < 12f) return
+        if (busy || (!call && clock - lastNotifReact < 10f)) { pendingNotifs.clear(); return }
+        val evs = pendingNotifs.toList()
+        pendingNotifs.clear()
+        lastNotifReact = clock
+        val perky = mood != Mood.GRUMPY && mood != Mood.SLEEPY
+        if (inBed) enqueue(Beat.Do { inBed = false }, Beat.Act(AnimState.STRETCH, 0.8f, Expr.SLEEPY))
+        enqueue(Beat.Do { rig.lookAt(0f, -1f, 1.8f) }, Beat.Emote(EmoteKind.EXCLAIM))
+        if (perky) enqueue(Beat.Act(AnimState.HOP, 0.5f, Expr.EXCITED))
+        enqueue(Beat.Say(PhoneNotifs.line(evs, rng), if (perky) Sfx.SURPRISED else Sfx.BEEP))
+    }
+
+    private fun onPhoneState(raw: PhoneState) {
         val old = phoneState
+        // His own voice/chirps show up as "music active": hold the previous reading while he's audible.
+        val ps = if (voice.audibleRecently()) raw.copy(music = old.music) else raw
         phoneState = ps
         if (!phoneInit) { phoneInit = true; return }
         if (!booted || firstWakePending || dragging || listening) return

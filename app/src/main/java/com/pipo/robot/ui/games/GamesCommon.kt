@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -55,18 +56,25 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import com.pipo.robot.ui.render.drawEmote
 import com.pipo.robot.ui.render.drawPipo
 import com.pipo.robot.ui.theme.PipoPalette
+import com.pipo.robot.voice.PipoVoice
 import com.pipo.robot.voice.SoundSynth
+import com.pipo.robot.voice.charsPerSecond
+import com.pipo.robot.engine.SpeechStyles
 import kotlin.random.Random
 
 /** Pipo as a game opponent: his own rig, a bubble, sounds, and his real personality. */
-class GamePipo(val repo: PipoRepository, val gameId: String = "") {
+class GamePipo(val repo: PipoRepository, val gameId: String = "", private val voice: PipoVoice? = null) {
     val rng = Random(System.nanoTime())
     val rig = PipoRig(rng.nextInt())
     val synth = SoundSynth()
     val traits: Traits = repo.read { it.profile.traits.copy() }
     val mood: Mood = repo.read { it.mood.current }
     val energy: Float = repo.read { it.mood.energy }
-    var line by mutableStateOf("")
+    private var shown by mutableStateOf("")
+    /** What he says. Setting it shows the bubble and (in Spoken mode) he says it out loud, mouth in sync. */
+    var line: String
+        get() = shown
+        set(v) { if (v != shown) { shown = v; say(v) } }
     var frame by mutableLongStateOf(0L)
     private var holdUntil = 0f
     private var lastReactAt = 0f
@@ -77,6 +85,7 @@ class GamePipo(val repo: PipoRepository, val gameId: String = "") {
 
     init {
         synth.enabled = repo.read { it.settings.sounds }
+        voice?.let { v -> v.mode = repo.read { it.settings.voiceMode }; v.synth.enabled = synth.enabled }
         rig.glow = moodGlow(mood)
         rig.energy = energy
         rig.mood = mood
@@ -99,6 +108,16 @@ class GamePipo(val repo: PipoRepository, val gameId: String = "") {
             else -> base
         }
     }
+
+    private fun say(text: String) {
+        val v = voice ?: return
+        if (text.isBlank()) return
+        v.stop()
+        rig.speak(text, charsPerSecond(mood, SpeechStyles.style(text), v.mode))
+        v.speak(text, mood) {}
+    }
+
+    fun shutdown() { voice?.stop(); voice?.shutdown() }
 
     fun react(anim: AnimState, expr: Expr, text: String? = null, sfx: Sfx? = null, emote: EmoteKind? = null, secs: Float = 1.4f) {
         rig.anim = anim; rig.expr = expr
@@ -166,7 +185,8 @@ class GamePipo(val repo: PipoRepository, val gameId: String = "") {
 @Composable
 fun rememberGamePipo(gameId: String = ""): GamePipo {
     val ctx = LocalContext.current
-    val gp = remember { GamePipo(PipoRepository.get(ctx), gameId) }
+    val gp = remember { GamePipo(PipoRepository.get(ctx), gameId, PipoVoice(ctx)) }
+    DisposableEffect(gp) { onDispose { gp.shutdown() } }
     LaunchedEffect(gp) {
         var last = 0L
         while (true) withFrameNanos { t -> if (last != 0L) gp.update((t - last) / 1e9f); last = t }

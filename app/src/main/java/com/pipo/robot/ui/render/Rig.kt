@@ -175,6 +175,20 @@ object PoseLibrary {
             AnimState.FALLEN -> { p.lie = 1f; p.armL = 130f; p.armR = 40f; p.antenna = s(8f) * 25f }
             AnimState.WAVE -> { p.armR = 150f + s(11f) * 25f; p.armL = 10f; p.headTilt = 6f; p.bob = s(3f) * 0.8f; p.antenna = s(5f) * 10f }
             AnimState.HELD -> { p.legL = 1f + s(4f) * 1.5f; p.legR = 1f - s(4f) * 1.5f; p.armL = 50f + s(5f) * 10f; p.armR = 50f - s(5f) * 10f; p.lean = s(2f) * 6f; p.antenna = s(6f) * 15f; p.squash = 1.03f }
+            AnimState.PHONE -> {
+                // sat down, phone in both hands, head bowed over it; a little nod on every swipe
+                val swipe = (t / 1.7f) % 1f
+                p.sit = 1f; p.hold = 1f; p.headTilt = 13f + s(0.6f) * 2f
+                p.headBob = if (swipe < 0.12f) 1.1f else 0f
+                p.legSpread = 2f; p.legL = 1.2f + s(1.3f) * 0.9f; p.legR = 1.2f - s(1.3f) * 0.9f
+                p.antenna = 6f + s(0.8f) * 3f + (if (swipe < 0.12f) 6f else 0f)
+            }
+            AnimState.GAMING -> {
+                // sat on the rug turned to the TV, controller up, leaning into it; mashing makes the antenna buzz
+                p.sit = 1f; p.hold = 1f; p.yaw = 0.55f; p.lean = 4f + s(0.5f) * 2f
+                p.headBob = s(11f) * 0.4f; p.bob = abs(s(9f)) * 0.5f
+                p.antenna = s(9f) * 6f + (if (s(0.9f) > 0.93f) 12f else 0f)
+            }
             AnimState.READING -> { p.sit = 1f; p.hold = 1f; p.headTilt = 8f; p.headBob = 1f; p.antenna = s(0.5f) * 4f }
             AnimState.CHARGING -> { p.armL = 20f; p.armR = 20f; p.lean = 0f; p.squash = 1f + s(2.5f) * 0.02f; p.antenna = 15f + s(3f) * 3f; p.headTilt = s(0.4f) * 3f }
             AnimState.PRESENTING -> { p.hold = 1f; p.lean = -2f; p.bob = abs(s(4f)) * 1.2f; p.antenna = 15f + s(5f) * 8f }
@@ -255,10 +269,10 @@ class PipoRig(seed: Int = 1) {
 
     // 2.5D turning (radians). Spring-driven so turns overshoot and settle like a real body.
     var yaw = 0f
-        private set
+        internal set // settable by the on-device pose gallery test
     private var yawVel = 0f
     var headYaw = 0f
-        private set
+        internal set
     private var awaySide = 1f
 
     // Antenna as a damped spring: it lags behind the body and wobbles after stops and landings.
@@ -450,10 +464,14 @@ class PipoRig(seed: Int = 1) {
 
         // ---- yaw spring (slightly under-damped → natural overshoot on turns and stops)
         val lying = pose.lie > 0.5f
-        val yawTarget = if (lying) 0f else (tp.yaw * awaySide + moveDir * 1.15f + lookX * 0.18f).coerceIn(-2.9f, 2.9f)
+        // Walking reads best three-quarter (face visible); only a deliberate pose turns him further away.
+        // Most poses turn to whichever side feels natural; gaming faces the TV (to his right) every time.
+        val side = if (anim == AnimState.GAMING) 1f else awaySide
+        val yawTarget = if (lying) 0f else (tp.yaw * side + moveDir * 0.62f + lookX * 0.1f).coerceIn(-2.9f, 2.9f)
         yawVel += ((yawTarget - yaw) * 42f - yawVel * 8.5f) * dt
         yaw += yawVel * dt
-        val hyT = (yaw + lookX * 0.38f).coerceIn(yaw - 0.6f, yaw + 0.6f)
+        val headLimit = max(1.0f, abs(tp.yaw) + 0.3f)
+        val hyT = (yaw + lookX * 0.28f).coerceIn(yaw - 0.45f, yaw + 0.45f).coerceIn(-headLimit, headLimit)
         headYaw += (hyT - headYaw) * (1f - exp(-dt * 12f))
 
         // ---- antenna spring, pushed by body acceleration

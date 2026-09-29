@@ -199,13 +199,14 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
             val z = vm.camZoom
             // Camera: a gentle dolly towards Pipo when he talks to you or shows you something.
             withTransform({ scale(z, z, pivot = vm.zoomPivotPublic()) }) {
-                drawRoom(g, vm.camU, room, t, inBed)
+                val skip = PerfProbe.skip // debug builds only: layer cost attribution
+                if ("room" !in skip) drawRoom(g, vm.camU, room, t, inBed)
                 val foot = vm.footScreen()
-                drawPipo(vm.rig, foot.x, foot.y, g.pipoH, vm.lift * g.u, shadow = !inBed, light = vm.lightNow(room))
-                if (inBed) drawBlanket(g, vm.camU, t)
+                if ("pipo" !in skip) drawPipo(vm.rig, foot.x, foot.y, g.pipoH, vm.lift * g.u, shadow = !inBed, light = vm.lightNow(room))
+                if (inBed) drawBlanket(g, foot, g.pipoH / 100f, t)
                 val head = vm.headScreen()
-                drawLighting(g, vm.camU, room, head, vm.glowColor(), t)
-                drawForeground(g, vm.camU, room)
+                if ("light" !in skip) drawLighting(g, vm.camU, room, head, vm.glowColor(), t)
+                if ("fg" !in skip) drawForeground(g, vm.camU, room)
                 drawEmote(vm.rig, head.x, head.y, g.pipoH / 100f)
             }
         }

@@ -10,7 +10,7 @@ The whole product fits in one sentence:
 
 Open the app and you find out. He might be asleep with one eye open (pretending), lying on the floor staring at the ceiling, halfway through a project that keeps catching fire, chasing a moth around the desk lamp, or peeking in from the edge of the screen because he heard you come back.
 
-Everything runs on your device. There's no account, no server and no analytics. It's a robot and a JSON file.
+His life runs on your device. There's no account, no server of our own and no analytics. It's a robot and a JSON file. The one exception: when you chat with him while online, your message is sent to Gemini (or Groq) so he can word his reply.
 
 ---
 
@@ -66,7 +66,7 @@ He discovers things, investigates them, builds with them, and occasionally does 
 ## 🌎 Pipo's World
 
 ### The room
-A side-scrolling room about 2.4 screens wide that you can pan by dragging. It contains his **bed** (with blanket), a **plant**, a **charging station** that shows your phone's real battery, a **window** onto the outside, a **desk** with a computer and lamp, a **shelf** for his discoveries, a **pegboard and workbench**, an **arcade cabinet**, a **toy box** and ball, a **real-time clock**, and the **drawings** he makes of you, which hang above his bed.
+A side-scrolling room about 2.4 screens wide that you can pan by dragging. It contains his **bed** (with blanket), a **plant**, a **charging station** that shows your phone's real battery, a **window** onto the outside, a **desk** with a computer and lamp, a **shelf** for his discoveries, a **pegboard and workbench**, an **arcade cabinet**, a **TV and game console** on a low stand under the window, a **toy box** and ball, a **real-time clock**, string lights under the ceiling, and the **drawings** he makes of you, which hang above his bed. Pipo also owns a **tiny phone** that he pulls out now and then.
 
 ### Interactive objects
 Tap an object and he might go and use it (or refuse, depending on how stubborn or grumpy he is). He remembers what you encourage. If you keep suggesting the plant, visiting the plant becomes a habit.
@@ -86,11 +86,16 @@ These aren't only backdrop. His attention system looks at the same moth, bird an
 
 ---
 
-## 🎨 3D / Visual Experience
+## 🎨 Rendering: Procedural 2.5D rendering
 
-### What it actually is: **2.5D depth rendering**, not a 3D engine
+Pipo is **not** a 3D model. There is:
 
-Pipo is **not** rendered with OpenGL, Filament, a mesh or a 3D model. Everything is drawn procedurally in code on a Jetpack Compose `Canvas`, with no sprite sheets and no bitmaps. What makes it feel physical is a custom **2.5D projection and lighting layer**:
+- **no OpenGL** (or Vulkan, Filament, SceneView…),
+- **no external 3D model** or mesh,
+- **no 3D asset pipeline**, no sprite sheets and no bitmaps,
+- **no rendering dependency** beyond Jetpack Compose itself.
+
+Everything is drawn procedurally in code on a Jetpack Compose `Canvas`: procedural geometry with depth coordinates, projection through a yaw rotation, depth-aware draw ordering, procedural lighting, shadows, reflections, a perspective floor and parallax layers. What makes it feel physical is this custom **2.5D projection and lighting layer**:
 
 **Character rendering (`ui/render/PipoPainter.kt`)**
 - Every body part (head, face screen, ear pods, torso, arms, legs, feet, antenna) has a position in a small **local 3D space**: x across his body, z toward the viewer.
@@ -113,8 +118,12 @@ Pipo is **not** rendered with OpenGL, Filament, a mesh or a 3D model. Everything
 - **Light volumes:** the sun or moon shaft through the window, the lamp cone, and additive glows blended with `BlendMode.Screen`.
 
 **Camera**
-- It follows Pipo smoothly across the room, and you can drag to pan (it holds your framing for a few seconds).
-- It **dollies in** a little (up to about 1.12×) when he talks to you, presents a discovery or listens to you. It also creeps in slightly when he's asleep at night. Touch input is converted back through the zoom, so poking still hits the right spot.
+- It follows Pipo smoothly across the room, and you can drag to pan (it holds your framing for a few seconds). Panning tracks your finger exactly, even while zoomed.
+- It **dollies in** a little (up to about 1.12×) when he talks to you, presents a discovery or listens to you. It also creeps in slightly when he's asleep at night. Touch input is converted back through the same zoom transform, so poking still hits the right spot (verified on a phone, see the device report).
+- While you **carry** him the camera holds still so he stays under your finger, and it only scrolls (taking him along) when you drag him to the screen edge.
+- **Screen fit:** the world scale is `min(width / 88, height / 185)`, so tall 19.5:9 phones show a slightly narrower slice of the room at a bigger scale instead of a band of empty floor.
+
+**Performance notes:** colour blending in the painters uses a small packed-sRGB `lerp` (`ColorMath.kt`) instead of Compose's Oklab `lerp`, which was one of the hottest paths on a real phone. See `DEVICE_TEST_REPORT.md` for measured numbers.
 
 ### Animation system (`ui/render/Rig.kt`)
 
@@ -133,9 +142,18 @@ Pipo is **not** rendered with OpenGL, Filament, a mesh or a 3D model. Everything
 
 ## Autonomous life
 
-`BehaviorEngine` scores 18 activities as a function of **traits × mood × environment × his own recent life**, then picks with controlled randomness among the top few:
+`BehaviorEngine` scores 20 activities as a function of **traits × mood × environment × his own recent life**, then picks with controlled randomness among the top few:
 
-> sleep · rest · charge · explore · play with the ball · arcade · experiment · build · examine his collection · rearrange (mischief) · read · think at the window · computer · check on the plant · dance · prepare a surprise · come find you · **do absolutely nothing**
+> sleep · rest · charge · explore · play with the ball · arcade · experiment · build · examine his collection · rearrange (mischief) · read · think at the window · computer · check on the plant · dance · prepare a surprise · come find you · scroll reels on his phone · play his console · **do absolutely nothing**
+
+**His gadgets are a treat, not his life (`ScreenTime`).** He scrolls reels on a tiny phone (the screen swipes through little videos, and its light spills onto his face) and plays a platformer on his console (sat on the rug, turned to the TV, controller in hand). Both are deliberately limited:
+- at most **3 phone sessions and 2 console sessions a day**, and short ones (about 9 and 14 seconds)
+- a **5-minute break after any screen session** before the next one, and the arcade machine waits out that break too, so he can't hop from screen to screen
+- they are **never "absorbing"**, and he **puts them down himself** ("Okay. Enough phone. My eyes went square.")
+- sometimes a reel or a game **gives him an idea** and starts a real project, which sends him back to his other work
+- **you always come first:** tap him mid-scroll and the phone goes away immediately ("Oh! Hi! Phone away."). Never "one sec".
+
+Unit tests check the caps, the shared break, the daily reset, and that over a simulated day screens stay a small minority of what he does.
 
 What feeds the choice:
 - **Personality and mood**, as before.
@@ -206,6 +224,7 @@ Playing should feel like playing with him:
 - He **gets distracted** if you take too long: he yawns if he's tired, crosses his arms if he's impatient, or looks around for a moth.
 - Back in his room he reacts to the result with his whole body. After a **3-game streak** either way he brings it up and offers a **rematch**.
 - Results become memories and journal entries, and your most-played game is the one he asks for.
+- He **talks during games** in his toddler voice, with his mouth in sync, not just in speech bubbles.
 
 ---
 
@@ -223,7 +242,9 @@ Pipo only acts on the phone **when you ask him** in chat or by voice. Every acti
 - **Maths:** `12*7`, `25 percent of 80`, `5 km to miles`, `100 c to f`, `2 hours in minutes`.
 - **Shake the phone** and he falls over, gets annoyed or enjoys it, depending on his personality.
 
-He also reads safe phone state (charging, battery, music playing, headphones, Bluetooth audio, online or offline) and reacts to it.
+He also reads safe phone state (charging, battery, music playing, headphones, Bluetooth audio, online or offline) and reacts to it. His own voice is ignored when detecting "music playing".
+
+**Noticing your notifications (optional, off by default).** If you switch on *Notification access* for Pipo (Settings → "Pipo notices your notifications"), he reacts while he's on screen when WhatsApp, Instagram, Telegram, Messages, Snapchat, Messenger, Discord or Signal buzz: he glances up and says *"Ooh, someone sent you a reel!"* or *"Bzz! A WhatsApp message! Who is it? ...I won't peek."* Bursts get one reaction ("Whoa, lots of WhatsApp messages!"), and he stays quiet while asleep or busy. On the device, the listener turns each notification into **only (app, kind)**. Kinds are message, reel, post, photo, video, voice note, like, comment, story, follow and call. In chat apps only the attachment marker is used ("📷 Photo"), never the words of the message. **He never sees, says, stores or logs who sent it or what it says, and never opens, replies to or dismisses anything.** Other apps' notifications are ignored immediately.
 
 ---
 
@@ -234,13 +255,15 @@ The architecture keeps these separate:
 | Layer | Owns |
 | --- | --- |
 | **Pipo engine** (`engine/`, pure Kotlin) | Personality, mood, memory, autonomy, projects, notifications policy. The soul. |
-| **AI** (`ai/ChatBrain.kt`, optional) | Only the *wording* of chat replies. |
+| **AI** (`ai/ChatBrain.kt`) | Only the *wording* of chat replies (Gemini → Groq → offline). |
 | **Android layer** (`phone/`, `voice/`, `notify/`) | Phone actions, speech in and out, notifications. |
 
-- **Voice:** Android's built-in TTS (usually offline). Mood sets pitch and rate, and **the line itself adjusts delivery**: whispers (lines in parentheses, or starting with "psst") are quieter and slower, all-caps or "!!" lines are higher and faster, and sighs are lower. A **giggle chirp** plays before laugh lines and a **sigh** before sigh lines. Robot sounds (beeps, boops, giggles, "hmm"s, yawns, a servo whirr when he breaks into a run) are **synthesized on the fly**, so there are no audio files. There's a beeps-only chirp voice and a silent mode.
+- **A toddler boy's voice, made on-device:** Android has no child voices, and raising a TTS voice's pitch alone sounds like a chipmunk adult. A small child's voice is high **and** resonates in a much smaller vocal tract. So `ToddlerVoice` picks an offline **male** engine voice (for example Google `en-us-x-iom-local`), renders each line slowly with raised pitch via `synthesizeToFile`, then plays it back **1.45× faster** through an `AudioTrack`. That scales pitch *and* formants together, like shrinking the speaker, and lands around 260–340 Hz (toddler range) at a toddler's pace. Rendering takes about 70–200 ms per line on a Galaxy S23. If rendering fails he speaks directly. On a cold start, spoken lines wait until the TTS engine is ready, so his mouth never moves silently.
+- **Delivery:** Android's built-in TTS (usually offline). Mood sets pitch and rate, and **the line itself adjusts delivery**: whispers (lines in parentheses, or starting with "psst") are quieter and slower, all-caps or "!!" lines are higher and faster, and sighs are lower. A **giggle chirp** plays before laugh lines and a **sigh** before sigh lines. Robot sounds (beeps, boops, giggles, "hmm"s, yawns, a servo whirr when he breaks into a run) are **synthesized on the fly**, so there are no audio files. There's a beeps-only chirp voice and a silent mode.
 - **Speech-synced animation:** his mouth, eyes and body follow each line as described in the animation table.
 - **Listening:** tap the mic and `RECORD_AUDIO` is requested *at that moment*. Recognition runs only while the listening pill is visible.
-- **Optional AI:** bring your own Anthropic API key (Settings) and replies are rephrased by Claude Haiku 4.5. The rule-based `LocalBrain` still decides every state effect (name learning, phone commands, moods, memory). The AI only colors the words and is prompted never to act like an assistant. It's **off by default** and is the only reason the `INTERNET` permission exists.
+- **Chat brain: Gemini, then Groq, then his own words.** When you're online, chat replies are voiced by **Gemini** (`gemini-2.5-flash`, thinking off for speed). If that fails, **Groq** (the model set in `GROQ_MODEL`) takes over. If both fail, or you're offline, he answers with his own offline lines. The last six exchanges are sent along so he can follow a conversation. They live only in memory for the session and are never saved. He's prompted as a ~4-year-old robot boy who talks in short, simple sentences and is never an assistant. The rule-based `LocalBrain` still decides every state effect (actions like dancing or sleeping, name learning, phone commands, moods, memory). The AI only words the reply, and phone commands never go to the cloud.
+- **Keys** come from `local.properties` (`GEMINI_API_KEY`, `GEMINI_MODEL`, `GROQ_API_KEY`, `GROQ_MODEL`), which is git-ignored, and are compiled into your own build. A build without keys (for example CI) just uses the offline brain. Don't share an APK built with your keys.
 
 ---
 
@@ -272,11 +295,14 @@ Tapping a notification opens his room, where he shows you what he meant.
 - **Permissions:**
   - `RECORD_AUDIO`: requested only when you tap the mic.
   - `POST_NOTIFICATIONS` (Android 13+): requested only after Pipo asks you in-app whether he may message you.
-  - `INTERNET`: only for the optional AI rephrasing.
+  - `INTERNET`: only for chat replies (Gemini / Groq).
   - `ACCESS_NETWORK_STATE`, `SET_ALARM`: normal, auto-granted.
+  - **Notification access** (a special access, not a runtime permission): only if you switch it on yourself in Android settings. It's used as described under *Noticing your notifications*.
   - The torch needs **no** CAMERA permission. Photos go through the system picker and need **no** storage permission.
+- **What leaves the phone:** only what you type or say in chat, plus his mood, activity and a few memories, sent to Google (Gemini) or Groq to word his reply. Nothing else: no notifications, no phone actions, no photos, no recordings. Settings says this in plain words.
+- The microphone is used **only after you tap the mic**, while the listening pill is visible.
 - The accelerometer (shake and tilt parallax) is read only while the app is in the foreground and is never stored.
-- Your API key, if you add one, stays in the local file and is sent only to `api.anthropic.com`.
+- API keys live in `local.properties` on the build machine, never in the repository.
 
 ---
 
@@ -290,8 +316,9 @@ Tapping a notification opens his room, where he shows you what he meant.
 | Animation | Custom rig: pose/face libraries, spring dynamics (yaw, antenna), impacts, fidgets, text-driven lip movement |
 | Async | Kotlin coroutines, WorkManager 2.9.1 |
 | Persistence | kotlinx-serialization JSON 1.7.3, single file |
-| Audio | Android TTS + an `AudioTrack` synthesizer |
-| Tests | JUnit 4, plain JVM tests |
+| Audio | Android TTS, rendered and pitch/formant-shifted through `AudioTrack` (toddler voice), plus an `AudioTrack` synthesizer for robot sounds |
+| Chat | Gemini `generateContent` and an OpenAI-compatible endpoint (Groq) over `HttpURLConnection`, with no SDK dependency |
+| Tests | JUnit 4 JVM tests, plus an on-device instrumentation "pose gallery" that renders poses, angles and rooms with the real painter |
 | SDK | compile/target **35**, min **26** |
 | Toolchain | Gradle **8.9** (wrapper), AGP **8.7.3**, JDK 17 |
 | Package | `com.pipo.robot` |
@@ -304,10 +331,32 @@ Source layout: `engine/` (behavior, mood, memory, world, simulation, conversatio
 
 Requirements: JDK 17 and the Android SDK (`sdk.dir` in `local.properties`, which is git-ignored).
 
+Optional chat keys, also in `local.properties` (never commit them):
+
+```properties
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-2.5-flash
+GROQ_API_KEY=...
+GROQ_MODEL=openai/gpt-oss-120b
+```
+
 ```powershell
 .\gradlew.bat test
+.\gradlew.bat lintDebug
 .\gradlew.bat assembleDebug
 ```
+
+On-device checks (with a phone connected over ADB):
+
+```powershell
+adb install -r app\build\outputs\apk\debug\app-debug.apk
+.\gradlew.bat assembleDebugAndroidTest
+adb install -r app\build\outputs\apk\androidTest\debug\app-debug-androidTest.apk
+adb shell am instrument -w com.pipo.robot.test/androidx.test.runner.AndroidJUnitRunner
+adb pull /sdcard/Android/data/com.pipo.robot/files/pose_gallery
+```
+
+Debug builds log Pipo's on-screen position and state under the `PipoDebug` logcat tag (`PipoVoice` and `PipoBrain` for voice and chat timing, never content), and read test switches from a `debug_flags` file (see `DebugFlags.kt`).
 
 APK:
 
@@ -324,32 +373,32 @@ On macOS or Linux: `./gradlew test` and `./gradlew assembleDebug`.
 This section is deliberately literal.
 
 ### ✅ Implemented (in code)
-Everything described above: the 2.5D renderer and lighting, parallax and camera, the animation rig (springs, fidgets, speech-driven mouth, new poses and expressions), attention and gaze, absorption and distraction, rest variants, memory-driven habits, project stages and retries, the away recap, the new mischief (sneaking, fake sleep, peek-in, two new pranks), game personality (history, streaks, distraction, rematch), style-aware voice delivery and new synthesized sounds, notification copy, and all the pre-existing features.
+Everything described above: the procedural 2.5D renderer and lighting, parallax and camera, the animation rig (springs, fidgets, speech-driven mouth, poses and expressions), attention and gaze, absorption and distraction, rest variants, memory-driven habits, project stages and retries, the away recap, mischief, game personality, the toddler voice, the Gemini/Groq chat brain, his phone and console with screen-time limits, opt-in notification noticing, and notification safeguards.
 
 ### 🧪 Automated-tested
-**40 JVM unit tests pass** (`EngineTest` 15, `EvolutionTest` 21, `PhoneCommandTest` 4). They cover:
+**61 JVM unit tests pass**: `EngineTest` 15, `EvolutionTest` 21, `PhoneCommandTest` 4, `PhoneNotifsTest` 6, `ScreenTimeTest` 6, `ToddlerVoiceTest` 5, `PipoPromptTest` 2, `ColorMathTest` 2. They cover:
 - mood derivation, personality-weighted choice, bounded offline simulation, projects reaching an ending, memory dedupe and prune, notification cooldowns, quiet hours and backoff, greetings, chat name-learning with a "never sounds like an assistant" guard, and phone-command parsing and maths
-- **evolution pass:** variety penalty, encouraged activities becoming habits, absorption (only for focused work, and longer), no distraction while absorbed or asleep, the distraction cooldown, failed-project retries (and letting old failures go), bounded project logs, the away recap format and its no-guilt wording, the offline away log, the new mischievous greetings, every prank having a place in the room, "I have an idea" notifications, speech-style detection
-- **animation rig:** he turns his back when sulking and faces you again afterwards, faces the direction he walks, the mouth opens on vowels and closes on "m", landing squash recovers, and every pose × expression stays finite
-- **lighting:** at night the key light comes from the lamp's side and is stronger near it
+- variety, habits, absorption, distraction, retries, the away recap and its no-guilt wording, mischief, speech-style detection
+- **animation rig:** turning his back when sulking, facing where he walks (three-quarter, face visible), mouth shapes, landing squash, every pose × expression stays finite
+- **screen time:** daily caps, the shared break (including the arcade), the daily reset, capped gadgets never chosen even when bored, gadgets never absorbing, and screens staying a small minority of a simulated day
+- **notification noticing:** only chat/social apps, Instagram phrasing, chat apps trusting only attachment markers (a friend writing "I liked the video" stays a message), calls, and lines built from (app, kind) only
+- **voice:** WAV parsing (padding, unset lengths, garbage) and that the toddler pitch lands in the 220–400 Hz range at toddler pace for every mood and style
+- **chat:** reply cleaning (stage directions, quotes, length) and the prompt keeping his character and the offline brain's decision
+- **colour maths** for the fast painter blend
 
-These tests check the logic and the animation math. **They don't check what anything looks like.**
+**On-device instrumentation:** `PoseGalleryTest` (6 tests) renders turntable angles, 24 poses, the get-up sequence, all expressions, lighting positions and 7 full rooms with the real painter on the phone's Canvas. It passes on the Galaxy S23, and the images were reviewed.
+
+**Lint:** 0 errors, 12 warnings. Nine are newer library versions (not upgraded during a polish phase), two are the intentional portrait lock, and one is the `mipmap-anydpi-v26` folder, which `aapt2` needs for adaptive icons.
 
 ### 🏗️ Successfully built
-`.\gradlew.bat test` and `.\gradlew.bat assembleDebug` succeed on Windows with this repo, producing `app/build/outputs/apk/debug/app-debug.apk` (about 10.8 MB).
+`test`, `lintDebug`, `assembleDebug` (about 11.1 MB) and `assembleRelease` (about 7.4 MB, debug-signed) succeed on Windows.
 
 ### 📱 Physically tested
-**Nothing in this version has been run on an Android device or emulator yet.** No device was connected and no emulator is installed on the build machine. That means all of the following is unverified on hardware:
-- how the 2.5D rendering, lighting, parallax, tilt and camera zoom actually **look**, and whether the proportions, colors and turn views read well
-- frame rate, battery and memory use of the richer per-frame drawing (it hasn't been profiled)
-- how natural the fidgets, the speech-to-mouth timing (which is estimated from TTS speech rate, not synchronized to real audio), and the gaze and attention timing feel
-- touch accuracy while the camera is zoomed
-- TTS whisper volume, synthesized sounds, speech recognition
-- notification delivery, WorkManager timing, permission flows on Android 13+
-- torch, media, camera and settings intents, and anything else that crosses into another app
-- process death and state restore, including loading state saved by the previous version (new fields have defaults, so it's expected to load)
+Tested on a **Samsung Galaxy S23 (SM-S911B), Android 15**, over ADB wireless debugging. See **[DEVICE_TEST_REPORT.md](DEVICE_TEST_REPORT.md)** for the full list of what was verified, what was fixed, the measured performance and what is still unverified. In short:
+- **verified:** launch, rendering from every angle, room composition on a tall screen, touch and zoom alignment, carrying, tap-chase, the toddler voice, cold-start speech, Gemini and Groq chat with fallbacks, voice conversation (tested by the owner), all four games (including records, the opening line, boredom and exit), the journal and collection, the away recap, Home/return and process death, the console and screen-time limits
+- **not yet verified on the device:** notification noticing (it needs Notification access switched on), outgoing notification delivery timing, most Android intents (torch, media, settings…), and a long unattended run
 
-CI (`.github/workflows/build-apk.yml`) is committed. Its status hasn't been rechecked for this change.
+CI (`.github/workflows/build-apk.yml`) is committed. Its status on GitHub wasn't checked in this pass.
 
 ---
 

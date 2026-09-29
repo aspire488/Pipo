@@ -8,8 +8,12 @@ import kotlin.math.sin
 
 /** Screen geometry. World positions are in "u" (1u = 1% of a phone's width). */
 class SceneGeo(val w: Float, val h: Float) {
-    val u = min(w / 100f, h / 185f)
-    val floorY = h * 0.62f
+    // Tall phones (19.5:9 and up) show a slightly narrower slice of the room at a larger scale;
+    // at 100u wide the room only filled the top half and left a band of empty floor.
+    val u = min(w / 88f, h / 185f)
+    val floorY = h * 0.64f
+    /** Baseline for near-camera props: in the floor band between Pipo and the bottom controls. */
+    val foregroundY = floorY + (h - floorY) * 0.5f
     val viewU = w / u
     val pipoH = 40f * u
     val pipoFootY = floorY + 5f * u
@@ -18,14 +22,18 @@ class SceneGeo(val w: Float, val h: Float) {
 
     companion object {
         const val WORLD_W = 242f
-        const val BED_PIVOT = 30f
+        const val BED_PIVOT = 34f
         const val MATTRESS_TOP = 14f
+        /** The TV + console stand under the window (world u). */
+        const val TV_L = 107f
+        const val TV_R = 121f
 
         fun station(s: Station): Float = when (s) {
             Station.BED -> 56f
             Station.PLANT -> 71f
             Station.CHARGER -> 84f
             Station.WINDOW, Station.RUG -> 104f
+            Station.CONSOLE -> 92f      // on the rug, beside and facing the TV so you can see the game
             Station.DESK -> 138f
             Station.SHELF, Station.WORKBENCH -> 181f
             Station.ARCADE -> 215f
@@ -41,6 +49,7 @@ class SceneGeo(val w: Float, val h: Float) {
             Obj("window", 86f, 122f, 38f, 76f), Obj("desk", 123f, 157f, -4f, 36f), Obj("drawings", 8f, 46f, 48f, 70f),
             Obj("shelf", 160f, 202f, 52f, 64f), Obj("workbench", 160f, 202f, -4f, 46f), Obj("arcade", 205f, 225f, -4f, 48f),
             Obj("toys", 226f, 242f, -8f, 20f), Obj("clock", 56f, 68f, 54f, 66f),
+            Obj("console", 106f, 122f, -4f, 16f),
         )
 
         fun prankX(key: String) = when (key) {
@@ -64,6 +73,8 @@ data class RoomState(
     val charging: Boolean = false,
     val battery: Int = 100,
     val arcadeActive: Boolean = false,
+    /** Pipo is playing on his console: the TV shows the game. */
+    val consoleActive: Boolean = false,
     val ballU: Float = 233f,
     val torch: Boolean = false,
     /** 0..1, leaves shake when Pipo brushes past the plant. */

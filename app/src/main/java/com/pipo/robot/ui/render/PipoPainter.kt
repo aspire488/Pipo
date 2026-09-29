@@ -14,7 +14,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.graphics.lerp
 import com.pipo.robot.engine.AnimState
 import com.pipo.robot.engine.EmoteKind
 import kotlin.math.PI
@@ -51,6 +50,9 @@ data class PipoLight(
     val ambient: Color = Color(0xFF45506A),
     val shadowStretch: Float = 1f,
 )
+
+/** Head depth front-to-back (Pipo units; head is 64 wide). Shallow enough that his silhouette stays round when he turns. */
+private const val HEAD_DEPTH = 42f
 
 /**
  * Draws Pipo with his feet at ([footX], [footY]) and total height [height] px.
@@ -159,7 +161,11 @@ private fun DrawScope.drawPipoLocal(rig: PipoRig, k: Float, glow: Color, L: Pipo
         if (p.cross > 0.01f) hand = lerp(hand, Offset(px(-side * 6f, 13f), -27f * k + drop), p.cross)
         if (p.hold > 0.01f) hand = lerp(hand, Offset(px(side * 7f, 14f), -42f * k + drop), p.hold)
         if (p.cover > 0.01f) hand = lerp(hand, Offset(px(side * 12f, 26f), -64f * k + headDrop), p.cover)
-        val d = depth(side * 14f, 0f) + p.cross * 14f + p.hold * 14f + p.cover * 20f
+        // Depth follows the HAND: crossed/holding/covering hands sit in front of his chest, which may face away.
+        var d = depth(side * 14f, 0f)
+        if (p.cross > 0.01f) d += (depth(-side * 6f, 13f) - d) * p.cross
+        if (p.hold > 0.01f) d += (depth(side * 7f, 14f) - d) * p.hold
+        if (p.cover > 0.01f) d += (depth(side * 12f, 26f) - d) * p.cover
         Arm(side, sh, hand, d)
     }
     fun drawArm(arm: Arm, far: Boolean) {
@@ -168,8 +174,7 @@ private fun DrawScope.drawPipoLocal(rig: PipoRig, k: Float, glow: Color, L: Pipo
         drawCircle(darkColor(C.shellShade, if (far) 0.8f else 0.3f), 3.9f * k, arm.hand)
         drawCircle(if (far) darkColor(C.shell, 0.6f) else litColor(C.shell, 0.3f), 3.2f * k, Offset(arm.hand.x - 0.4f * k * lightSide, arm.hand.y - 0.4f * k))
     }
-    val sideOn = abs(sy) > 0.22f
-    val behind = arms.filter { sideOn && it.d < -3f }
+    val behind = arms.filter { it.d < -3f }
     behind.forEach { drawArm(it, true) }
 
     // ---------- torso
@@ -230,12 +235,13 @@ private fun DrawScope.drawPipoLocal(rig: PipoRig, k: Float, glow: Color, L: Pipo
         }
 
         // shell: silhouette of a rounded box seen from this yaw
-        val hw = (64f * abs(hc) + 46f * abs(hs)) * k
+        val hw = (64f * abs(hc) + HEAD_DEPTH * abs(hs)) * k
         shell(-hw / 2f, hy(-90f), hw, 50f * k, 22f * k, C.shell)
+        val headClip = Path().apply { addRoundRect(RoundRect(-hw / 2f, hy(-90f), hw / 2f, hy(-40f), CornerRadius(min(22f * k, hw / 2f)))) }
         // visible side panel (the side of his head), slightly darker, with a seam line
-        if (abs(hs) > 0.06f) {
+        if (abs(hs) > 0.06f) clipPath(headClip) {
             val sideSign = -sign(hs) * sign(hc).let { if (it == 0f) 1f else it }
-            val pw = 46f * abs(hs) * k
+            val pw = HEAD_DEPTH * abs(hs) * k
             val edge = sideSign * hw / 2f
             val l = if (sideSign < 0) edge else edge - pw
             val sideLit = sideSign == lightSide
@@ -245,10 +251,19 @@ private fun DrawScope.drawPipoLocal(rig: PipoRig, k: Float, glow: Color, L: Pipo
             drawLine(Color.Black.copy(alpha = 0.08f), Offset(seamX, hy(-84f)), Offset(seamX, hy(-44f)), 0.8f * k)
         }
 
+        if (hc > -0.08f && hc < 0.35f && abs(hs) > 0.5f) clipPath(headClip) {
+            // near profile: the dark edge of the face screen hugs the front of his head
+            val front = sign(hs)
+            val edgeX = front * hw / 2f
+            val bw = (4.5f * k) * (1f - abs(hc) / 0.35f).coerceIn(0.3f, 1f)
+            val l = if (front > 0f) edgeX - bw else edgeX
+            drawRoundRect(C.screen.copy(alpha = 0.9f), Offset(l, hy(-83f)), Size(bw, 37f * k), CornerRadius(bw / 2f))
+            drawRoundRect(C.eye.copy(alpha = 0.35f * rig.eyeGlow), Offset(l + (if (front > 0f) 0f else bw * 0.5f), hy(-72f)), Size(bw * 0.5f, 10f * k), CornerRadius(bw / 4f))
+        }
         if (hc > 0.03f) {
             // ---- face screen, projected onto the front of the head
-            val sc = hc.pow(0.75f)
-            val scx = hx(0f, 23f)
+            val sc = hc.pow(0.5f)
+            val scx = hx(0f, HEAD_DEPTH / 2f)
             val sw = 52f * k * sc; val sh = 37f * k; val sl = scx - sw / 2f; val st = hy(-83f)
             val rad = CornerRadius(min(14f * k, sw / 2f))
             drawRoundRect(Color.Black.copy(alpha = 0.25f), Offset(sl - 1f * k, st - 1f * k), Size(sw + 2f * k, sh + 2f * k), CornerRadius(rad.x + k))
@@ -256,8 +271,6 @@ private fun DrawScope.drawPipoLocal(rig: PipoRig, k: Float, glow: Color, L: Pipo
             val eyeCol = C.eye.copy(alpha = (0.55f + 0.45f * rig.eyeGlow + 0.15f * rig.speakGlow).coerceIn(0f, 1f))
             val clip = Path().apply { addRoundRect(RoundRect(sl, st, sl + sw, st + sh, rad)) }
             clipPath(clip) {
-                drawRect(Brush.radialGradient(listOf(eyeCol.copy(alpha = 0.12f), Color.Transparent), center = Offset(scx, hy(-65f)), radius = 30f * k),
-                    Offset(sl, st), Size(sw, sh))
                 for (side in intArrayOf(-1, 1)) {
                     val sideScale = if (side > 0) 1f + f.asym else 1f - f.asym * 0.5f
                     val near = 1f - side * hs * 0.14f
@@ -267,6 +280,9 @@ private fun DrawScope.drawPipoLocal(rig: PipoRig, k: Float, glow: Color, L: Pipo
                     if (f.blush > 0.01f) drawOval(C.blush.copy(alpha = 0.6f * f.blush), Offset(scx + side * 19f * k * sc - 4.5f * k * sc, hy(-57.5f)), Size(9f * k * sc, 3.6f * k))
                 }
                 drawMouth(rig, k, scx, sc, hy(-53.5f), eyeCol)
+                // eye glow spilling on the screen, over eyes AND lids so lid shapes never show seams
+                drawRect(Brush.radialGradient(listOf(eyeCol.copy(alpha = 0.12f), Color.Transparent), center = Offset(scx, hy(-65f)), radius = 30f * k),
+                    Offset(sl, st), Size(sw, sh))
                 // glass: a diagonal reflection band + a hint of the room light
                 val g0 = Offset(sl + sw * (if (lightSide < 0) 0.05f else 0.95f), st)
                 val g1 = Offset(sl + sw * (if (lightSide < 0) 0.45f else 0.55f), st + sh)
@@ -276,7 +292,7 @@ private fun DrawScope.drawPipoLocal(rig: PipoRig, k: Float, glow: Color, L: Pipo
             drawRoundRect(Color.White.copy(alpha = 0.18f), Offset(sl + 3f * k, st + 0.6f * k), Size(max(0f, sw - 6f * k), 1f * k), CornerRadius(0.5f * k))
         } else if (hc < -0.03f) {
             // back of his head: vents
-            val bx = hx(0f, -23f); val sc = (-hc).pow(0.75f)
+            val bx = hx(0f, -HEAD_DEPTH / 2f); val sc = (-hc).pow(0.5f)
             for (i in 0..3) drawRoundRect(darkColor(C.shellShade, 0.7f), Offset(bx - 12f * k * sc, hy(-78f + i * 6f)), Size(24f * k * sc, 2f * k), CornerRadius(1f * k))
             drawCircle(darkColor(C.shellShade, 0.5f), 2.5f * k * sc, Offset(bx, hy(-50f)))
         }
@@ -288,6 +304,8 @@ private fun DrawScope.drawPipoLocal(rig: PipoRig, k: Float, glow: Color, L: Pipo
         val hc = Offset(px(0f, 15f), -42f * k + drop)
         val shape = rig.holdItem
         if (shape != null) drawItem(shape, hc, 13f * k)
+        else if (rig.anim == AnimState.PHONE) drawTinyPhone(hc, k, rig.time)
+        else if (rig.anim == AnimState.GAMING) drawController(hc, k, rig.time)
         else if (rig.anim == AnimState.READING) {
             drawRoundRect(Color(0xFF6F8FA6), Offset(hc.x - 8f * k, hc.y - 5f * k), Size(16f * k, 10f * k), CornerRadius(1.5f * k))
             drawLine(Color(0xFFF4EFE6), Offset(hc.x, hc.y - 4.5f * k), Offset(hc.x, hc.y + 4.5f * k), 1.2f * k)
@@ -506,5 +524,52 @@ fun DrawScope.drawEmote(rig: PipoRig, hx: Float, hy: Float, k: Float) {
             drawCircle(amber, 4.5f * k, c)
             drawRoundRect(white, Offset(c.x - 2.2f * k, c.y + 4f * k), Size(4.4f * k, 3f * k), CornerRadius(1f * k))
         }
+    }
+}
+
+/** Colours of the "reels" on Pipo's phone; each swipe shows the next one. */
+private val reelColors = listOf(Color(0xFFFF8A7A), Color(0xFF7FD6FF), Color(0xFFFFD36B), Color(0xFFB690FF), Color(0xFF8BE8B0))
+
+/** Pipo's tiny phone, held in both hands; the screen light spills onto his face. */
+private fun DrawScope.drawTinyPhone(c: Offset, k: Float, time: Float) {
+    val swipe = time / 1.7f
+    val idx = swipe.toInt()
+    val ph = swipe - idx
+    val col = reelColors[idx % reelColors.size]
+    val w = 7.5f * k; val h = 12f * k
+    val l = c.x - w / 2f; val t = c.y - h * 0.62f
+    // screen glow on his face and hands
+    drawCircle(Brush.radialGradient(listOf(col.copy(alpha = 0.22f), Color.Transparent), center = Offset(c.x, t), radius = 16f * k), 16f * k, Offset(c.x, t))
+    drawRoundRect(Color(0xFF1B1F2B), Offset(l, t), Size(w, h), CornerRadius(1.6f * k))
+    val sl = l + 0.7f * k; val st = t + 0.9f * k; val sw = w - 1.4f * k; val sh = h - 1.8f * k
+    // the reel: a swipe slides the next one up
+    val cover = if (ph < 0.12f) ph / 0.12f else 1f   // how far the new reel has slid up
+    val prev = reelColors[(idx + reelColors.size - 1) % reelColors.size]
+    val base = if (cover < 1f) prev else col
+    drawRoundRect(Brush.verticalGradient(listOf(base, lerp(base, Color.Black, 0.35f)), startY = st, endY = st + sh), Offset(sl, st), Size(sw, sh), CornerRadius(0.9f * k))
+    // the swipe: the next reel slides up over the old one
+    if (cover < 1f) drawRoundRect(col, Offset(sl, st + sh * (1f - cover)), Size(sw, sh * cover), CornerRadius(0.9f * k))
+    // a little blob "subject" bouncing in the video, a heart, and the progress bar
+    drawCircle(Color.White.copy(alpha = 0.85f), 1.3f * k, Offset(sl + sw * 0.5f, st + sh * (0.5f - 0.12f * abs(sin(time * 6f)))))
+    drawCircle(Color(0xFFFF5A7A), 0.55f * k, Offset(sl + sw - 1.1f * k, st + sh * 0.62f))
+    drawRect(Color.White.copy(alpha = 0.35f), Offset(sl + 0.4f * k, st + sh - 0.8f * k), Size((sw - 0.8f * k), 0.3f * k))
+    drawRect(Color.White, Offset(sl + 0.4f * k, st + sh - 0.8f * k), Size((sw - 0.8f * k) * ph, 0.3f * k))
+}
+
+/** A small game controller with a glowing light bar. */
+private fun DrawScope.drawController(c: Offset, k0: Float, time: Float) {
+    val k = k0 * 1.3f // a little chunky so it reads against his white body
+    val body = Color(0xFF3B4254)
+    drawCircle(body, 3.4f * k, Offset(c.x - 4.6f * k, c.y + 1.2f * k))
+    drawCircle(body, 3.4f * k, Offset(c.x + 4.6f * k, c.y + 1.2f * k))
+    drawRoundRect(body, Offset(c.x - 6.5f * k, c.y - 2.6f * k), Size(13f * k, 5.2f * k), CornerRadius(2.4f * k))
+    drawRoundRect(Color.White.copy(alpha = 0.18f), Offset(c.x - 6f * k, c.y - 2.4f * k), Size(12f * k, 1.2f * k), CornerRadius(0.6f * k))
+    drawRoundRect(Color(0xFF5AB8FF).copy(alpha = 0.75f + 0.25f * sin(time * 3f)), Offset(c.x - 3f * k, c.y - 2.9f * k), Size(6f * k, 0.8f * k), CornerRadius(0.4f * k))
+    // d-pad and buttons (one lights up now and then: he's pressing it)
+    drawRect(Color(0xFF151822), Offset(c.x - 5.6f * k, c.y - 0.3f * k), Size(2.4f * k, 0.8f * k))
+    drawRect(Color(0xFF151822), Offset(c.x - 4.8f * k, c.y - 1.1f * k), Size(0.8f * k, 2.4f * k))
+    val press = ((time * 7f).toInt() % 4)
+    listOf(Offset(4.4f, -0.9f), Offset(5.5f, 0.1f), Offset(4.4f, 1.1f), Offset(3.3f, 0.1f)).forEachIndexed { i, o ->
+        drawCircle(if (i == press) Color(0xFFBFE8FF) else Color(0xFF151822), 0.5f * k, Offset(c.x + o.x * k, c.y + o.y * k))
     }
 }

@@ -19,6 +19,9 @@ class SoundSynth {
     private val rate = 22050
     private val exec = Executors.newSingleThreadExecutor()
     @Volatile var enabled = true
+    /** Wall-clock ms when the last chirp finished (or is still playing: Long.MAX_VALUE). */
+    @Volatile var audibleUntil = 0L
+        private set
 
     private data class Note(val f0: Float, val f1: Float, val ms: Int, val vol: Float = 0.35f, val vibrato: Float = 0f, val gapMs: Int = 0)
 
@@ -68,12 +71,14 @@ class SoundSynth {
                     .setTransferMode(AudioTrack.MODE_STATIC)
                     .build()
                 track.write(pcm, 0, pcm.size)
+                audibleUntil = Long.MAX_VALUE
                 track.play()
                 Thread.sleep(pcm.size * 1000L / rate + 40)
                 track.stop()
                 track.release()
             } catch (_: Exception) {
             } finally {
+                audibleUntil = System.currentTimeMillis()
                 onDone?.invoke()
             }
         }

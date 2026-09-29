@@ -9,7 +9,7 @@ enum class AnimState {
     EMBARRASSED, MISCHIEVOUS, SURPRISED, TALKING, LISTENING, SLEEPING, DANCING, WALKING,
     RUNNING, SITTING, HIDING, THINKING, BUILDING, PLAYING,
     // verbs
-    HOP, STRETCH, SPIN, SHAKE, LOOK_AROUND, PEEK, FALLEN, WAVE, HELD, READING, CHARGING, PRESENTING,
+    HOP, STRETCH, SPIN, SHAKE, LOOK_AROUND, PEEK, FALLEN, WAVE, HELD, READING, CHARGING, PRESENTING, PHONE, GAMING,
     // evolution pass: fuller body language
     CHEERFUL, YAWN, SNEAK, ARMS_CROSSED, TURN_AWAY, LIE_DOWN, GET_UP, DIZZY, LAUGH, SIGH, CELEBRATE, SULK, FINGER_UP
 }
@@ -76,6 +76,8 @@ object Vocab {
         ActivityType.DANCE -> AnimState.DANCING
         ActivityType.PREPARE_SURPRISE -> AnimState.HIDING
         ActivityType.SEEK_USER -> AnimState.WAVE
+        ActivityType.SCROLL_PHONE -> AnimState.PHONE
+        ActivityType.PLAY_CONSOLE -> AnimState.GAMING
         ActivityType.NOTHING -> AnimState.IDLE
     }
 
@@ -84,7 +86,7 @@ object Vocab {
         ActivityType.BUILD, ActivityType.EXPERIMENT, ActivityType.WORK_COMPUTER -> Expr.FOCUSED
         ActivityType.READ -> Expr.FOCUSED
         ActivityType.EXPLORE, ActivityType.EXAMINE, ActivityType.INSPECT_PLANT, ActivityType.THINK -> Expr.CURIOUS
-        ActivityType.PLAY_ARCADE, ActivityType.PLAY_TOY, ActivityType.DANCE -> Expr.HAPPY
+        ActivityType.PLAY_ARCADE, ActivityType.PLAY_TOY, ActivityType.DANCE, ActivityType.SCROLL_PHONE, ActivityType.PLAY_CONSOLE -> Expr.HAPPY
         ActivityType.PREPARE_SURPRISE, ActivityType.REARRANGE -> Expr.MISCHIEF
         ActivityType.CHARGE -> Expr.CONTENT
         else -> moodExpr(mood)
