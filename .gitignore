@@ -7,3 +7,13 @@ local.properties
 captures/
 .externalNativeBuild/
 .cxx/
+.kotlin/
+*.apk
+*.aab
+*.ap_
+*.jks
+*.keystore
+keystore.properties
+*.hprof
+.env
+.env.*
