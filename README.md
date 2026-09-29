@@ -1,5 +1,23 @@
 # Pipo 🤖
 
+<p align="center">
+  <img src="./assets/pipo-hero.svg" alt="Pipo — a little robot living inside your phone" width="900"/>
+</p>
+
+<p align="center">
+  <strong>A little robot living inside your phone.</strong><br/>
+  Character-first Android simulation · procedural 2.5D · autonomous life · local-first
+</p>
+
+<p align="center">
+  <a href="DEVICE_TEST_REPORT.md"><img src="https://img.shields.io/badge/Device%20Validation-Galaxy%20S23%20%E2%9C%93-70a5fd?style=for-the-badge"/></a>
+  <img src="https://img.shields.io/badge/Tests-68%2F68%20%E2%9C%93-2ea44f?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/Rendering-Procedural%202.5D-8b5cf6?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/Android%2015-Verified-3ddc84?style=for-the-badge&logo=android&logoColor=white"/>
+</p>
+
+> **“I wonder what Pipo is doing.”**
+
 > A tiny robot who lives inside your phone.
 
 Pipo is a character-first Android app about a small, curious, slightly mischievous robot. He has his own moods, memories, habits, projects and opinions, and he lives in a little room inside your phone.
@@ -407,14 +425,25 @@ Everything described above: the procedural 2.5D renderer and lighting, parallax 
 ### 🏗️ Successfully built
 `test`, `lintDebug`, `assembleDebug` (about 11.1 MB) and `assembleRelease` (about 7.4 MB, debug-signed) succeed on Windows.
 
-### 📱 Physically tested
-Tested on a **Samsung Galaxy S23 (SM-S911B), Android 15**, over ADB wireless debugging. See **[DEVICE_TEST_REPORT.md](DEVICE_TEST_REPORT.md)** for the full list of what was verified, what was fixed, the measured performance and what is still unverified. In short:
-- **verified:** launch, rendering from every angle, room composition on a tall screen, touch and zoom alignment, carrying, tap-chase, the toddler voice, cold-start speech, Gemini and Groq chat with fallbacks, voice conversation (tested by the owner), all four games, the journal and collection, the away recap, Home/return and process death, the console and screen-time limits, **notification noticing** (reel, burst, voice note), **his own notifications** (safeguards, delivery, tap → he explains), and **phone actions** (torch, volume, battery, time, maths, calculator, Wi-Fi panel, camera, maps, web search, the alarm confirmation, Spotify/Netflix/WhatsApp, what's playing, next/pause on Spotify, brightness, auto-rotate, Do Not Disturb, ringer)
-- **not yet verified on the device:** WorkManager's own hourly timing (the same worker code was run on demand), quiet hours at night on the device (unit-tested), timers, share/copy, the selfie camera, tilt parallax and shake, and a long unattended run
+### 📱 Physically tested — final closeout
+Tested on a **Samsung Galaxy S23 (SM-S911B), Android 15**. See **[DEVICE_TEST_REPORT.md](DEVICE_TEST_REPORT.md)** for the detailed device evidence.
 
-CI (`.github/workflows/build-apk.yml`) **passes** on GitHub for this phase's commits (runs 36586565979 and 36593853233).
+- **68/68 JVM tests pass** and **6/6 on-device rendering tests pass**.
+- The final release APK launches cleanly, is non-debuggable, and was verified on the phone.
+- **21 device bugs were found and fixed**, including touch/carrying, cold-start speech, notification wake-up, project retry logic, and web-search routing.
+- Verified: front/three-quarter/profile/back rendering, room composition, touch + zoom alignment, carrying, tap-chase, toddler voice, Gemini/Groq fallback chat, voice conversation, all four games, journal/collection, away recap, process death/relaunch, screen-time limits, notification awareness safeguards, own notifications, and the tested phone controls/media flows.
+- Release performance on the Galaxy S23 was approximately **60 FPS with 0.2% slow frames** and about **0.9 of one CPU core** during the measured scenario.
+- Remaining unverified items are explicitly documented in the device report rather than being presented as tested.
+
+CI passes for the final development phase. The public repository contains **source/documentation only**; private friend-distribution artifacts remain outside GitHub.
 
 ---
+
+### 🔒 Security / distribution closeout
+
+The final public-repo audit is clean: **no API keys, tokens, private keys, APKs, MP4s, keystores or .env files** exist in tracked source or Git history. The friend APK intentionally contains the configured Gemini/Groq keys for private distribution and is **not** published here.
+
+The repository's ignore rules keep dist/, APKs, videos and local credential material out of Git. See the device report for the final security/device evidence.
 
 ## Project philosophy
 
