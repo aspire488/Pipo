@@ -18,7 +18,7 @@
 | On-device instrumentation (`PoseGalleryTest`) | **6 / 6 pass** on the S23; rendered sheets reviewed by eye |
 | `lintDebug` | **0 errors, 12 warnings**: 9 × newer dependency available (not upgraded during a polish phase), 2 × intentional portrait lock, 1 × `mipmap-anydpi-v26` (required by `aapt2` for adaptive icons; merging it breaks the build, verified) |
 | `assembleDebug` / `assembleRelease` | Success (≈11.1 MB / ≈7.4 MB) |
-| GitHub CI | **Passed** for the first device-validation commit (`ad453ec`, run 36586565979); the previous `main` run had failed |
+| GitHub CI | **Passed** on both device-validation commits: `ad453ec` (run 36586565979) and `6dc0564` (run 36593853233). The `main` run before this phase had failed. |
 
 ---
 

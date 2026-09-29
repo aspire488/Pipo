@@ -412,7 +412,7 @@ Tested on a **Samsung Galaxy S23 (SM-S911B), Android 15**, over ADB wireless deb
 - **verified:** launch, rendering from every angle, room composition on a tall screen, touch and zoom alignment, carrying, tap-chase, the toddler voice, cold-start speech, Gemini and Groq chat with fallbacks, voice conversation (tested by the owner), all four games, the journal and collection, the away recap, Home/return and process death, the console and screen-time limits, **notification noticing** (reel, burst, voice note), **his own notifications** (safeguards, delivery, tap → he explains), and **phone actions** (torch, volume, battery, time, maths, calculator, Wi-Fi panel, camera, maps, web search, the alarm confirmation, Spotify/Netflix/WhatsApp, what's playing, next/pause on Spotify, brightness, auto-rotate, Do Not Disturb, ringer)
 - **not yet verified on the device:** WorkManager's own hourly timing (the same worker code was run on demand), quiet hours at night on the device (unit-tested), timers, share/copy, the selfie camera, tilt parallax and shake, and a long unattended run
 
-CI (`.github/workflows/build-apk.yml`) is committed. Its status on GitHub wasn't checked in this pass.
+CI (`.github/workflows/build-apk.yml`) **passes** on GitHub for this phase's commits (runs 36586565979 and 36593853233).
 
 ---
 
