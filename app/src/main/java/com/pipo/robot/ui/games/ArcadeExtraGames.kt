@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -151,14 +152,14 @@ fun FlappyPipoGame(onExit: () -> Unit) {
                     pixelRect(birdX + 10f, y - 6f, 12f, 10f, Color.White, unit)
                     pixelRect(birdX + 15f, y - 3f, 5f, 5f, Color.Black, unit)
                     pixelRect(birdX - 8f, y + 8f, 18f, 7f, Color(0xFFE08D4A), unit)
-                    if (!started) TextOverlay("TAP TO FLAP", "Pipo has no idea what he's doing.", PipoPalette.mint)
                 }
+                if (!started) TextOverlay("TAP TO FLAP", "Pipo has no idea what he's doing.", PipoPalette.mint)
             }
         }
     }
 }
 
-/* ============================== Pixel Shooter ============================== */
+/* ============================== Pixel Shooter/ ============================== */
 
 private data class Enemy(var x: Float, var y: Float, var speed: Float, val kind: Int, var hp: Int)
 private data class Bullet(var x: Float, var y: Float)
@@ -285,8 +286,8 @@ fun PixelShooterGame(onExit: () -> Unit) {
                     drawRect(PipoPalette.mint, Offset(px - 18f, size.height - 42f), androidx.compose.ui.geometry.Size(36f, 24f))
                     drawRect(PipoPalette.amber, Offset(px - 6f, size.height - 58f), androidx.compose.ui.geometry.Size(12f, 18f))
                     drawRect(PipoPalette.text, Offset(px - 4f, size.height - 70f), androidx.compose.ui.geometry.Size(8f, 12f))
-                    if (!started) TextOverlay("DRAG / TAP TO MOVE", "Pipo auto-fires. Keep the sky clear.", PipoPalette.mint)
                 }
+                if (!started) TextOverlay("DRAG / TAP TO MOVE", "Pipo auto-fires. Keep the sky clear.", PipoPalette.mint)
             }
         }
     }
