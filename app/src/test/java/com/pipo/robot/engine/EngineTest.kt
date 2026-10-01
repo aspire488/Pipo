@@ -269,7 +269,11 @@ class PhoneCommandTest {
         val yt = PhoneCommands.parse("play lofi beats on youtube")!!
         assertEquals(PhoneCmd.YOUTUBE, yt.cmd); assertEquals("lofi beats", yt.arg)
         assertEquals(PhoneCmd.YOUTUBE, c("Open YouTube"))
-        assertEquals(PhoneCmd.YOUTUBE, c("play arijit singh"))
+        // a bare "play X" is music that should start playing; "play X video" is YouTube
+        PhoneCommands.parse("play arijit singh")!!.let { assertEquals(PhoneCmd.MUSIC_APP, it.cmd); assertEquals("arijit singh", it.arg) }
+        assertEquals(PhoneCmd.YOUTUBE, c("play cat video"))
+        // things to DO with Pipo are never media
+        assertNull(c("play football")); assertNull(c("play with nib")); assertNull(c("play tag")); assertNull(c("play outside"))
         PhoneCommands.parse("play coldplay on spotify")!!.let { assertEquals(PhoneCmd.MEDIA_APP, it.cmd); assertEquals("spotify", it.extra); assertEquals("coldplay", it.arg) }
         assertNull(c("play rock paper scissors"))
         assertEquals(PhoneCmd.CAMERA, c("open the camera"))

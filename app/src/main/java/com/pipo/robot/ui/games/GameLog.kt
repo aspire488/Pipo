@@ -34,7 +34,9 @@ object GameLog {
             s.profile.favoriteGame = s.games.maxByOrNull { it.value.plays }?.key ?: game
             s.profile.relationship = (s.profile.relationship + 0.01f).coerceAtMost(1f)
             s.lastUserInteractionAt = now
-            Chronicle.remember(s, MemoryType.GAME, "playing $gname with you", 0.4f + minOf(r.plays, 10) * 0.03f, now, "game:$game")
+            com.pipo.robot.engine.Experience.remember(s, MemoryType.GAME, "playing $gname with you", 0.4f + minOf(r.plays, 10) * 0.03f, now, "game:$game", with = listOf("you"), feeling = if (pipoWon == false) -0.1f else 0.4f)
+            com.pipo.robot.engine.Rituals.shared(s, "games", now)
+            com.pipo.robot.engine.Likes.feel(s, "game:$game", if (pipoWon == true) 0.08f else if (pipoWon == false) 0.02f else 0.04f)
             Personality.nudge(s, Trait.PLAYFULNESS, 0.01f)
             Personality.nudge(s, Trait.SOCIABILITY, 0.006f)
             MoodEngine.bump(s, boredom = -0.45f, loneliness = -0.3f, happiness = 0.08f)

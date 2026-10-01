@@ -21,6 +21,7 @@ import com.pipo.robot.ui.home.HomeViewModel
 import com.pipo.robot.ui.home.LaunchInfo
 import com.pipo.robot.ui.screens.CollectionScreen
 import com.pipo.robot.ui.screens.JournalScreen
+import com.pipo.robot.ui.screens.MapScreen
 import com.pipo.robot.ui.screens.SettingsScreen
 import com.pipo.robot.ui.theme.PipoTheme
 
@@ -58,6 +59,8 @@ private fun PipoRoot(pending: MutableState<LaunchInfo?>) {
         screen == "home" -> HomeScreen(vm, consumeLaunch = { pending.value.also { pending.value = null } }, onNavigate = { screen = it })
         screen == "journal" -> JournalScreen(back)
         screen == "collection" -> CollectionScreen(back)
+        screen == "map" -> MapScreen(back)
+        screen == "nib" -> com.pipo.robot.ui.screens.NibScreen(back)
         screen == "settings" -> SettingsScreen(back)
         screen.startsWith("game:") -> GameHost(screen.removePrefix("game:"), back)
         else -> HomeScreen(vm, consumeLaunch = { null }, onNavigate = { screen = it })

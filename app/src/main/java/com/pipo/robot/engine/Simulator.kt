@@ -2,7 +2,9 @@ package com.pipo.robot.engine
 
 import com.pipo.robot.data.ActivityType
 import com.pipo.robot.data.Catalog
+import com.pipo.robot.data.DrawSubject
 import com.pipo.robot.data.EventType
+import com.pipo.robot.data.Foods
 import com.pipo.robot.data.Mood
 import com.pipo.robot.data.PendingEvent
 import com.pipo.robot.data.PipoState
@@ -33,6 +35,13 @@ object Simulator {
         }
         is Outcome.Prank -> Pranks.all.firstOrNull { it.key == o.key }?.digest
         is Outcome.Emote -> if (o.kind == EmoteKind.IDEA) s.activeProject()?.let { "had an idea. ${article(it.title).replaceFirstChar { c -> c.uppercase() }} ${it.title.lowercase()}" } else null
+        is Outcome.Returned -> Trips.digest(o.report, s)
+        is Outcome.Cooked -> Foods.byId(o.dishId)?.let { if (o.ok) "cooked ${it.name}" else "made ${it.name}. Sort of" }
+        is Outcome.Drew -> "drew " + when (o.drawing.subject) {
+            DrawSubject.USER -> "you"; DrawSubject.PET -> "Nib"; DrawSubject.SELF -> "myself"; DrawSubject.BUILDING -> "something from a dream"
+            else -> o.drawing.caption.substringBefore('.').replaceFirstChar { it.lowercase() }.take(40)
+        }
+        is Outcome.Strange -> "saw something I can't explain"
         else -> null
     }
 
@@ -47,29 +56,69 @@ object Simulator {
         if (s.awayLog.size > 5) s.awayLog.removeAt(0)
     }
 
+    private fun envAt(s: PipoState, t: Long) = Env(hour = hourOf(t), userPresent = false, weather = WeatherEngine.at(s.seed, t))
+
+    /** He gets home from a trip at [at]. */
+    private fun comeHome(s: PipoState, at: Long, rng: Random): List<Outcome> {
+        val outs = BehaviorEngine.complete(s, ActivityType.GO_OUT, envAt(s, at), at, rng, offline = true)
+        s.activity.type = ActivityType.REST
+        for (o in outs) digestOf(s, o)?.let { noteAway(s, it) }
+        return outs
+    }
+
     fun catchUp(s: PipoState, now: Long, rng: Random): Report {
         if (s.lastSimulatedAt <= 0L) { s.lastSimulatedAt = now; return Report(0, 0, 0) }
         var t = max(s.lastSimulatedAt, now - MAX_CATCH_UP)
         var steps = 0; var found = 0; var finished = 0; var naps = 0; var windowTime = 0
+        PetEngine.maybeArrive(s, now)?.let { noteAway(s, "met Nib. Nib lives here now") }
         while (t + STEP <= now) {
-            val hour = hourOf(t)
-            val env = Env(hour = hour, userPresent = false)
+            val env = envAt(s, t)
+            val hour = env.hour
             val cur = s.activity.type
             MoodEngine.tick(s, STEP, env, sleeping = cur == ActivityType.SLEEP, charging = cur == ActivityType.CHARGE,
-                playing = cur == ActivityType.PLAY_ARCADE || cur == ActivityType.PLAY_TOY)
+                playing = cur == ActivityType.PLAY_ARCADE || cur == ActivityType.PLAY_TOY || cur == ActivityType.GO_OUT)
             MoodEngine.derive(s, t, hour)
+            // Nib has a life too, and doesn't wait for anyone
+            PetEngine.offlineStep(s, env, t, rng)?.let { noteAway(s, it) }
+            // out and about: nothing else happens at home until he's back
+            val trip = s.trip
+            if (trip != null) {
+                if (trip.endsAt <= t + STEP) found += comeHome(s, max(trip.endsAt, t), rng).count { it is Outcome.Returned && it.report.foundItemIds.isNotEmpty() }
+                t += STEP; steps++
+                continue
+            }
+            // 3 a.m., awake for a moment: very occasionally, the hills blink back
+            if (isNight(hour)) Mystery.onNightWindow(s, env, t, rng, 0.006f)?.let { noteAway(s, "saw something I can't explain") }
             val type = when {
                 isNight(hour) && rng.nextFloat() < 0.92f -> ActivityType.SLEEP
                 else -> BehaviorEngine.choose(s, env, t, rng, cur)
             }
-            BehaviorEngine.start(s, type, t, rng)
-            val outcomes = BehaviorEngine.complete(s, type, env, t + STEP, rng, offline = true)
+            val started = BehaviorEngine.start(s, type, t, rng, env, inApp = false)
+            if (started == ActivityType.GO_OUT) {
+                val tr = s.trip!!
+                if (tr.endsAt <= t + STEP) found += comeHome(s, tr.endsAt, rng).count { it is Outcome.Returned && it.report.foundItemIds.isNotEmpty() }
+                t += STEP; steps++
+                continue
+            }
+            val outcomes = BehaviorEngine.complete(s, started, env, t + STEP, rng, offline = true)
             found += outcomes.count { it is Outcome.Found }
             finished += outcomes.count { it is Outcome.Finished }
             for (o in outcomes) digestOf(s, o)?.let { noteAway(s, it) }
-            if (type == ActivityType.SLEEP) naps++ else if (type == ActivityType.THINK) windowTime++
+            if (started == ActivityType.SLEEP) naps++ else if (started == ActivityType.THINK) windowTime++
             t += STEP
             steps++
+        }
+        // a trip that ended in the last few minutes: he's just walked in
+        s.trip?.let { if (it.endsAt <= now) comeHome(s, it.endsAt, rng) }
+        // The present moment. The steps above only cover time that's fully over; what is he doing
+        // *right now*? He started something in the last few minutes and hasn't finished it — which
+        // is how you can open the app and find the room empty because he's at the bakery.
+        if (s.trip == null && now - t >= 10 * MINUTE) {
+            val env = envAt(s, t)
+            val type = if (isNight(env.hour) && rng.nextFloat() < 0.92f) ActivityType.SLEEP else BehaviorEngine.choose(s, env, t, rng, s.activity.type)
+            if (BehaviorEngine.start(s, type, t, rng, env, inApp = false) == ActivityType.GO_OUT) {
+                s.trip?.let { if (it.endsAt <= now) comeHome(s, it.endsAt, rng) }
+            }
         }
         Discovery.updateReveals(s, now)
         if (steps >= 3 && s.awayLog.isEmpty()) {
@@ -110,7 +159,19 @@ enum class GreetKind {
     /** Mischief: pretending to be asleep, one eye open. */
     FAKE_SLEEP,
     /** Mischief: pops in from the edge of the screen. */
-    PEEK_IN
+    PEEK_IN,
+    /** He isn't here. There's a note on the door. */
+    AWAY,
+    /** He's hiding somewhere in the room. Silence until you find him. */
+    HIDING,
+    /** Nib did something; he wants to get his version in first. */
+    PET_NEWS,
+    /** Something strange happened. Quiet. "Come here." */
+    STRANGE,
+    /** He's absorbed in something and holds up a finger. */
+    BUSY,
+    /** A glance, a tiny smile, and back to what he was doing. */
+    CONTINUE,
 }
 
 data class Greeting(val kind: GreetKind, val line: String, val event: PendingEvent? = null)
@@ -118,7 +179,7 @@ data class Greeting(val kind: GreetKind, val line: String, val event: PendingEve
 object Greeter {
     private val revealTypes = setOf(
         EventType.DISCOVERY, EventType.PROJECT_DONE, EventType.PROJECT_EVOLVED, EventType.PROJECT_FAILED,
-        EventType.PRANK, EventType.SURPRISE, EventType.REVEAL
+        EventType.PRANK, EventType.SURPRISE, EventType.REVEAL, EventType.STRANGE, EventType.PET,
     )
 
     fun topEvent(s: PipoState): PendingEvent? =
@@ -135,8 +196,11 @@ object Greeter {
             val idea = ev.payload.removePrefix("idea:").takeIf { ev.payload.startsWith("idea:") }
             return Greeting(GreetKind.CALM, if (idea != null) "You came! Okay. The idea: a ${idea.lowercase()}. I'm going to build it." else "You came! Okay, so. It was a good thought. I'm still thinking it.", ev)
         }
+        // Out: whatever else is going on, the room is empty. You get a note, not a greeting.
+        if (s.trip != null) return Greeting(GreetKind.AWAY, Trips.doorNote(s.trip!!, s.mood.current == Mood.MISCHIEVOUS))
         if (awayMs < 3 * MINUTE) return Greeting(GreetKind.BRIEF, "")
         if (s.activity.type == ActivityType.SLEEP) return Greeting(GreetKind.SLEEPING, Dialogue.pick(Dialogue.sleepMumble, rng))
+        if (s.activity.type == ActivityType.HIDE) return Greeting(GreetKind.HIDING, "")
         return topEvent(s)?.let { forEvent(s, it, rng) } ?: moodGreeting(s, now, awayMs, rng)
     }
 
@@ -153,6 +217,13 @@ object Greeter {
                 EventType.PROJECT_FAILED -> Greeting(GreetKind.REVEAL_PROJECT, "Okay. Don't look at the workbench.", ev)
                 EventType.PRANK -> Greeting(GreetKind.PRANK, Dialogue.pick(Dialogue.prankGreeting, rng), ev)
                 EventType.SURPRISE -> Greeting(GreetKind.SURPRISE, "Oh! You're here. Look at the wall. No — the other wall. That one.", ev)
+                EventType.STRANGE -> Greeting(GreetKind.STRANGE, Dialogue.pick(listOf("...come here.", "Oh. You're here. Good. Come here.", "Can I show you something? It's weird."), rng), ev)
+                EventType.PET -> Greeting(GreetKind.PET_NEWS, when (ev.payload) {
+                    "arrived" -> "You're here! Okay. Don't freak out. We have a... this is Nib."
+                    "sat" -> "Before you look at the workbench: it was Nib."
+                    "knocked" -> "Okay. Before you look at the shelf. It was Nib. Nib did it."
+                    else -> "So. Nib."
+                }, ev)
                 else -> Greeting(GreetKind.CALM, "Hey.", ev)
             }
 
@@ -169,11 +240,30 @@ object Greeter {
                     else -> Greeting(GreetKind.MISCHIEF_HIDE, Dialogue.pick(Dialogue.mischiefGreeting, rng))
                 }
             }
-            s.activity.type in setOf(ActivityType.BUILD, ActivityType.EXPERIMENT, ActivityType.WORK_COMPUTER, ActivityType.READ) ->
+            s.activity.absorbed && s.activity.type in setOf(ActivityType.BUILD, ActivityType.DRAW, ActivityType.READ, ActivityType.COOK) ->
+                Greeting(GreetKind.BUSY, Dialogue.pick(listOf("One second.", "Hold on. Almost.", "Shh. Genius at work."), rng))
+            s.activity.type in setOf(ActivityType.BUILD, ActivityType.EXPERIMENT, ActivityType.WORK_COMPUTER, ActivityType.READ, ActivityType.DRAW, ActivityType.COOK) ->
                 Greeting(GreetKind.WORKING, Dialogue.pick(Dialogue.workingGreeting, rng))
+            // not everything is about you: sometimes he just keeps doing what he's doing
+            awayMs < 2 * HOUR && s.activity.type in setOf(ActivityType.THINK, ActivityType.EAT, ActivityType.PLAY_PET, ActivityType.PLAY_TOY) && rng.nextFloat() < 0.5f ->
+                Greeting(GreetKind.CONTINUE, "")
             awayMs > 8 * HOUR && (t.sociability > 0.42f || s.mood.excitement > 0.5f || s.profile.relationship > 0.35f) ->
                 Greeting(GreetKind.RUN_TO_USER, if (name.isNotBlank()) "${name.uppercase()}!" else "YOU'RE BACK!")
             s.activity.type == ActivityType.NOTHING && t.laziness > 0.45f -> Greeting(GreetKind.NOTHING, "...")
+            // you have a routine; he's noticed. (Only from real visit times.)
+            Rituals.routineGreeting(s, hourOf(now), rng)?.let { rng.nextFloat() < 0.35f } == true ->
+                Greeting(GreetKind.HAPPY, Rituals.routineGreeting(s, hourOf(now), rng)!!)
+            // "our thing": a callback to something you two keep doing
+            s.memories.any { it.key.startsWith("ritual:") } && rng.nextFloat() < 0.2f -> {
+                val m = s.memories.filter { it.key.startsWith("ritual:") }.random(rng)
+                Greeting(GreetKind.HAPPY, when (m.key) {
+                    "ritual:hideseek" -> "Hi. Later: hide and seek. I found a new spot. I'm not telling you where. It's the box."
+                    "ritual:games" -> "You're here. Is it game time? It feels like game time."
+                    "ritual:pats" -> "Hi. My head is available. For pats. Just saying."
+                    "ritual:texts" -> "You texted me when I was out. I kept all the texts."
+                    else -> "Hi! It's you. Our thing's still our thing."
+                })
+            }
             mood == Mood.HAPPY || mood == Mood.EXCITED -> Greeting(GreetKind.HAPPY, Dialogue.pick(Dialogue.happyGreeting, rng))
             mood == Mood.SLEEPY -> Greeting(GreetKind.CALM, "Oh. Hi. I'm... awake. Mostly.")
             mood == Mood.GRUMPY -> Greeting(GreetKind.CALM, "Oh. It's you. Fine. Hi.")

@@ -26,6 +26,14 @@ enum class PhoneCmd {
     TIME, DATE, TIMER, ALARM,
     // web
     URL, SEARCH, MAPS,
+    /** "Pipo, look!": he looks through your camera (one snapshot you take) and reacts. */
+    LOOK,
+    /** YouTube search results (as opposed to "play X", which plays the top result). */
+    YT_SEARCH,
+    /** Open an AI app with your question filled in (extra = ai id). */
+    ASK_AI,
+    /** Pipo goes and finds out himself, then tells you (extra = which AI you named, may be blank). */
+    FIND_OUT,
     // tiny utilities
     CALC, CONVERT, COPY, SHARE, BATTERY,
     // calls (dialer only, never auto-calls)
@@ -64,8 +72,22 @@ data class PhoneInfo(
  * Only runs on something the user explicitly typed or said.
  */
 object PhoneCommands {
-    private val gameWords = listOf("rock", "paper", "scissors", "memory", "tic", "reaction", "game", "with me", "catch", "hide and seek")
+    private val gameWords = listOf("rock", "paper", "scissors", "memory", "tic", "reaction", "game", "with me", "catch", "hide and seek",
+        "football", "soccer", "ball", "kick", "tag", "nib", "with", "outside", "together", "flappy", "shooter", "arcade", "cards", "chess",
+        "hide", "seek", "pretend", "dress up", "toys", "console")
     private val filler = Regex("\\b(please|pls|pipo|can you|could you|would you|will you|hey|for me|some|the|a|an|now|quickly)\\b")
+
+    /** Which AI app a word means (null = not an AI). */
+    fun aiId(w: String): String? = when (w.lowercase().replace(" ", "")) {
+        "chatgpt", "gpt", "openai" -> "chatgpt"; "gemini", "bard" -> "gemini"; "claude" -> "claude"
+        "perplexity" -> "perplexity"; "copilot" -> "copilot"; "ai", "anai", "aai", "theai" -> "ai"
+        else -> null
+    }
+
+    fun aiName(id: String) = when (id) { "chatgpt" -> "ChatGPT"; "gemini" -> "Gemini"; "claude" -> "Claude"; "perplexity" -> "Perplexity"; "copilot" -> "Copilot"; else -> "the AI" }
+
+    /** A question for an AI keeps its words; only the bits addressed to Pipo go. */
+    private fun verbatim(s: String) = s.replace(Regex("\\b(please|pls|pipo|hey)\\b"), " ").replace(Regex("\\s+"), " ").trim()
 
     private fun clean(s: String) = s.replace(filler, " ").replace(Regex("\\s+"), " ").trim()
 
@@ -166,6 +188,29 @@ object PhoneCommands {
         // ---------- calculator: "what's 12*7", "25 percent of 80", "5 plus 3"
         MiniCalc.fromSentence(s)?.let { (expr, ans) -> return PhoneRequest(PhoneCmd.CALC, expr, extra = ans) }
 
+        // ---------- AI apps: "ask chatgpt why the sky is blue", "open gemini and ask ...", "ask claude ... and tell me"
+        Regex("^(?:go |can you |please )?(?:ask|open (\\w+) and ask|check with|what does (\\w+) (?:say|think) about)\\s*(chat ?gpt|gpt|gemini|claude|perplexity|copilot|an? ai|the ai|ai)?\\b[,:]?\\s*(.*)$").find(s)?.let { m ->
+            val named = listOf(m.groupValues[3], m.groupValues[1], m.groupValues[2]).firstOrNull { aiId(it) != null }
+            val ai = named?.let { aiId(it) }
+            if (ai == null && !Regex("^(?:what does|check with)").containsMatchIn(s) && m.groupValues[3].isBlank()) return@let
+            var q = m.groupValues[4].trim()
+            val tellMe = Regex("\\b(and )?(tell me|let me know|what (it|they) says?|find out|report back)\\b").containsMatchIn(q) || s.startsWith("what does") || ai == null || ai == "ai"
+            // keep the question in your own words: only Pipo-directed fillers go
+            q = verbatim(q.replace(Regex("\\b(and )?(tell me( what (it|they) says?)?|let me know|report back)\\b"), " ")).removePrefix("about ").removePrefix("to ")
+            if (q.isBlank() && ai != null && ai != "ai") return PhoneRequest(PhoneCmd.ASK_AI, "", extra = ai)
+            if (q.isBlank()) return@let
+            return if (tellMe) PhoneRequest(PhoneCmd.FIND_OUT, q, extra = ai.orEmpty()) else PhoneRequest(PhoneCmd.ASK_AI, q, extra = ai)
+        }
+        Regex("^(?:find out|look into|research)\\s+(.+)").find(s)?.let { return PhoneRequest(PhoneCmd.FIND_OUT, verbatim(it.groupValues[1])) }
+
+        // ---------- YouTube search (results, not autoplay): "search cats on youtube", "youtube search lofi"
+        Regex("^(?:search|find|look up|look for)(?: for)? (.+?) (?:on|in) youtube$|^youtube search(?: for)? (.+)$|^search youtube(?: for)? (.+)$").find(s)?.let { m ->
+            val q = clean(m.groupValues.drop(1).firstOrNull { it.isNotBlank() }.orEmpty())
+            if (q.isNotBlank()) return PhoneRequest(PhoneCmd.YT_SEARCH, q)
+        }
+        // ---------- Google search, said explicitly: "search cats on google", "google cats"
+        Regex("^(?:search|look up|find)(?: for)? (.+?) on google$").find(s)?.let { return PhoneRequest(PhoneCmd.SEARCH, clean(it.groupValues[1])) }
+
         // ---------- what's playing / which apps
         if (Regex("^(what'?s|what is) (playing|this song|the song|on the speaker)|what song is (this|playing)|who (sings|is singing) this|what am i listening to").containsMatchIn(s))
             return PhoneRequest(PhoneCmd.NOW_PLAYING)
@@ -227,9 +272,14 @@ object PhoneCommands {
             return PhoneRequest(PhoneCmd.YOUTUBE, q)
         }
         if (s.startsWith("play ") && gameWords.none { s.contains(it) }) {
-            val q = clean(s.removePrefix("play "))
-            if (q.isNotBlank()) return PhoneRequest(PhoneCmd.YOUTUBE, q)
+            val q = clean(s.removePrefix("play ").replace(Regex("\\b(song|songs|music|by)\\b"), " "))
+            if (q.isNotBlank()) return if (Regex("\\b(video|videos|trailer|episode)\\b").containsMatchIn(s)) PhoneRequest(PhoneCmd.YOUTUBE, q) else PhoneRequest(PhoneCmd.MUSIC_APP, q)
         }
+
+        // ---------- "Pipo, look!" — he sees what you show him
+        // (short "look!" phrases only: "look up X" and "look for X" are searches)
+        if (Regex("^(?:hey )?(?:pipo,? )?(look|look at this|look here|look at that|look at me|see this|see that|what do you see|what can you see|can you see this|what is this|what's this|whats this|check this out|guess what this is)(?: pipo)?[!.?]*$").matches(s))
+            return PhoneRequest(PhoneCmd.LOOK)
 
         // ---------- camera / photos
         if (Regex("\\b(selfie)\\b").containsMatchIn(s)) return PhoneRequest(PhoneCmd.SELFIE)
@@ -392,6 +442,10 @@ object PhoneCommands {
             PhoneCmd.ALARM -> "Alarm at ${"%02d:%02d".format(r.hour, r.minute)}. Done. Don't snooze."
 
             PhoneCmd.URL -> p("Opening it.", "Gotcha. Off to ${r.arg.removePrefix("https://").removePrefix("www.").substringBefore('/')}.")
+            PhoneCmd.LOOK -> p("Ooh! Show me!", "Let me see, let me see!")
+            PhoneCmd.YT_SEARCH -> p("Searching YouTube for \"${r.arg}\". You pick.", "YouTube, find \"${r.arg}\". Go.")
+            PhoneCmd.ASK_AI -> if (r.arg.isBlank()) "Opening ${aiName(r.extra)}. Say hi from me." else p("Asking ${aiName(r.extra)}: \"${r.arg}\". I hope it's nice to me.", "Okay, ${aiName(r.extra)}. Big question incoming.")
+            PhoneCmd.FIND_OUT -> p("Hmm. Let me find out. Hold on.", "Ooh, a research mission. One sec.", "Asking around. Robots have contacts.")
             PhoneCmd.SEARCH -> p("Searching \"${r.arg}\". The internet knows things.", "\"${r.arg}\". Let's see.")
             PhoneCmd.MAPS -> if (r.arg.isBlank()) "Opening maps." else "Finding ${r.arg}."
 

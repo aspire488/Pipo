@@ -1,5 +1,7 @@
 # Pipo — Physical Device Test Report
 
+> **Note:** this report covers the build before the "beyond the room" upgrade (trips, Nib, weather, food, the map, the mystery). That upgrade has not been device-tested yet; see the README's Current Status.
+
 | | |
 | --- | --- |
 | **Device** | Samsung Galaxy S23 (SM-S911B, `dm1q`) |

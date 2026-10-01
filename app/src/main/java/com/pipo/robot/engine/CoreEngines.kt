@@ -89,6 +89,7 @@ data class Env(
     val music: Boolean = false,
     val headphones: Boolean = false,
     val userPresent: Boolean = false,
+    val weather: WeatherNow = WeatherNow(Weather.CLEAR, 0.5f),
 )
 
 object MoodEngine {
@@ -123,6 +124,8 @@ object MoodEngine {
         m.affection += (0.35f + s.profile.relationship * 0.5f - m.affection) * min(1f, 0.05f * h)
         m.happiness = clamp01(m.happiness); m.excitement = clamp01(m.excitement); m.curiosity = clamp01(m.curiosity)
         m.affection = clamp01(m.affection)
+        // hunger creeps up slowly, slower while asleep, faster when he's running around
+        m.appetite = clamp01(m.appetite + (if (sleeping) 0.02f else if (playing) 0.08f else 0.055f) * h)
     }
 
     fun setTransient(s: PipoState, mood: Mood, now: Long, durationMs: Long) {
@@ -205,6 +208,10 @@ object Chronicle {
         MemoryType.CONVERSATION -> 7f
         MemoryType.EVENT -> 20f
         MemoryType.SELF -> 60f
+        MemoryType.PLACE -> 150f
+        MemoryType.FOOD -> 90f
+        MemoryType.PET -> 120f
+        MemoryType.STRANGE -> 3650f // some things you don't forget
     }
 
     fun relevance(m: PipoMemory, now: Long): Float {

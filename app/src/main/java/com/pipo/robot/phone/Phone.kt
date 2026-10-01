@@ -111,6 +111,51 @@ class PhoneActions(private val ctx: Context) {
     private fun web(url: String) = Intent(Intent.ACTION_VIEW, Uri.parse(url))
     private fun selector(category: String): Intent = Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, category)
 
+    /**
+     * "Play X": find the top YouTube result for X and open THAT video, so it actually starts
+     * playing (opening a search page isn't playing). Falls back to the results page offline.
+     */
+    private fun playOnYouTube(q: String): Boolean {
+        val results = "https://www.youtube.com/results?search_query=${enc(q)}"
+        Thread {
+            val id = runCatching {
+                val c = (java.net.URL(results).openConnection() as java.net.HttpURLConnection).apply {
+                    connectTimeout = 5000; readTimeout = 6000
+                    setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+                    setRequestProperty("Accept-Language", "en")
+                }
+                try { Regex("\"videoId\":\"([A-Za-z0-9_-]{11})\"").find(c.inputStream.bufferedReader().use { it.readText() })?.groupValues?.get(1) } finally { c.disconnect() }
+            }.getOrNull()
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                if (id != null) launch(Intent(Intent.ACTION_VIEW, Uri.parse("vnd.youtube:$id")).setPackage("com.google.android.youtube"), web("https://www.youtube.com/watch?v=$id"))
+                else launch(web(results).setPackage("com.google.android.youtube"), web(results))
+            }
+        }.start()
+        return true
+    }
+
+    /** Opens the AI app you named with your question filled in (shared text), else its website with the question. */
+    private fun askAi(id: String, q: String): Boolean {
+        val pkgs = when (id) {
+            "chatgpt" -> listOf("com.openai.chatgpt"); "gemini" -> listOf("com.google.android.apps.bard", "com.google.android.googlequicksearchbox")
+            "claude" -> listOf("com.anthropic.claude"); "perplexity" -> listOf("ai.perplexity.app.android"); "copilot" -> listOf("com.microsoft.copilot")
+            else -> emptyList()
+        }
+        // These links don't just fill the box in: the site sends the question straight away.
+        // (Gemini has no such link; Google's AI Mode is Gemini and answers immediately.)
+        val live = when (id) {
+            "chatgpt" -> "https://chatgpt.com/?q=${enc(q)}"; "claude" -> "https://claude.ai/new?q=${enc(q)}"; "perplexity" -> "https://www.perplexity.ai/search?q=${enc(q)}"
+            "copilot" -> "https://copilot.microsoft.com/?q=${enc(q)}"; else -> "https://www.google.com/search?udm=50&q=${enc(q)}"
+        }
+        val home = when (id) { "chatgpt" -> "https://chatgpt.com"; "claude" -> "https://claude.ai"; "perplexity" -> "https://www.perplexity.ai"; "copilot" -> "https://copilot.microsoft.com"; else -> "https://gemini.google.com/app" }
+        val p = pkgs.firstOrNull { installed(it) }
+        if (q.isBlank()) return launch(p?.let { pkg(it) }, web(home))
+        // in a browser, so the AI's own app doesn't swallow the link and drop the question
+        val browser = listOf("com.android.chrome", "com.sec.android.app.sbrowser", "org.mozilla.firefox", "com.microsoft.emmx", "com.brave.browser").firstOrNull { installed(it) }
+        val send = p?.let { Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, q).setPackage(it) }
+        return launch(browser?.let { web(live).setPackage(it) }, web(live), send, p?.let { pkg(it) })
+    }
+
     private fun launch(vararg options: Intent?): Boolean {
         for (i in options) {
             if (i == null) continue
@@ -127,15 +172,21 @@ class PhoneActions(private val ctx: Context) {
 
     /** Opens some music app: Spotify → YouTube Music → default player → YouTube. */
     fun openMusic(query: String = ""): Boolean {
+        if (query.isNotBlank() && installed("com.google.android.youtube")) return playOnYouTube(query)
+        // "play X": ask the music app to find it AND start it (play-from-search), not just open a search page
+        fun playFromSearch(p: String) = Intent(MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH).setPackage(p)
+            .putExtra(SearchManager.QUERY, query).putExtra(MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/*")
         if (installed("com.spotify.music")) {
             return launch(
+                if (query.isNotBlank()) playFromSearch("com.spotify.music") else null,
                 if (query.isNotBlank()) Intent(Intent.ACTION_VIEW, Uri.parse("spotify:search:${Uri.encode(query)}")).setPackage("com.spotify.music") else null,
                 pkg("com.spotify.music"))
         }
         return launch(
-            if (query.isBlank()) pkg("com.google.android.apps.youtube.music") else web("https://music.youtube.com/search?q=${enc(query)}"),
+            if (query.isNotBlank() && installed("com.google.android.apps.youtube.music")) playFromSearch("com.google.android.apps.youtube.music") else null,
+            if (query.isBlank()) pkg("com.google.android.apps.youtube.music") else web("https://music.youtube.com/search?q=${enc(query)}").takeIf { installed("com.google.android.apps.youtube.music") },
             if (query.isBlank()) selector(Intent.CATEGORY_APP_MUSIC) else null,
-            Intent(Intent.ACTION_SEARCH).setPackage("com.google.android.youtube").putExtra(SearchManager.QUERY, query.ifBlank { "music" }),
+            web("https://www.youtube.com/results?search_query=${enc(query.ifBlank { "music" })}").setPackage("com.google.android.youtube"),
             web("https://www.youtube.com/results?search_query=${enc(query.ifBlank { "music" })}"),
         )
     }
@@ -176,6 +227,10 @@ class PhoneActions(private val ctx: Context) {
     private fun openMedia(id: String, q: String): Boolean {
         val app = MediaApps.all.firstOrNull { it.id == id } ?: return false
         val p = app.packages.firstOrNull { installed(it) } ?: return false
+        // music: find it and start it playing
+        val play = if (q.isNotBlank() && app.kind == MediaApps.Kind.MUSIC) Intent(MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH).setPackage(p)
+            .putExtra(SearchManager.QUERY, q).putExtra(MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/*") else null
+        if (play != null && launch(play)) return true
         val deep = when {
             q.isNotBlank() && app.search != null -> Intent(Intent.ACTION_VIEW, Uri.parse(MediaApps.link(app.search, q))).setPackage(p)
             q.isBlank() && app.home != null -> Intent(Intent.ACTION_VIEW, Uri.parse(app.home)).setPackage(p)
@@ -321,8 +376,7 @@ class PhoneActions(private val ctx: Context) {
             PhoneCmd.MUTE -> vol(AudioManager.ADJUST_TOGGLE_MUTE)
             PhoneCmd.YOUTUBE ->
                 if (r.arg.isBlank()) launch(pkg("com.google.android.youtube"), web("https://www.youtube.com"))
-                else launch(Intent(Intent.ACTION_SEARCH).setPackage("com.google.android.youtube").putExtra(SearchManager.QUERY, r.arg),
-                    web("https://www.youtube.com/results?search_query=${enc(r.arg)}"))
+                else playOnYouTube(r.arg)
             PhoneCmd.MUSIC_APP -> openMusic(r.arg)
             PhoneCmd.CAMERA -> launch(Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA))
             PhoneCmd.SELFIE -> launch(Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)
@@ -354,6 +408,10 @@ class PhoneActions(private val ctx: Context) {
                 .putExtra(AlarmClock.EXTRA_SKIP_UI, false))
             PhoneCmd.URL -> launch(web(if (r.arg.startsWith("http")) r.arg else "https://${r.arg}"))
             // A search URL opens the default browser directly; WEB_SEARCH has several handlers and shows a chooser.
+            PhoneCmd.LOOK -> true // the screen asks first, then opens your camera
+            PhoneCmd.YT_SEARCH -> launch(web("https://www.youtube.com/results?search_query=${enc(r.arg)}").setPackage("com.google.android.youtube"), web("https://www.youtube.com/results?search_query=${enc(r.arg)}"))
+            PhoneCmd.ASK_AI -> askAi(r.extra, r.arg)
+            PhoneCmd.FIND_OUT -> true // Pipo asks himself and tells you (the screen does that)
             PhoneCmd.SEARCH -> launch(web("https://www.google.com/search?q=${enc(r.arg)}"), Intent(Intent.ACTION_WEB_SEARCH).putExtra(SearchManager.QUERY, r.arg))
             PhoneCmd.MAPS -> launch(Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${enc(r.arg.ifBlank { "near me" })}")), web("https://www.google.com/maps/search/${enc(r.arg)}"))
             PhoneCmd.COPY -> copy(r.arg.ifBlank { lastLine })

@@ -22,7 +22,7 @@ import kotlin.random.Random
  */
 class PipoRepository private constructor(private val file: File) {
     private val lock = Any()
-    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+    private val json = PipoJson
     private var state: PipoState = load()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var pendingSave: Job? = null
@@ -33,7 +33,16 @@ class PipoRepository private constructor(private val file: File) {
 
     private fun load(): PipoState {
         return try {
-            if (file.exists()) json.decodeFromString(PipoState.serializer(), file.readText()) else newState()
+            if (!file.exists()) return newState()
+            val s = json.decodeFromString(PipoState.serializer(), file.readText())
+            if (s.schema < CURRENT_SCHEMA) {
+                // Keep the old save next to the new one, so an upgrade can never cost anyone their Pipo.
+                runCatching { file.copyTo(File(file.parentFile, "pipo_state.v${s.schema}.bak.json"), overwrite = false) }
+            }
+            if (Migrations.migrate(s, System.currentTimeMillis())) {
+                runCatching { writeAtomically(json.encodeToString(PipoState.serializer(), s)) }
+            }
+            s
         } catch (e: Exception) {
             // Corrupt file: keep a copy for debugging, start fresh rather than crash.
             runCatching { file.copyTo(File(file.parentFile, "pipo_state.corrupt.json"), overwrite = true) }
@@ -51,6 +60,8 @@ class PipoRepository private constructor(private val file: File) {
             activity.startedAt = now
             activity.durationMs = DAY
             lastSimulatedAt = now
+            pet.traits = com.pipo.robot.engine.PetEngine.newTraits(rng)
+            pet.adoptedAt = now
         }
     }
 
@@ -76,6 +87,10 @@ class PipoRepository private constructor(private val file: File) {
 
     fun saveNow() {
         val text = synchronized(lock) { json.encodeToString(PipoState.serializer(), state) }
+        writeAtomically(text)
+    }
+
+    private fun writeAtomically(text: String) {
         synchronized(file) {
             val tmp = File(file.parentFile, file.name + ".tmp")
             tmp.writeText(text)

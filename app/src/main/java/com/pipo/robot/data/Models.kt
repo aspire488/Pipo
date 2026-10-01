@@ -38,7 +38,9 @@ data class PipoProfile(
 
 enum class Mood {
     HAPPY, EXCITED, CURIOUS, SLEEPY, BORED, GRUMPY, LONELY,
-    NERVOUS, PROUD, EMBARRASSED, MISCHIEVOUS, RELAXED
+    NERVOUS, PROUD, EMBARRASSED, MISCHIEVOUS, RELAXED,
+    // quieter shades: set by what actually happens (a storm, a strange photo, a long look out of the window)
+    WORRIED, THOUGHTFUL, PLAYFUL,
 }
 
 @Serializable
@@ -51,6 +53,8 @@ data class PipoMood(
     var irritation: Float = 0f,
     var loneliness: Float = 0.15f,
     var excitement: Float = 0.3f,
+    /** Wanting food. Never shown; it just makes noodles sound like a good idea. */
+    var appetite: Float = 0.3f,
     /** Short-lived moods (proud, embarrassed, nervous...) override the derived one. */
     var transient: Mood? = null,
     var transientUntil: Long = 0L,
@@ -61,7 +65,7 @@ data class PipoMood(
 /*  Memory                                                             */
 /* ------------------------------------------------------------------ */
 
-enum class MemoryType { USER_FACT, CONVERSATION, JOKE, DISCOVERY, GAME, EVENT, PROJECT, MOMENT, SELF }
+enum class MemoryType { USER_FACT, CONVERSATION, JOKE, DISCOVERY, GAME, EVENT, PROJECT, MOMENT, SELF, PLACE, FOOD, PET, STRANGE }
 
 @Serializable
 data class PipoMemory(
@@ -74,6 +78,12 @@ data class PipoMemory(
     /** Dedupe key: repeated experiences strengthen one memory instead of adding many. */
     val key: String = "",
     var count: Int = 1,
+    // ---- the experience, not just the fact (schema 2): where, who, what with, how it felt
+    var place: String = "",
+    var with: List<String> = emptyList(),
+    var objects: List<String> = emptyList(),
+    /** -1 bad … +1 good. */
+    var feeling: Float = 0f,
 )
 
 /* ------------------------------------------------------------------ */
@@ -103,7 +113,7 @@ data class PipoWorld(
 /*  Activity                                                           */
 /* ------------------------------------------------------------------ */
 
-enum class Station { BED, PLANT, CHARGER, WINDOW, DESK, SHELF, WORKBENCH, ARCADE, TOYS, RUG, CONSOLE, WANDER, FRONT, STAY }
+enum class Station { BED, PLANT, CHARGER, WINDOW, DESK, SHELF, WORKBENCH, ARCADE, TOYS, RUG, CONSOLE, WANDER, FRONT, STAY, KITCHEN, DOOR, HIDE }
 
 enum class ActivityType(val station: Station) {
     SLEEP(Station.BED),
@@ -128,6 +138,17 @@ enum class ActivityType(val station: Station) {
     /** Games on his little console by the window. Also screen time: capped per day. */
     PLAY_CONSOLE(Station.CONSOLE),
     NOTHING(Station.STAY),
+    /** Leaves the room for a real place (a shop, the park, the field). See Trips. */
+    GO_OUT(Station.DOOR),
+    EAT(Station.KITCHEN),
+    COOK(Station.KITCHEN),
+    /** At the desk with his sketchbook. Drawings are kept and hung up. */
+    DRAW(Station.DESK),
+    /** Puts back what he (or Nib) left lying around. */
+    CLEAN(Station.WANDER),
+    /** Hides somewhere in the room. Sometimes it's a game, sometimes he did something. */
+    HIDE(Station.HIDE),
+    PLAY_PET(Station.RUG),
 }
 
 @Serializable
@@ -191,6 +212,13 @@ enum class EventType(val category: NotifCategory) {
     WANT_PLAY(NotifCategory.GAMES),
     HI(NotifCategory.CONVERSATIONS),
     MILESTONE(NotifCategory.MILESTONES),
+    /** Something that doesn't add up (the mystery). Rare by construction. */
+    STRANGE(NotifCategory.DISCOVERIES),
+    /** Nib did something. */
+    PET(NotifCategory.FUNNY),
+    /** He went somewhere and something worth telling happened. */
+    TRIP(NotifCategory.THOUGHTS),
+    COOKED(NotifCategory.FUNNY),
 }
 
 /** Something that actually happened to Pipo that he may want to share. */
@@ -223,7 +251,9 @@ data class NotificationRecord(
 /*  Journal                                                            */
 /* ------------------------------------------------------------------ */
 
-enum class JournalCategory { DISCOVERY, PROJECT, GAME, MOMENT, CONVERSATION, MILESTONE, MISCHIEF }
+enum class JournalCategory { DISCOVERY, PROJECT, GAME, MOMENT, CONVERSATION, MILESTONE, MISCHIEF, PLACE, FOOD, PET, STRANGE,
+    /** Written by Pipo himself, in his notes app: thoughts, theories, lists. */
+    THOUGHT }
 
 @Serializable
 data class JournalEntry(
@@ -254,6 +284,12 @@ data class PipoSettings(
     var aiEnabled: Boolean = false,
     var aiApiKey: String = "",
     var askedNotificationPermission: Boolean = false,
+    /** Less camera motion (no dolly, no tilt parallax). Also on when the system turns animations off. */
+    var calmMotion: Boolean = false,
+    /** Pipo's chat, "look" and "find out" use an online AI (off = fully offline Pipo). */
+    var onlineAi: Boolean = true,
+    /** Pipo's weather is your real weather (shares your approximate city with the weather service). */
+    var realWeather: Boolean = true,
 ) {
     fun categoryOn(c: NotifCategory) = categories[c.name] ?: true
 }
@@ -273,9 +309,12 @@ data class GameRecord(
 /*  Root                                                               */
 /* ------------------------------------------------------------------ */
 
+/** Bump when the saved shape changes meaning; see [com.pipo.robot.data.Migrations]. */
+const val CURRENT_SCHEMA = 2
+
 @Serializable
 data class PipoState(
-    var schema: Int = 1,
+    var schema: Int = CURRENT_SCHEMA,
     var idCounter: Long = 0L,
     var seed: Long = 0L,
     var profile: PipoProfile = PipoProfile(),
@@ -298,6 +337,37 @@ data class PipoState(
     var recentActivities: MutableList<ActivityType> = mutableListOf(),
     /** Short "what I did while you were away" highlights, told (and cleared) when you come back. */
     var awayLog: MutableList<String> = mutableListOf(),
+
+    // ---- schema 2: a life outside the room
+    var pet: PetState = PetState(),
+    /** Where he is right now, if he's out. null = home. */
+    var trip: TripState? = null,
+    /** The last trip, until he's told you about it. */
+    var lastTrip: TripReport? = null,
+    var places: MutableMap<String, PlaceMemory> = mutableMapOf(),
+    var npcs: MutableMap<String, NpcMemory> = mutableMapOf(),
+    var coins: Int = 20,
+    /** Food in the kitchen (food catalog ids). */
+    var pantry: MutableList<String> = mutableListOf("noodles", "apple", "bread", "honey"),
+    /** How much he likes each food, learned by eating it. Never shown as numbers. */
+    var tastes: MutableMap<String, Float> = mutableMapOf(),
+    var craving: String = "",
+    var cravingReason: String = "",
+    var drawings: MutableList<Drawing> = mutableListOf(),
+    var photos: MutableList<Photo> = mutableListOf(),
+    var creatures: MutableMap<String, Creature> = mutableMapOf(),
+    /** What he's into on his little feed (topic → interest). */
+    var feed: MutableMap<String, Float> = mutableMapOf(),
+    /** Personal bests: "kickups", "shot", "goals". */
+    var records: MutableMap<String, Int> = mutableMapOf(),
+    var mystery: MysteryState = MysteryState(),
+    var migratedAt: Long = 0L,
+    /** What he's come to like (+) or dislike (−): "place:lake", "act:DRAW", "weather:RAIN", "game:rps". Never shown. */
+    var fondness: MutableMap<String, Float> = mutableMapOf(),
+    /** Sounds he recorded on his phone. */
+    var recordings: MutableList<Recording> = mutableListOf(),
+    /** Hours of day you tend to visit (most recent last), so he learns your routine. */
+    var visitHours: MutableList<Int> = mutableListOf(),
 ) {
     fun nextId(): Long = ++idCounter
     fun count(key: String, by: Int = 1): Int {

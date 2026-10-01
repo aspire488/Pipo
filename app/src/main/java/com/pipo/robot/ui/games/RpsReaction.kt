@@ -27,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -42,14 +43,19 @@ import com.pipo.robot.engine.AnimState
 import com.pipo.robot.engine.EmoteKind
 import com.pipo.robot.engine.Expr
 import com.pipo.robot.engine.Sfx
+import com.pipo.robot.engine.RpsHand
+import com.pipo.robot.engine.RpsMatch
+import com.pipo.robot.engine.RpsPhase
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import com.pipo.robot.ui.theme.PipoPalette
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /* ============================ Rock Paper Scissors ============================ */
 
-private enum class Hand { ROCK, PAPER, SCISSORS }
-private fun beats(a: Hand, b: Hand) = (a == Hand.ROCK && b == Hand.SCISSORS) || (a == Hand.PAPER && b == Hand.ROCK) || (a == Hand.SCISSORS && b == Hand.PAPER)
+private typealias Hand = RpsHand
 
 private fun DrawScope.drawHand(h: Hand, c: Color) {
     val w = size.width
@@ -72,63 +78,62 @@ private fun DrawScope.drawHand(h: Hand, c: Color) {
 fun RpsGame(onExit: () -> Unit) {
     val gp = rememberGamePipo("rps")
     val scope = rememberCoroutineScope()
-    var you by remember { mutableIntStateOf(0) }
-    var pipo by remember { mutableIntStateOf(0) }
-    var yourHand by remember { mutableStateOf<Hand?>(null) }
-    var pipoHand by remember { mutableStateOf<Hand?>(null) }
-    var busy by remember { mutableStateOf(false) }
-    var over by remember { mutableStateOf(false) }
-    val history = remember { mutableListOf<Hand>() }
     // Every Pipo has a favourite throw, tied to his personality.
     val favourite = remember { when { gp.traits.mischief > 0.55f -> Hand.SCISSORS; gp.traits.stubbornness > 0.55f -> Hand.ROCK; else -> Hand.PAPER } }
-
-    fun pipoPick(): Hand {
-        val r = gp.rng.nextFloat()
-        val last = history.lastOrNull()
-        return when {
-            last != null && r < 0.3f + gp.traits.curiosity * 0.15f -> Hand.values().first { beats(it, last) } // "you always repeat"
-            r < 0.55f -> favourite
-            else -> Hand.values()[gp.rng.nextInt(3)]
+    // The match is a phase-guarded state machine (engine/RpsMatch): a double tap or a recomposition
+    // can't lock twice, reveal twice, score twice or record the result twice.
+    val match = remember {
+        RpsMatch(3) { history ->
+            val r = gp.rng.nextFloat()
+            val last = history.lastOrNull()
+            when {
+                last != null && r < 0.3f + gp.traits.curiosity * 0.15f -> last.beatenBy() // "you always repeat"
+                r < 0.55f -> favourite
+                else -> Hand.entries[gp.rng.nextInt(3)]
+            }
         }
     }
+    var version by remember { mutableIntStateOf(0) } // bumps on every transition so the UI redraws
+    @Suppress("UNUSED_VARIABLE") val v = version
 
     fun play(h: Hand) {
-        if (busy || over) return
-        busy = true
+        if (!match.lock(h)) return
+        version++
         scope.launch {
-            yourHand = h; pipoHand = null
+            match.think(); version++
             for (w in listOf("Rock…", "Paper…", "Scissors!")) {
                 gp.react(AnimState.SHAKE, Expr.FOCUSED, w, Sfx.BEEP, secs = 0.4f); delay(420)
             }
-            val p = pipoPick()
-            pipoHand = p
-            history += h
-            when {
-                beats(p, h) -> { pipo++; gp.win() }
-                beats(h, p) -> { you++; gp.lose() }
-                else -> gp.draw()
-            }
+            match.reveal(); version++
+            val r = match.resolve() ?: return@launch
+            version++
+            when (r.winner) { 1 -> gp.win(); -1 -> gp.lose(); else -> gp.draw() }
             delay(900)
-            if (you == 3 || pipo == 3) {
-                over = true
-                val pw = pipo == 3
+            match.next(); version++
+            if (match.claimResult()) {
+                val pw = match.pipoWon == true
                 gp.react(if (pw) AnimState.DANCING else AnimState.SAD, if (pw) Expr.PROUD else Expr.SAD, gp.finalWords(pw), if (pw) Sfx.WIN else Sfx.LOSE, secs = 3f)
-                GameLog.record(gp.repo, "rps", pw, "Final score $pipo–$you (Pipo–you).")
+                GameLog.record(gp.repo, "rps", pw, "Final score ${match.pipoScore}\u2013${match.userScore} (Pipo\u2013you).")
             }
-            busy = false
         }
     }
 
-    GameScaffold("Rock Paper Scissors", gp, onExit, "Pipo $pipo  ·  You $you  ·  first to 3") {
+    val waiting = match.phase == RpsPhase.WAITING_FOR_USER
+    GameScaffold("Rock Paper Scissors", gp, onExit, "Pipo ${match.pipoScore}  ·  You ${match.userScore}  ·  first to 3") {
         Row(horizontalArrangement = Arrangement.spacedBy(40.dp), verticalAlignment = Alignment.CenterVertically) {
-            HandSlot("Pipo", pipoHand, PipoPalette.mint)
-            HandSlot("You", yourHand, PipoPalette.amber)
+            HandSlot("Pipo", match.pipoHand, PipoPalette.mint)
+            HandSlot("You", match.userHand, PipoPalette.amber)
         }
         Spacer(Modifier.height(28.dp))
-        if (over) GameOver(gp, if (pipo > you) "Pipo wins." else "You win!", onAgain = { you = 0; pipo = 0; yourHand = null; pipoHand = null; over = false; history.clear() }, onExit = onExit)
+        if (match.phase == RpsPhase.MATCH_OVER) GameOver(gp, if (match.pipoWon == true) "Pipo wins." else "You win!", onAgain = { match.reset(); version++ }, onExit = onExit)
         else Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Hand.values().forEach { h ->
-                Box(Modifier.size(92.dp).clip(RoundedCornerShape(22.dp)).background(PipoPalette.card).clickable(enabled = !busy) { play(h) }, contentAlignment = Alignment.Center) {
+            Hand.entries.forEach { h ->
+                Box(
+                    Modifier.size(92.dp).clip(RoundedCornerShape(22.dp)).background(if (waiting) PipoPalette.card else PipoPalette.card.copy(alpha = 0.5f))
+                        .clickable(enabled = waiting, onClickLabel = h.name.lowercase(), role = Role.Button) { play(h) }
+                        .semantics { contentDescription = h.name.lowercase().replaceFirstChar { it.uppercase() } },
+                    contentAlignment = Alignment.Center,
+                ) {
                     Canvas(Modifier.size(64.dp)) { drawHand(h, PipoPalette.amber) }
                 }
             }
@@ -139,8 +144,10 @@ fun RpsGame(onExit: () -> Unit) {
 @Composable
 private fun HandSlot(label: String, h: Hand?, c: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        val pop by androidx.compose.animation.core.animateFloatAsState(if (h != null) 1f else 0.6f,
+            androidx.compose.animation.core.spring(dampingRatio = 0.45f, stiffness = 500f), label = "reveal")
         Box(Modifier.size(96.dp).clip(RoundedCornerShape(24.dp)).background(PipoPalette.cardHi), contentAlignment = Alignment.Center) {
-            if (h != null) Canvas(Modifier.size(70.dp)) { drawHand(h, c) } else Text("?", color = PipoPalette.muted, fontSize = 36.sp)
+            if (h != null) Canvas(Modifier.size(70.dp).graphicsLayer { scaleX = pop; scaleY = pop }) { drawHand(h, c) } else Text("?", color = PipoPalette.muted, fontSize = 36.sp)
         }
         Spacer(Modifier.height(6.dp))
         Text(label, color = PipoPalette.muted)

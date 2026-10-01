@@ -74,14 +74,19 @@ class Face {
         this.tear = tear; this.pupil = pupil
     }
 
-    fun lerpTo(o: Face, k: Float) {
+    /**
+     * [k] drives the eyes, [kMouth] the mouth and cheeks. Giving the eyes the faster rate means a new
+     * feeling shows in his eyes first and reaches the rest of his face a moment later.
+     */
+    fun lerpTo(o: Face, k: Float, kMouth: Float = k) {
         fun l(a: Float, b: Float) = a + (b - a) * k
+        fun m(a: Float, b: Float) = a + (b - a) * kMouth
         open = l(open, o.open); scale = l(scale, o.scale); lidTop = l(lidTop, o.lidTop); lidAngle = l(lidAngle, o.lidAngle)
         arc = l(arc, o.arc); closed = l(closed, o.closed); round = l(round, o.round); asym = l(asym, o.asym)
-        blush = l(blush, o.blush); sparkle = l(sparkle, o.sparkle); squint = l(squint, o.squint)
-        mouthCurve = l(mouthCurve, o.mouthCurve); mouthOpen = l(mouthOpen, o.mouthOpen)
-        mouthWidth = l(mouthWidth, o.mouthWidth); mouthSkew = l(mouthSkew, o.mouthSkew); mouthWave = l(mouthWave, o.mouthWave)
-        wink = l(wink, o.wink); spiral = l(spiral, o.spiral); tear = l(tear, o.tear); pupil = l(pupil, o.pupil)
+        blush = m(blush, o.blush); sparkle = l(sparkle, o.sparkle); squint = l(squint, o.squint)
+        mouthCurve = m(mouthCurve, o.mouthCurve); mouthOpen = m(mouthOpen, o.mouthOpen)
+        mouthWidth = m(mouthWidth, o.mouthWidth); mouthSkew = m(mouthSkew, o.mouthSkew); mouthWave = m(mouthWave, o.mouthWave)
+        wink = l(wink, o.wink); spiral = l(spiral, o.spiral); tear = m(tear, o.tear); pupil = l(pupil, o.pupil)
     }
 }
 
@@ -223,12 +228,64 @@ object PoseLibrary {
             }
             AnimState.SULK -> { p.sit = 1f; p.cross = 1f; p.yaw = 2.3f; p.headTilt = 12f; p.antenna = -25f; p.squash = 0.97f }
             AnimState.FINGER_UP -> { p.armR = 165f; p.armL = 60f; p.lean = 5f; p.headTilt = 6f; p.yaw = 0.35f; p.antenna = 4f }
+            AnimState.EATING -> {
+                // sat down, bowl in his lap; every bite is a little head dip, and a happy wiggle after
+                val bite = (t / 1.3f) % 1f
+                p.sit = 1f; p.hold = 1f; p.legSpread = 2.5f
+                p.headTilt = 10f + (if (bite < 0.25f) 8f * sin(PI.toFloat() * bite / 0.25f) else 0f)
+                p.headBob = if (bite < 0.25f) 1.5f else 0f
+                p.antenna = 8f + s(1.2f) * 4f + (if (bite in 0.3f..0.5f) 10f else 0f)
+                p.legL = 1.2f + max(0f, s(2.6f)) * 1.2f; p.legR = 1.2f + max(0f, -s(2.6f)) * 1.2f // happy foot swing
+            }
+            AnimState.COOKING -> {
+                // at the counter, stirring in circles, leaning away from the steam now and then
+                p.lean = 5f + s(0.5f) * 2f; p.armR = 70f + s(5f) * 18f; p.armL = 40f; p.headTilt = 8f + s(0.9f) * 3f
+                p.yaw = 0.35f; p.antenna = 6f + s(5f) * 5f; p.bob = abs(s(5f)) * 0.4f
+                if (s(0.37f) > 0.9f) { p.lean = -4f; p.headTilt = -6f } // hot!
+            }
+            AnimState.DRAWING -> {
+                // sat, sketchbook on his knees, pen hand scribbling in short bursts, tongue-out concentration
+                val burst = s(0.8f) > -0.2f
+                p.sit = 1f; p.hold = 1f; p.headTilt = 12f + s(0.4f) * 2f; p.legSpread = 2f
+                p.headBob = if (burst) s(14f) * 0.35f else 0f
+                p.antenna = 4f + (if (burst) s(14f) * 3f else 0f)
+            }
+            AnimState.KICKUPS -> {
+                // light on his feet, alternating knees, arms out for balance
+                val k = s(7f)
+                p.legL = max(0f, k) * 4.5f; p.legR = max(0f, -k) * 4.5f; p.bob = abs(k) * 1.8f
+                p.armL = 55f + k * 12f; p.armR = 55f - k * 12f; p.lean = 2f; p.headTilt = 14f; p.antenna = s(7f) * 10f
+            }
+            AnimState.PETTING -> {
+                // crouched down to Nib's height, one hand patting, head tilted, delighted
+                p.crouch = 0.7f; p.lean = 10f; p.armR = 80f + s(6f) * 15f; p.armL = 20f; p.headTilt = 12f + s(1.1f) * 4f
+                p.antenna = 12f + s(3f) * 8f; p.yaw = 0.3f
+            }
+            AnimState.CARRYING -> {
+                // walking with the shopping bag held in front: careful, a bit wobbly
+                p.hold = 1f; p.legL = max(0f, s(9f)) * 3f; p.legR = max(0f, -s(9f)) * 3f; p.bob = abs(s(9f)) * 1.1f
+                p.lean = -2f + s(4.5f) * 1.5f; p.antenna = s(9f) * 6f
+            }
+            AnimState.PHOTO -> {
+                // phone held up, one eye squinting, a tiny lean back for the angle
+                p.hold = 1f; p.lean = -5f; p.headTilt = -4f; p.antenna = 14f; p.crouch = 0.15f
+            }
         }
     }
 }
 
 /** Little involuntary behaviours layered on top of calm poses so Pipo is never a statue. */
-enum class Fidget { LOOK_SIDE, GLANCE_USER, SHIFT_WEIGHT, ANTENNA_TWITCH, HAND_LOOK, TAP_FOOT, HUM_SWAY, SIGH, YAWN, SCRATCH_HEAD, SMALL_HOP }
+enum class Fidget { LOOK_SIDE, GLANCE_USER, SHIFT_WEIGHT, ANTENNA_TWITCH, HAND_LOOK, TAP_FOOT, HUM_SWAY, SIGH, YAWN, SCRATCH_HEAD, SMALL_HOP,
+    /** A quick, sly look at you (mischievous). */
+    SLY_GLANCE,
+    /** Chest up, tiny rise onto his toes (proud). */
+    PROUD_LIFT,
+    /** Head tilt with a slow double blink (curious/confused). */
+    PUZZLED_TILT,
+    /** Eyes slide away, a small turn (embarrassed/shy). */
+    LOOK_AWAY,
+    /** A little wobble and catch, like he nearly lost his balance. */
+    BALANCE }
 
 /**
  * Everything needed to draw Pipo for one frame. The director (HomeViewModel / a game) sets
@@ -242,6 +299,15 @@ class PipoRig(seed: Int = 1) {
     var glow: Long = 0xFF8FF5E2
     var eyeGlow = 1f
     var holdItem: ItemShape? = null
+    /** What he's wearing for the occasion (Santa hat at Christmas…). */
+    var hat: Hat? = null
+    /** He built rocket boots: little flames when he jumps. */
+    var rocketBoots = false
+    /** Wearing the armor (0 = no, 1..3 = Mk I..III) and whether the Mk III helmet is flipped up. */
+    var suit = 0
+    var visorUp = false
+    /** Which app is on his little phone right now (null = his feed). */
+    var phoneApp: com.pipo.robot.engine.PhoneApp? = null
     var torch = false
 
     /** Director hints. */
@@ -317,6 +383,26 @@ class PipoRig(seed: Int = 1) {
 
     fun showEmote(k: EmoteKind) { emote = k; emoteT = 0f }
 
+    private var humUntil = 0f
+    /** He's humming: mouth closed in a soft "mm", eyes relaxed, a gentle sway. */
+    fun hum(seconds: Float) { humUntil = time + seconds }
+    val humming get() = time < humUntil
+
+    private var anticipateT = -1f
+    /** A tiny dip before he sets off (anticipation), so starts aren't mechanical. */
+    fun anticipate() { anticipateT = 0f }
+
+    /** Where you poked him. */
+    enum class PokeSpot { HEAD, BODY, FEET }
+    /** Physical reaction to a poke at that spot (the director decides what he says). */
+    fun poked(spot: PokeSpot) {
+        when (spot) {
+            PokeSpot.HEAD -> { antennaVel += 420f * (if (rng.nextBoolean()) 1f else -1f); impact(0.3f) }
+            PokeSpot.BODY -> impact(0.22f)
+            PokeSpot.FEET -> impact(0.12f)
+        }
+    }
+
     /** Look somewhere specific (-1..1 range) for [seconds]. */
     fun lookAt(x: Float, y: Float, seconds: Float = 1.2f) {
         val nx = x.coerceIn(-1f, 1f); val ny = y.coerceIn(-1f, 1f)
@@ -358,7 +444,8 @@ class PipoRig(seed: Int = 1) {
 
     private fun calmAnim(a: AnimState) = a == AnimState.IDLE || a == AnimState.CHEERFUL || a == AnimState.SITTING ||
         a == AnimState.BORED || a == AnimState.LONELY || a == AnimState.SLEEPY || a == AnimState.CHARGING ||
-        a == AnimState.ARMS_CROSSED || a == AnimState.CURIOUS || a == AnimState.PROUD || a == AnimState.LIE_DOWN
+        a == AnimState.ARMS_CROSSED || a == AnimState.CURIOUS || a == AnimState.PROUD || a == AnimState.LIE_DOWN ||
+        a == AnimState.THINKING || a == AnimState.EATING
 
     private fun startFidget() {
         val m = mood
@@ -373,7 +460,12 @@ class PipoRig(seed: Int = 1) {
             Fidget.SIGH to if (m == Mood.BORED || m == Mood.LONELY) 0.8f else 0.08f,
             Fidget.YAWN to if (energy < 0.55f) (0.6f - energy) * 3.5f else 0f,
             Fidget.SCRATCH_HEAD to if (m == Mood.CURIOUS) 0.8f else 0.2f,
-            Fidget.SMALL_HOP to if ((m == Mood.EXCITED || m == Mood.HAPPY) && anim != AnimState.SITTING && anim != AnimState.LIE_DOWN) 0.5f else 0f,
+            Fidget.SMALL_HOP to if ((m == Mood.EXCITED || m == Mood.HAPPY || m == Mood.PLAYFUL) && anim != AnimState.SITTING && anim != AnimState.LIE_DOWN) 0.5f else 0f,
+            Fidget.SLY_GLANCE to if (m == Mood.MISCHIEVOUS || m == Mood.PLAYFUL) 1.1f else 0.05f,
+            Fidget.PROUD_LIFT to if (m == Mood.PROUD) 1.2f else 0.03f,
+            Fidget.PUZZLED_TILT to if (m == Mood.CURIOUS || m == Mood.THOUGHTFUL || m == Mood.WORRIED) 0.9f else 0.1f,
+            Fidget.LOOK_AWAY to if (m == Mood.EMBARRASSED || m == Mood.NERVOUS || m == Mood.LONELY) 1f else 0.05f,
+            Fidget.BALANCE to if (anim == AnimState.SITTING || anim == AnimState.LIE_DOWN) 0f else if (energy < 0.4f) 0.35f else 0.12f,
         )
         var r = rng.nextFloat() * w.values.sum()
         var pick = Fidget.LOOK_SIDE
@@ -381,12 +473,19 @@ class PipoRig(seed: Int = 1) {
         fidget = pick
         fidgetT = 0f
         fidgetSide = if (rng.nextBoolean()) 1f else -1f
-        fidgetDur = when (pick) { Fidget.YAWN -> 2.4f; Fidget.SIGH -> 1.6f; Fidget.HUM_SWAY -> 2.6f; Fidget.TAP_FOOT -> 1.8f; Fidget.SMALL_HOP -> 0.55f; else -> 1.2f + rng.nextFloat() * 0.8f }
+        fidgetDur = when (pick) {
+            Fidget.YAWN -> 2.4f; Fidget.SIGH -> 1.6f; Fidget.HUM_SWAY -> 2.6f; Fidget.TAP_FOOT -> 1.8f; Fidget.SMALL_HOP -> 0.55f
+            Fidget.SLY_GLANCE -> 0.9f; Fidget.PROUD_LIFT -> 1.4f; Fidget.PUZZLED_TILT -> 1.7f; Fidget.LOOK_AWAY -> 1.6f; Fidget.BALANCE -> 0.8f
+            else -> 1.2f + rng.nextFloat() * 0.8f
+        }
         when (pick) {
             Fidget.LOOK_SIDE -> lookAt(fidgetSide * (0.7f + rng.nextFloat() * 0.3f), -0.15f + rng.nextFloat() * 0.3f, fidgetDur * 0.8f)
             Fidget.GLANCE_USER -> lookAt(0f, 0.35f, fidgetDur)
             Fidget.HAND_LOOK -> lookAt(0.45f, 0.7f, fidgetDur * 0.9f)
             Fidget.ANTENNA_TWITCH -> { antennaVel += 260f * fidgetSide; lookAt(0f, -0.9f, 0.6f) }
+            Fidget.SLY_GLANCE -> lookAt(0f, 0.35f, fidgetDur * 0.8f)
+            Fidget.PUZZLED_TILT -> { if (blinkT < 0f) blinkT = 0f; doubleBlink = false }
+            Fidget.LOOK_AWAY -> lookAt(fidgetSide * 0.9f, 0.5f, fidgetDur)
             Fidget.SMALL_HOP -> Unit
             else -> Unit
         }
@@ -425,6 +524,11 @@ class PipoRig(seed: Int = 1) {
             Fidget.YAWN -> { p.yawn = max(p.yawn, e); p.armL += 100f * e; p.armR += 100f * e; p.headTilt -= 7f * e; p.squash += 0.04f * e }
             Fidget.SCRATCH_HEAD -> { p.armL = p.armL + (170f - p.armL) * e; p.headTilt -= 8f * e * sd }
             Fidget.SMALL_HOP -> p.jump += sin(PI.toFloat() * u) * 4f
+            Fidget.SLY_GLANCE -> { p.headTilt -= 5f * e; p.yaw += 0.2f * e * sd; p.crouch = max(p.crouch, 0.1f * e) }
+            Fidget.PROUD_LIFT -> { p.squash += 0.035f * e; p.lean -= 4f * e; p.headTilt -= 4f * e; p.jump += 1.2f * e }
+            Fidget.PUZZLED_TILT -> { p.headTilt += 13f * e * sd; p.antenna += 10f * e * sd }
+            Fidget.LOOK_AWAY -> { p.yaw += 0.45f * e * sd; p.headTilt += 6f * e; p.armL += 25f * e }
+            Fidget.BALANCE -> { p.lean += sin(PI.toFloat() * u * 2f) * 6f * sd; p.armL += 40f * e; p.armR += 40f * e }
         }
     }
 
@@ -454,8 +558,17 @@ class PipoRig(seed: Int = 1) {
         if (talking) speechT += dt
 
         PoseLibrary.target(anim, animT, tp)
+        // sitting settles his weight: the body compresses a little against whatever he sits on
+        tp.squash *= 1f - 0.05f * tp.sit
+        tp.stretchX *= 1f + 0.03f * tp.sit
         applySpeech(tp)
         applyFidget(tp, dt)
+        if (humming && !talking) { tp.lean += sin(time * 2.6f) * 3f; tp.headTilt += sin(time * 2.6f + 0.8f) * 5f; tp.antenna += sin(time * 5.2f) * 6f }
+        if (anticipateT >= 0f) {
+            anticipateT += dt
+            val u = anticipateT / 0.2f
+            if (u >= 1f) anticipateT = -1f else { tp.crouch = max(tp.crouch, 0.22f * sin(PI.toFloat() * u)); tp.squash -= 0.04f * sin(PI.toFloat() * u) }
+        }
         val k = 1f - exp(-dt * 7f)
         val fast = 1f - exp(-dt * 16f)
         pose.lerpTo(tp, k, fast)
@@ -492,7 +605,8 @@ class PipoRig(seed: Int = 1) {
         FaceLibrary.target(if (laughing && expr != Expr.CLOSED) Expr.LAUGH else expr, tf)
         if (energy < 0.35f && tf.closed < 0.5f && tf.arc < 0.5f) tf.lidTop = max(tf.lidTop, (0.35f - energy) * 0.9f)
         if (pose.yawn > 0.3f) { tf.closed = max(tf.closed, pose.yawn * 0.9f); tf.mouthOpen = max(tf.mouthOpen, pose.yawn); tf.mouthCurve = 0f; tf.mouthWidth = 0.7f }
-        face.lerpTo(tf, 1f - exp(-dt * 10f))
+        if (humming && !talking) { tf.mouthOpen = 0f; tf.mouthWidth = 0.45f; tf.mouthCurve = 0.35f; tf.mouthWave = 0.25f; tf.open = min(tf.open, 0.8f); tf.arc = max(tf.arc, 0.3f) }
+        face.lerpTo(tf, 1f - exp(-dt * 14f), 1f - exp(-dt * 6.5f))
 
         // ---- eyes: autonomous saccades unless holding a target, plus tiny micro-saccades
         if (lookHold > 0f) lookHold -= dt

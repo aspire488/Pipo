@@ -3,7 +3,17 @@ package com.pipo.robot.data
 enum class ItemShape {
     SCREW, BATTERY, COIL, CHIP, SPOON, PEBBLE, KEY, GEAR, MARBLE, NOTE, BUTTON, SPRING, LENS, TUBE, FUZZ, BOX,
     // built things
-    ANTENNA, LAMP, MUSIC_BOX, PERISCOPE, FLYER, RADIO, FRIEND, HAT
+    ANTENNA, LAMP, MUSIC_BOX, PERISCOPE, FLYER, RADIO, FRIEND, HAT,
+    // bought materials
+    MOTOR, WIRE, FRAME, PROP, LED, MAGNET, GLUE, UMBRELLA, DUCK, TOKEN,
+    // built (schema 2)
+    DRONE, KICKER, FEEDER, TELESCOPE,
+    // carried / everyday things
+    BAG, BOWL, SKETCHBOOK, CAMERA, PLATE,
+    // sports kit
+    BAT, PADDLE, RACKET,
+    // food
+    NOODLES, BREAD, APPLE, BANANA, CAKE, COOKIE, JUICE, EGG, CHEESE, TOMATO, HONEY, PIZZA, MUG, RICE, CROISSANT, CHOCOLATE, MILK,
 }
 
 data class ItemDef(
@@ -22,6 +32,9 @@ data class ItemDef(
     val color: Long,
     /** Another item that must be owned before the secret can be revealed. */
     val revealRequires: String = "",
+    /** Bought, not found: never turns up by exploring. */
+    val shopOnly: Boolean = false,
+    val price: Int = 0,
 )
 
 data class ProjectDef(
@@ -87,6 +100,41 @@ object Catalog {
         ItemDef("strange_box", "Strange box", "It's locked. It rattles when I shake it.",
             "Inside: a slightly smaller box. Pipo has decided not to open that one.",
             4, setOf("box"), 0.4f, true, ItemShape.BOX, 0xFF9C7A5B, revealRequires = "old_key"),
+
+        // ---- bought, not found. Stores are in Places; prices are small on purpose.
+        ItemDef("motor", "Tiny motor", "It spins. Well. It will.", "It spins faster when he talks to it. He talks to it a lot.",
+            20, setOf("motor"), 0f, false, ItemShape.MOTOR, 0xFF9AA7B8, shopOnly = true, price = 8),
+        ItemDef("battery_pack", "Battery pack", "Four little batteries holding hands.", "Two of them are fuller than the others. He thinks they're the leaders.",
+            20, setOf("power"), 0f, false, ItemShape.BATTERY, 0xFF7FD6A8, shopOnly = true, price = 3),
+        ItemDef("led", "Little light", "It's a tiny lightbulb. It's shy.", "It glows green if you hold it upside down. Nobody knows why.",
+            20, setOf("light"), 0f, false, ItemShape.LED, 0xFFFFE08A, shopOnly = true, price = 1),
+        ItemDef("wire", "Spool of wire", "Very long. I measured. It's long.", "It's exactly as long as the room. He checked twice.",
+            20, setOf("wire", "coil"), 0f, false, ItemShape.WIRE, 0xFFE0975C, shopOnly = true, price = 2),
+        ItemDef("screws", "Box of screws", "Normal screws. They spiral the right way. Boring. I love them.", "One of them is left-handed. He found it.",
+            20, setOf("metal", "screw"), 0f, false, ItemShape.SCREW, 0xFFB8C2CC, shopOnly = true, price = 2),
+        ItemDef("sticks", "Balsa sticks", "Light as nothing. I could build a whole house. A small one.", "They smell like a forest. A tiny one.",
+            20, setOf("frame"), 0f, false, ItemShape.FRAME, 0xFFE8C98A, shopOnly = true, price = 3),
+        ItemDef("propeller", "Tiny propeller", "It wants to fly. I can tell.", "It spins when he blows on it. He blew on it until he was dizzy.",
+            20, setOf("prop"), 0f, false, ItemShape.PROP, 0xFFE88B7A, shopOnly = true, price = 3),
+        ItemDef("magnet", "Magnet", "It likes the fridge more than me.", "It points at the window at night. Only at night.",
+            20, setOf("metal", "magnet"), 0f, false, ItemShape.MAGNET, 0xFFE0706A, shopOnly = true, price = 2),
+        ItemDef("springs", "Bag of springs", "Boing. Boing. Boing. Boing.", "They all boing at slightly different pitches. He's composing.",
+            20, setOf("spring"), 0f, false, ItemShape.SPRING, 0xFFBFC7D0, shopOnly = true, price = 2),
+        ItemDef("magnifier", "Magnifying lens", "Everything is bigger. Including my problems.", "Held up to the window at dusk, it makes a tiny rainbow.",
+            20, setOf("lens"), 0f, false, ItemShape.LENS, 0xFFA9D8F0, shopOnly = true, price = 4),
+        ItemDef("cardboard_tube", "Cardboard tube", "It's a telescope. Or a trumpet. Or a tube.", "It makes his voice sound like a very serious robot.",
+            20, setOf("tube"), 0f, false, ItemShape.TUBE, 0xFFC9A57A, shopOnly = true, price = 1),
+        ItemDef("felt", "Felt square", "Soft. Suspiciously soft.", "Nib has claimed it. Nib sleeps on it.",
+            20, setOf("soft"), 0f, false, ItemShape.FUZZ, 0xFFC9C0D8, shopOnly = true, price = 1),
+        ItemDef("umbrella", "Tiny umbrella", "For rain. I learned about rain the hard way.", "It's too small for him. He uses it anyway.",
+            20, setOf("umbrella"), 0f, true, ItemShape.UMBRELLA, 0xFF6FA8E8, shopOnly = true, price = 4),
+        ItemDef("rubber_duck", "Rubber duck", "I don't know why I bought this. I don't regret it.", "It squeaks in the key of Pipo.",
+            20, setOf("round", "toy"), 0f, false, ItemShape.DUCK, 0xFFFFD36E, shopOnly = true, price = 2),
+        ItemDef("brass_token", "Brass token", "It has a mark on it. I've seen that mark before.", "The mark is the same one from his dream. Exactly the same.",
+            48, setOf("token"), 0f, true, ItemShape.TOKEN, 0xFFD8B25A, shopOnly = true, price = 1),
+        // from the other side. Never found, never sold: it only arrives one way.
+        ItemDef("mirror_screw", "Screw that turns both ways", "He gave it to me. It turns left AND right. At the same time.", "It's warm. Like the token. They like being near each other.",
+            72, setOf("mirror"), 0f, true, ItemShape.SCREW, 0xFF9FF3E0, shopOnly = true, price = 0),
     )
 
     val projects: List<ProjectDef> = listOf(
@@ -125,8 +173,29 @@ object Catalog {
             "I built a tiny friend. It doesn't talk. We get along great.",
             "The tiny friend won't turn on. I'm giving it some space.",
             "It's a paperweight with a face. I still love it.", "Paperweight with a face", ItemShape.FRIEND),
+        // ---- these need things you can't find under the bed: he has to go and get them
+        ProjectDef("drone", "Flying machine", listOf("motor", "prop", "power", "frame"), 0.6f,
+            "I'm going to build a machine that flies. On purpose this time.",
+            "It flew. For two whole seconds. I froze. Then I screamed. Good screaming.",
+            "It hopped. Then it fell over. Then it sulked. I sulked too.",
+            "It doesn't fly. It drives. Very fast. Into walls.", "Wall racer", ItemShape.DRONE),
+        ProjectDef("kicker", "Ball kicker", listOf("spring", "frame", "metal"), 0.4f,
+            "What if something kicked the ball for me? For science. Not because I'm tired.",
+            "It kicks the ball better than me. I'm not jealous. I'm a little jealous.",
+            "It kicked itself. Across the room. Nib saw everything.",
+            "It throws the ball at Nib now. Nib loves it.", "Nib launcher", ItemShape.KICKER),
+        ProjectDef("feeder", "Bird feeder", listOf("frame", "wire"), 0.25f,
+            "The birds look hungry. I'm going to build them a restaurant.",
+            "I made a bird feeder. It's on the window. Now we wait.",
+            "The birds looked at it and left. Critics.",
+            "It's a tiny bird house now. Nobody lives there yet.", "Bird house", ItemShape.FEEDER),
+        ProjectDef("telescope", "Telescope", listOf("lens", "tube", "frame"), 0.45f,
+            "I want to see far. Farther than the window.",
+            "I built a telescope. I can see the moon's freckles.",
+            "I built a telescope. It only shows my own eye. Up close. Horrible.",
+            "Everything in it looks like stars. Even the plant.", "Star tube", ItemShape.TELESCOPE),
     )
 
     fun item(id: String): ItemDef? = items.firstOrNull { it.id == id }
-    fun project(id: String): ProjectDef? = projects.firstOrNull { it.id == id }
+    fun project(id: String): ProjectDef? = projects.firstOrNull { it.id == id } ?: com.pipo.robot.engine.Inventor.def(id)
 }

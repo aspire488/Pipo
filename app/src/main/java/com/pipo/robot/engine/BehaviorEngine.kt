@@ -3,14 +3,18 @@ package com.pipo.robot.engine
 import com.pipo.robot.data.ActivityType
 import com.pipo.robot.data.ActivityType.*
 import com.pipo.robot.data.Catalog
+import com.pipo.robot.data.Drawing
 import com.pipo.robot.data.EventType
 import com.pipo.robot.data.JournalCategory
 import com.pipo.robot.data.MemoryType
 import com.pipo.robot.data.Mood
 import com.pipo.robot.data.OwnedItem
+import com.pipo.robot.data.Photo
+import com.pipo.robot.data.PhotoSubject
 import com.pipo.robot.data.PipoProject
 import com.pipo.robot.data.PipoState
 import com.pipo.robot.data.ProjectState
+import com.pipo.robot.data.TripReport
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
@@ -24,6 +28,20 @@ sealed class Outcome {
     data class Finished(val project: PipoProject) : Outcome()
     data class Prank(val key: String) : Outcome()
     data class Offer(val kind: OfferKind, val text: String, val payload: String = "") : Outcome()
+    /** He's back from a trip. The report is the truth; the VM stages it. */
+    data class Returned(val report: TripReport) : Outcome()
+    data class Ate(val foodId: String, val line: String) : Outcome()
+    data class Cooked(val dishId: String, val ok: Boolean, val line: String) : Outcome()
+    data class Drew(val drawing: Drawing) : Outcome()
+    data class Photographed(val photo: Photo, val line: String) : Outcome()
+    data class Watched(val clips: List<Clip>, val idea: String?) : Outcome()
+    data class Kickups(val n: Int, val record: Boolean) : Outcome()
+    data class Cleaned(val line: String) : Outcome()
+    /** Something that doesn't add up. Staged quietly. */
+    data class Strange(val line: String, val photo: Photo? = null) : Outcome()
+    data class PetNews(val line: String) : Outcome()
+    /** He used an app on his little phone (weather, notes, recorder, calculator, map, gallery). */
+    data class PhoneUsed(val app: PhoneApp, val line: String) : Outcome()
 }
 
 enum class OfferKind { PLAY_GAME, SURPRISE, THOUGHT }
@@ -39,8 +57,10 @@ internal fun suggestedActivity(obj: String): List<ActivityType> = when (obj) {
     "toys" -> listOf(PLAY_TOY)
     "workbench" -> listOf(BUILD, EXPERIMENT)
     "window" -> listOf(THINK)
-    "shelf" -> listOf(EXAMINE)
+    "shelf", "corkboard" -> listOf(EXAMINE)
     "charger" -> listOf(CHARGE)
+    "kitchen" -> listOf(EAT, COOK)
+    "drawings" -> listOf(DRAW)
     else -> emptyList()
 }
 
@@ -58,14 +78,15 @@ object BehaviorEngine {
         val night = isNight(env.hour)
         val hasItems = s.world.items.isNotEmpty()
         val project = s.activeProject()
-        val canBuild = project?.state == ProjectState.BUILDING
+        // building, or everything's here and it just needs putting together
+        val canBuild = project?.state == ProjectState.BUILDING || (project?.state == ProjectState.GATHERING && Projects.readyToAssemble(s, project))
 
         val out = mutableListOf<Scored>()
         fun add(a: ActivityType, v: Float) { out.add(Scored(a, max(0f, v))) }
 
         add(SLEEP, if (m.energy < 0.35f || night) (1f - m.energy) * 2.0f + t.laziness * 0.5f + (if (night) 1.1f else 0f) else 0f)
         add(REST, t.laziness * 0.8f + (1f - m.energy) * 0.7f)
-        add(CHARGE, if (env.charging) 2.2f + m.excitement else (1f - m.energy) * 0.6f)
+        add(CHARGE, if (env.charging) 0.3f + (1f - m.energy) * 2.4f + m.excitement * 0.3f else (1f - m.energy) * 0.6f)
         add(EXPLORE, t.curiosity * 1.1f + t.adventurousness * 0.7f + m.boredom * 0.5f + m.energy * 0.3f)
         add(PLAY_TOY, t.playfulness * 0.9f + m.boredom * 0.8f)
         add(PLAY_ARCADE, if (ScreenTime.onBreak(s, now)) 0f else t.playfulness * 0.7f + m.boredom * 0.9f + m.energy * 0.2f)
@@ -82,8 +103,17 @@ object BehaviorEngine {
         add(SEEK_USER, if (env.userPresent) t.sociability * 1.0f + m.loneliness * 0.8f + t.affection * 0.4f else 0f)
         add(NOTHING, t.laziness * 0.6f + 0.2f)
         // his gadgets: nice now and then, never the main thing (see ScreenTime)
-        add(SCROLL_PHONE, if (ScreenTime.allowed(s, SCROLL_PHONE, now)) 0.12f + t.playfulness * 0.2f + m.boredom * 0.45f + t.laziness * 0.1f else 0f)
-        add(PLAY_CONSOLE, if (ScreenTime.allowed(s, PLAY_CONSOLE, now)) 0.1f + t.playfulness * 0.35f + m.boredom * 0.4f + m.energy * 0.15f else 0f)
+        add(SCROLL_PHONE, if (ScreenTime.allowed(s, SCROLL_PHONE, now)) 0.35f + t.playfulness * 0.25f + m.boredom * 0.5f + t.laziness * 0.15f else 0f)
+        add(PLAY_CONSOLE, if (ScreenTime.allowed(s, PLAY_CONSOLE, now)) 0.3f + t.playfulness * 0.4f + m.boredom * 0.45f + m.energy * 0.15f else 0f)
+        // ---- a life beyond the room
+        add(GO_OUT, Trips.best(s, env, now)?.score ?: 0f)
+        add(EAT, FoodLife.eatScore(s, env))
+        add(COOK, FoodLife.cookScore(s, env))
+        add(DRAW, DrawingLife.score(s, env))
+        val mess = clutter(s)
+        add(CLEAN, if (mess > 0) (0.25f + (1f - t.laziness) * 0.5f + t.patience * 0.2f) * minOf(mess, 3) * 0.55f else 0f)
+        add(HIDE, if (env.userPresent) t.mischief * 0.3f + t.playfulness * 0.15f + (if (s.mood.transient == Mood.EMBARRASSED) 0.9f else 0f) else 0.03f)
+        add(PLAY_PET, if (s.pet.adopted && s.trip?.withPet != true) t.playfulness * 0.35f + s.pet.bond * 0.3f + s.pet.boredom * 0.4f + m.boredom * 0.2f else 0f)
 
         // ---- context: what's going on in his life right now
         val bonus = mutableMapOf<ActivityType, Float>()
@@ -94,8 +124,19 @@ object BehaviorEngine {
         // time of day
         when (env.hour) {
             in 6..10 -> { plus(INSPECT_PLANT, 0.3f); plus(THINK, 0.2f) }
-            in 18..22 -> { plus(READ, 0.35f); plus(REST, 0.2f) }
+            in 18..22 -> { plus(READ, 0.35f); plus(REST, 0.2f); plus(DRAW, 0.15f) }
         }
+        // weather: rain means the window, a book, the sketchbook; storms mean staying close to Nib
+        when (env.weather.kind) {
+            Weather.RAIN -> { plus(THINK, 0.35f); plus(READ, 0.2f); plus(DRAW, 0.15f) }
+            Weather.STORM -> { plus(PLAY_PET, 0.4f); plus(REST, 0.3f); plus(SEEK_USER, 0.3f) }
+            Weather.FOG -> plus(THINK, 0.25f)
+            Weather.CLEAR -> if (env.hour in 8..18) plus(PLAY_TOY, 0.1f)
+            else -> Unit
+        }
+        // a video got stuck in his head
+        if (now < (s.cooldowns["practice"] ?: 0L)) plus(PLAY_TOY, 0.6f)
+        if (s.world.objectStates["book"] != null) plus(READ, 0.2f)
         // the user: just saw them → less need to seek them out, more urge to show off
         val sinceUser = now - s.lastUserInteractionAt
         if (env.userPresent && sinceUser < 2 * MINUTE) {
@@ -124,16 +165,25 @@ object BehaviorEngine {
                 Mood.LONELY -> when (c.type) { SEEK_USER -> 2f; THINK, INSPECT_PLANT -> 1.3f; else -> 1f }
                 Mood.BORED -> when (c.type) { PLAY_TOY, PLAY_ARCADE, EXPLORE, REARRANGE -> 1.5f; NOTHING -> 0.6f; else -> 1f }
                 Mood.CURIOUS -> when (c.type) { EXPLORE, EXAMINE, EXPERIMENT, WORK_COMPUTER -> 1.5f; else -> 1f }
-                Mood.MISCHIEVOUS -> when (c.type) { REARRANGE, PREPARE_SURPRISE, EXPERIMENT -> 1.7f; else -> 1f }
+                Mood.MISCHIEVOUS -> when (c.type) { REARRANGE, PREPARE_SURPRISE, EXPERIMENT -> 1.7f; HIDE -> 1.6f; else -> 1f }
                 Mood.PROUD -> when (c.type) { SEEK_USER, DANCE -> 1.4f; else -> 1f }
+                Mood.EMBARRASSED -> when (c.type) { HIDE -> 2f; SEEK_USER -> 0.5f; else -> 1f }
+                Mood.PLAYFUL -> when (c.type) { PLAY_TOY, PLAY_PET, HIDE, DANCE -> 1.5f; else -> 1f }
+                Mood.THOUGHTFUL -> when (c.type) { THINK, DRAW, READ -> 1.5f; DANCE, PLAY_ARCADE -> 0.6f; else -> 1f }
+                Mood.WORRIED -> when (c.type) { THINK, SEEK_USER, PLAY_PET -> 1.4f; GO_OUT -> 0.6f; else -> 1f }
                 else -> 1f
             }
-            val cool = s.cooldowns["act:${c.type.name}"] ?: 0L
+            val cool = if (c.type == GO_OUT) 0L else s.cooldowns["act:${c.type.name}"] ?: 0L // trips gate themselves
             val repeats = if (c.type == SLEEP || c.type == BUILD) 0 else recent.count { it == c.type }
             val variety = 0.6f.pow(repeats)
-            Scored(c.type, if (now < cool) 0f else c.score * mult * variety)
+            val taste = 1f + Likes.bonus(s, "act:${c.type.name}") // things he's come to love pull a little
+            // and the things he hasn't done in a while start to call him
+            val novelty = if (c.type in leisure && c.type !in s.recentActivities) 0.2f else 0f
+            Scored(c.type, if (now < cool || c.score <= 0f) 0f else (c.score + novelty) * mult * variety * taste)
         }
     }
+
+    private val leisure = setOf(SCROLL_PHONE, PLAY_CONSOLE, DRAW, READ, COOK, EXPERIMENT, INSPECT_PLANT, DANCE, PLAY_PET, WORK_COMPUTER, PLAY_ARCADE, EXAMINE)
 
     /** Pick one: controlled randomness among the top candidates. */
     fun choose(s: PipoState, env: Env, now: Long, rng: Random, last: ActivityType?): ActivityType {
@@ -142,12 +192,15 @@ object BehaviorEngine {
             .map { it.copy(score = it.score * (0.85f + rng.nextFloat() * 0.3f)) }
             .filter { it.score > 0f }
             .sortedByDescending { it.score }
-            .take(3)
         if (scored.isEmpty()) return NOTHING
-        val w = scored.map { it.score * it.score }
+        // Everything within reach of his best idea is a real option (the top three alone made him
+        // live on exploring and football - seen live: he never touched his phone or the console).
+        val top = scored.first().score
+        val options = scored.filter { it.score >= top * 0.3f }.take(8)
+        val w = options.map { it.score.pow(1.5f) }
         var r = rng.nextFloat() * w.sum()
-        for (i in scored.indices) { r -= w[i]; if (r <= 0f) return scored[i].type }
-        return scored.first().type
+        for (i in options.indices) { r -= w[i]; if (r <= 0f) return options[i].type }
+        return options.first().type
     }
 
     fun durationMs(type: ActivityType, s: PipoState, rng: Random): Long {
@@ -167,11 +220,24 @@ object BehaviorEngine {
             SEEK_USER -> 4_000L
             SCROLL_PHONE -> 9_000L
             PLAY_CONSOLE -> 14_000L
+            GO_OUT -> 90_000L // replaced by the real trip length in start()
+            EAT -> 9_000L
+            COOK -> 16_000L
+            DRAW -> 15_000L
+            CLEAN -> 8_000L
+            HIDE -> 28_000L
+            PLAY_PET -> 13_000L
         }
         return (base * (0.75f + rng.nextFloat() * 0.5f)).toLong()
     }
 
-    private val absorbable = setOf(BUILD, EXPERIMENT, READ, WORK_COMPUTER, EXAMINE, INSPECT_PLANT, PLAY_ARCADE, THINK)
+    private val absorbable = setOf(BUILD, EXPERIMENT, READ, WORK_COMPUTER, EXAMINE, INSPECT_PLANT, PLAY_ARCADE, THINK, DRAW, COOK)
+
+    /** Things lying around that he (or Nib) left: a plate, a bag, a knocked-over thing, the ball by the door… */
+    fun clutter(s: PipoState): Int {
+        val o = s.world.objectStates
+        return listOf("plate", "bag", "floor", "ball_door", "smoke", "pet_bed", "scraps").count { o[it] != null } + (if (s.pet.stolenItemId != 0L) 1 else 0)
+    }
 
     fun absorbChance(s: PipoState, type: ActivityType): Float {
         if (type !in absorbable) return 0f
@@ -180,7 +246,24 @@ object BehaviorEngine {
             (if (s.mood.current == Mood.BORED || s.mood.current == Mood.SLEEPY) 0.08f else 0f)).coerceIn(0f, 0.5f)
     }
 
-    fun start(s: PipoState, type: ActivityType, now: Long, rng: Random) {
+    /**
+     * Starts [wanted]. A trip needs somewhere to go right now; if there's nowhere, he stays in and
+     * does nothing instead. Returns what actually started.
+     */
+    fun start(s: PipoState, wanted: ActivityType, now: Long, rng: Random, env: Env? = null, inApp: Boolean = true, idea: TripIdea? = null): ActivityType {
+        var type = wanted
+        var trip: com.pipo.robot.data.TripState? = null
+        if (type == GO_OUT) {
+            val idea = idea ?: env?.let { Trips.best(s, it, now) }
+            if (idea == null) type = NOTHING else trip = Trips.begin(s, idea, now, rng, inApp)
+        }
+        startPlain(s, type, now, rng)
+        if (trip != null) { s.activity.durationMs = trip.endsAt - now; s.activity.absorbed = false }
+        if (type == SCROLL_PHONE && env != null) s.activity.result = PhoneLife.pickApp(s, env, now, rng).name
+        return type
+    }
+
+    private fun startPlain(s: PipoState, type: ActivityType, now: Long, rng: Random) {
         s.activity.type = type
         s.activity.startedAt = now
         s.activity.durationMs = durationMs(type, s, rng)
@@ -192,6 +275,7 @@ object BehaviorEngine {
         val cd = when (type) {
             EXPLORE -> 70_000L; PREPARE_SURPRISE -> 20 * MINUTE; SEEK_USER -> 90_000L; DANCE -> 40_000L
             PLAY_ARCADE -> 50_000L; REARRANGE -> 3 * MINUTE; EXAMINE -> 60_000L; INSPECT_PLANT -> 60_000L
+            HIDE -> 25 * MINUTE; DRAW -> 4 * MINUTE; CHARGE -> 6 * MINUTE; COOK -> 20 * MINUTE; EAT -> 5 * MINUTE; PLAY_PET -> 90_000L; CLEAN -> 2 * MINUTE
             else -> 0L
         }
         if (cd > 0) s.cooldowns["act:${type.name}"] = now + cd
@@ -203,6 +287,13 @@ object BehaviorEngine {
      * should show/say. [offline] = simulated while the app was closed (no speech needed).
      */
     fun complete(s: PipoState, type: ActivityType, env: Env, now: Long, rng: Random, offline: Boolean): List<Outcome> {
+        val happyBefore = s.mood.happiness
+        val out = completeInner(s, type, env, now, rng, offline)
+        if (type != SLEEP && type != GO_OUT) Likes.afterActivity(s, type, happyBefore)
+        return out
+    }
+
+    private fun completeInner(s: PipoState, type: ActivityType, env: Env, now: Long, rng: Random, offline: Boolean): List<Outcome> {
         val t = s.profile.traits
         val out = mutableListOf<Outcome>()
         val mood = s.mood.current
@@ -225,6 +316,7 @@ object BehaviorEngine {
                 if (item != null) {
                     s.cooldowns["discover"] = now + if (offline) 14 * HOUR else 6 * MINUTE
                     out += Outcome.Found(item)
+                    Links.afterFind(s, item, now)?.let { if (!offline) out += Outcome.Say(it, Sfx.SURPRISED) }
                 } else {
                     MoodEngine.bump(s, boredom = -0.1f)
                     if (!offline && rng.nextFloat() < 0.6f) out += Outcome.Say(Dialogue.pick(Dialogue.exploreNothing, rng), Sfx.BEEP)
@@ -233,13 +325,27 @@ object BehaviorEngine {
             PLAY_TOY, PLAY_ARCADE -> {
                 MoodEngine.bump(s, boredom = -0.4f, happiness = 0.1f, energy = -0.05f, excitement = 0.1f)
                 Personality.nudge(s, Trait.PLAYFULNESS, 0.004f)
-                if (!offline && rng.nextFloat() < 0.55f) out += Outcome.Say(
-                    Dialogue.pick(if (type == PLAY_ARCADE) Dialogue.arcadeDone else Dialogue.toyDone, rng), Sfx.LAUGH)
+                if (type == PLAY_TOY) {
+                    // his football: kick-ups, counted out loud, and a personal best that means something to him
+                    val n = FootballLife.kickups(s, rng, now)
+                    val record = FootballLife.recordKickups(s, n, now)
+                    if (!offline) out += Outcome.Kickups(n, record)
+                } else {
+                    // his arcade runs Flappy Pipo and Pixel Shooter: practice is real, and so are his records
+                    val (game, score, best) = ArcadePractice.play(s, rng, now)
+                    if (!offline) {
+                        if (best && score > 0) out += Outcome.Say("New ${Dialogue.gameName(game)} record. $score. The ${if (game == "flappy") "pipes" else "moths"} fear me.", Sfx.WIN)
+                        else if (rng.nextFloat() < 0.55f) out += Outcome.Say(Dialogue.pick(Dialogue.arcadeDone, rng), Sfx.LAUGH)
+                    }
+                }
             }
             BUILD, EXPERIMENT -> {
                 MoodEngine.bump(s, boredom = -0.25f, energy = -0.06f)
                 val fin = Projects.work(s, rng, now, if (type == BUILD) 1f else 0.4f)
-                if (fin != null) out += Outcome.Finished(fin)
+                if (fin != null) {
+                    out += Outcome.Finished(fin)
+                    Links.afterProjectEnd(s, fin, now)?.let { out += Outcome.Strange(it) }
+                }
                 else if (type == EXPERIMENT) {
                     if (rng.nextFloat() < 0.18f) {
                         // Small funny accident.
@@ -255,9 +361,17 @@ object BehaviorEngine {
                 }
             }
             EXAMINE -> {
-                val it = s.world.items.randomOrNull(rng)
-                val d = it?.let { Catalog.item(it.catalogId) }
-                if (d != null && !offline) out += Outcome.Say(Dialogue.examine(d, it.revealed, rng))
+                // sometimes he goes through his photos instead of his finds — and one of them may have changed
+                val wrong = if (s.photos.isNotEmpty() && rng.nextFloat() < 0.35f) Mystery.onLookAtPhotos(s, now, rng) else null
+                if (wrong != null) out += Outcome.Strange("...this photo is wrong.", wrong)
+                else if (s.photos.isNotEmpty() && rng.nextFloat() < 0.3f) {
+                    val p = s.photos.random(rng)
+                    if (!offline) out += Outcome.Say(Dialogue.photoMemory(p, rng))
+                } else {
+                    val it = s.world.items.randomOrNull(rng)
+                    val d = it?.let { Catalog.item(it.catalogId) }
+                    if (d != null && !offline) out += Outcome.Say(Dialogue.examine(d, it.revealed, rng))
+                }
                 MoodEngine.bump(s, curiosity = 0.05f, boredom = -0.1f)
             }
             REARRANGE -> {
@@ -281,6 +395,16 @@ object BehaviorEngine {
             SCROLL_PHONE, PLAY_CONSOLE -> {
                 // Fun, but only a little: it helps boredom a bit and costs some energy. He stops on his own.
                 MoodEngine.bump(s, boredom = -0.12f, happiness = 0.03f, energy = -0.03f)
+                if (type == SCROLL_PHONE) {
+                    // the app was chosen when he picked the phone up (so the screen you saw matches what he says)
+                    val app = runCatching { PhoneApp.valueOf(s.activity.result) }.getOrNull() ?: PhoneLife.pickApp(s, env, now, rng)
+                    if (app != PhoneApp.FEED) { out += PhoneLife.use(s, app, env, now, rng).filter { !offline || it !is Outcome.PhoneUsed }; return finish(s, out, now, offline) }
+                    // his feed: what he watches leaks into his life (a dish, a trick, a machine)
+                    val clips = FeedLife.session(s, rng)
+                    val obsession = FeedLife.absorb(s, clips, env, now, rng)
+                    if (!offline) { out += Outcome.Watched(clips, obsession); return finish(s, out, now, offline) }
+                    if (obsession != null) return finish(s, out, now, offline)
+                }
                 val idea = if (rng.nextFloat() < 0.2f) Projects.maybeStart(s, rng, now, 0.6f) else null
                 if (idea != null) {
                     out += Outcome.Emote(EmoteKind.IDEA)
@@ -293,9 +417,39 @@ object BehaviorEngine {
             }
             READ -> {
                 MoodEngine.bump(s, boredom = -0.15f, curiosity = 0.04f, irritation = -0.1f)
-                if (!offline && rng.nextFloat() < 0.5f) out += Outcome.Say(Dialogue.pick(Dialogue.readLines, rng))
+                val book = s.world.objectStates["book"]
+                if (book != null && s.count("read:book") >= 3) { s.world.objectStates.remove("book"); s.counters.remove("read:book") } // finished; it goes back
+                if (!offline && rng.nextFloat() < 0.5f) out += Outcome.Say(if (book != null) Dialogue.bookLine(book, rng) else Dialogue.pick(Dialogue.readLines, rng))
             }
             THINK, WORK_COMPUTER -> {
+                if (type == THINK) {
+                    // at the window: the night, the animals outside, the weather
+                    Mystery.onNightWindow(s, env, now, rng, if (offline) 0.02f else 0.2f)?.let { out += Outcome.Strange(it); return finish(s, out, now, offline) }
+                    Mystery.onTelescope(s, env, now, rng)?.let { out += Outcome.Strange(it); return finish(s, out, now, offline) }
+                    val feeder = s.projects.any { it.templateId == "feeder" && (it.state == ProjectState.DONE || it.state == ProjectState.EVOLVED) }
+                    val c = if (rng.nextFloat() < (if (feeder) 0.55f else 0.3f)) WildlifeLife.encounter(s, "window", env, now, rng, 0.85f) else null
+                    if (c != null) {
+                        val seenElsewhere = s.memories.firstOrNull { it.key == "sighting:${c.key}" }?.place?.takeIf { it.isNotEmpty() && it != "window" }
+                        Experience.remember(s, MemoryType.EVENT, "I saw ${WildlifeLife.label(c)}", 0.3f, now, "sighting:${c.key}", place = "window")
+                        if (seenElsewhere != null && c.name.isNotEmpty() && !offline && s.count("link:windowfollow:${c.key}") == 1) {
+                            out += Outcome.Say("${c.name}! From ${com.pipo.robot.data.Places.byId(seenElsewhere)?.let { Trips.placePhrase(it) } ?: "outside"}. At MY window. ${c.name} found where I live.", Sfx.SURPRISED)
+                            return finish(s, out, now, offline)
+                        }
+                        if (rng.nextFloat() < 0.45f) {
+                            val photo = PhotoLife.take(s, PhotoSubject.CREATURE, c.key, "window", env, now, rng)
+                            if (!offline) out += Outcome.Photographed(photo, Dialogue.windowCreature(c, true, rng))
+                        } else if (!offline) out += Outcome.Say(Dialogue.windowCreature(c, false, rng), Sfx.HMM)
+                        return finish(s, out, now, offline)
+                    }
+                    FoodLife.maybeCrave(s, env, rng)
+                    // the weather he keeps watching becomes weather he likes (unless it scares him)
+                    Likes.feel(s, "weather:${env.weather.kind.name}", if (env.weather.kind == Weather.STORM && t.confidence < 0.5f) -0.04f else 0.03f)
+                    if (!offline && env.weather.kind != Weather.CLEAR && rng.nextFloat() < 0.4f) {
+                        out += Outcome.Say(Dialogue.weatherLine(env.weather, rng))
+                        if (env.weather.wet) MoodEngine.setTransient(s, Mood.THOUGHTFUL, now, 40_000)
+                        return finish(s, out, now, offline)
+                    }
+                }
                 val p = Projects.maybeStart(s, rng, now, if (offline) 0.35f else 0.25f)
                 if (p != null) {
                     out += Outcome.Emote(EmoteKind.IDEA)
@@ -332,9 +486,56 @@ object BehaviorEngine {
             SEEK_USER -> {
                 out += seekUser(s, rng, now)
             }
+            GO_OUT -> if (s.trip != null) out += Outcome.Returned(Trips.resolve(s, env, now, rng, offline))
+            EAT -> out += FoodLife.eat(s, now, rng, offline)
+            COOK -> out += FoodLife.cook(s, now, rng, offline)
+            DRAW -> {
+                MoodEngine.bump(s, boredom = -0.2f, happiness = 0.06f)
+                Personality.nudge(s, Trait.CURIOSITY, 0.002f)
+                out += Outcome.Drew(DrawingLife.draw(s, now, rng))
+            }
+            CLEAN -> {
+                val line = clean(s, now, rng)
+                if (!offline && line != null) out += Outcome.Cleaned(line)
+            }
+            HIDE -> {
+                // nobody found him: that's a win, and a small joke between you
+                if (!offline) out += Outcome.Say(Dialogue.pick(Dialogue.hideNotFound, rng), Sfx.GIGGLE)
+            }
+            PLAY_PET -> {
+                val learned = NibLife.train(s, now, rng)
+                if (learned != null) { if (!offline) out += Outcome.PetNews("TRICK:${learned.name}") }
+                else PetEngine.together(s, "played", listOf("Nib and I play tag. Nib cheats", "I practised tricks with Nib. Nib practised ignoring me", "Nib and I raced to the door. Nib won by a beep").random(rng), now, 0.4f)
+                s.pet.boredom = (s.pet.boredom - 0.5f).coerceAtLeast(0f)
+                s.pet.bond = (s.pet.bond + 0.015f).coerceAtMost(1f)
+                MoodEngine.bump(s, boredom = -0.3f, happiness = 0.1f, loneliness = -0.15f)
+                if (s.count("played:nib") % 5 == 1) Chronicle.remember(s, MemoryType.PET, "Nib and I play tag. Nib cheats", 0.45f, now, "pet:tag")
+                if (!offline) out += Outcome.PetNews(Dialogue.pick(Dialogue.petPlay, rng))
+            }
         }
+        return finish(s, out, now, offline)
+    }
+
+    private fun finish(s: PipoState, out: MutableList<Outcome>, now: Long, offline: Boolean): List<Outcome> {
         if (!offline) Discovery.updateReveals(s, now)
         return out
+    }
+
+    /** Puts one or two things back where they belong. Returns what he'd say about it. */
+    fun clean(s: PipoState, now: Long, rng: Random): String? {
+        val o = s.world.objectStates
+        PetEngine.recover(s, now)?.let { return "Found my $it. Under the bed. NIB." }
+        val cleaned = mutableListOf<String>()
+        if (o.remove("plate") != null) cleaned += "washed the plate"
+        if (o.remove("smoke") != null) cleaned += "opened the window"
+        if (o.remove("bag") != null) cleaned += "put the shopping away"
+        if (o.remove("ball_door") != null) cleaned += "put the ball back"
+        if (o.remove("pet_bed") != null) cleaned += "made the bed. Nib watched"
+        o.remove("floor")?.let { cleaned += "put things back on the shelf" }
+        o.remove("scraps")?.let { cleaned += "swept up what was left of the ${Catalog.project(it)?.title?.lowercase() ?: "project"}" }
+        if (cleaned.isEmpty()) return null
+        s.count("cleaned")
+        return Dialogue.pick(listOf("Okay. I ${Trips.listPhrase(cleaned)}. I'm basically a grown-up.", "Tidy. For now. Don't look under the bed.", "I ${cleaned.first()}. You're welcome, room."), rng)
     }
 
     /** Pipo comes over to the user with something on his mind. */
@@ -343,7 +544,7 @@ object BehaviorEngine {
         val m = s.mood
         // Wants to play: bored + playful. Prefers the game the user plays most.
         if (m.boredom > 0.35f && rng.nextFloat() < t.playfulness) {
-            val game = favoriteGame(s) ?: listOf("rps", "memory", "reaction", "tictactoe").random(rng)
+            val game = favoriteGame(s) ?: listOf("rps", "memory", "reaction", "tictactoe", "flappy", "shooter").random(rng)
             return listOf(Outcome.Offer(OfferKind.PLAY_GAME, Dialogue.wantPlay(game, s, rng), game))
         }
         // Bring back an old memory / inside joke
@@ -399,6 +600,8 @@ object BehaviorEngine {
         READ -> "reading"; THINK -> "thinking"; WORK_COMPUTER -> "on the computer"; INSPECT_PLANT -> "checking on the plant"
         DANCE -> "dancing"; PREPARE_SURPRISE -> "hiding something"; SEEK_USER -> "looking for you"; NOTHING -> "doing nothing"
         SCROLL_PHONE -> "scrolling reels on his little phone"; PLAY_CONSOLE -> "playing a game on his console"
+        GO_OUT -> "out"; EAT -> "eating"; COOK -> "cooking"; DRAW -> "drawing"; CLEAN -> "tidying up"
+        HIDE -> "hiding"; PLAY_PET -> "playing with Nib"
     }
 }
 

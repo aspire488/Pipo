@@ -69,6 +69,13 @@ fun DrawScope.drawPipo(rig: PipoRig, footX: Float, footY: Float, height: Float, 
     val glow = Color(rig.glow)
     val air = p.jump * k + lift
     if (shadow && p.lie < 0.5f) drawContactShadow(footX, footY, k, air, light)
+    // rocket boots: flames under his feet whenever he leaves the ground
+    if (rig.rocketBoots && air > 2f * k) for (side in listOf(-1f, 1f)) {
+        val fc = Offset(footX + side * 7f * k, footY - air + 4f * k)
+        val fl = 1f + 0.3f * kotlin.math.sin(rig.time * 30f + side)
+        drawOval(Color(0xFFFF9A4A).copy(alpha = 0.85f), Offset(fc.x - 2.5f * k, fc.y), Size(5f * k, 9f * k * fl))
+        drawOval(Color(0xFFFFE9A0), Offset(fc.x - 1.2f * k, fc.y), Size(2.4f * k, 5f * k * fl))
+    }
     withTransform({
         translate(footX + p.shakeX * k, footY - air - p.bob * k)
         rotate(-90f * p.lie, pivot = Offset(0f, -30f * k))
@@ -125,6 +132,8 @@ private fun DrawScope.drawPipoLocal(rig: PipoRig, k: Float, glow: Color, L: Pipo
             val rimCols = if (lightSide < 0) listOf(Color.Transparent, Color.Transparent, L.rim.copy(alpha = L.rimStrength)) else listOf(L.rim.copy(alpha = L.rimStrength), Color.Transparent, Color.Transparent)
             drawRoundRect(Brush.horizontalGradient(rimCols, startX = l, endX = l + w), Offset(l, t), Size(w, h), rr, style = Stroke(1.5f * k))
         }
+        // a soft edge line in the room's ambient colour: crisp silhouette, no black cartoon outline
+        drawRoundRect(lerp(L.ambient, Color.Black, 0.3f).copy(alpha = 0.28f), Offset(l, t), Size(w, h), rr, style = Stroke(0.8f * k))
         if (spec) {
             val sx = l + w * (if (lightSide < 0) 0.22f else 0.58f)
             drawOval(Color.White.copy(alpha = 0.35f + 0.3f * L.keyStrength), Offset(sx, t + h * 0.06f), Size(w * 0.2f, h * 0.09f))
@@ -202,6 +211,20 @@ private fun DrawScope.drawPipoLocal(rig: PipoRig, k: Float, glow: Color, L: Pipo
             drawCircle(C.joint, 0.7f * k, Offset(bx - 6.5f * k * sc, bodyTop + 6.5f * k)); drawCircle(C.joint, 0.7f * k, Offset(bx + 6.5f * k * sc, bodyTop + 6.5f * k))
         }
         drawRoundRect(C.joint, Offset(-5f * k * (0.6f + 0.4f * abs(cy)), -41f * k + drop), Size(10f * k * (0.6f + 0.4f * abs(cy)), 5f * k), CornerRadius(2f * k))
+        // the armor: red plates, gold trim, and (Mk III) a glowing core
+        if (rig.suit > 0) {
+            val red = Color(0xFFB8262E); val gold = Color(0xFFE2B24A)
+            drawRoundRect(Brush.verticalGradient(listOf(lerp(red, Color.White, 0.18f), red, lerp(red, Color.Black, 0.3f)), startY = bodyTop, endY = bodyBot),
+                Offset(-bw / 2f + 1f * k, bodyTop + 1f * k), Size(bw - 2f * k, bodyBot - bodyTop - 2f * k), CornerRadius(9f * k))
+            drawRoundRect(gold, Offset(-bw / 2f + 1f * k, bodyBot - 6f * k), Size(bw - 2f * k, 3f * k), CornerRadius(1.5f * k)) // belt
+            if (cy > 0.05f) {
+                val core = Offset(px(0f, 11f), -25f * k + drop)
+                val coreCol = if (rig.suit >= 3) Color(0xFF9FF3FF) else gold
+                if (rig.suit >= 3) drawCircle(Brush.radialGradient(listOf(coreCol.copy(alpha = 0.7f), Color.Transparent), core, 11f * k), 11f * k, core)
+                drawCircle(Color(0xFF2B3342), 4.4f * k, core); drawCircle(coreCol, 3.4f * k, core); drawCircle(Color.White.copy(alpha = 0.7f), 1.2f * k, Offset(core.x - 1f * k, core.y - 1f * k))
+            }
+            for (side in listOf(-1f, 1f)) drawCircle(gold, 5f * k, Offset(side * bw / 2f, bodyTop + 4f * k)) // shoulder plates
+        }
     }
 
     // ---------- head (uses its own yaw so the head can lead the body)
@@ -297,6 +320,28 @@ private fun DrawScope.drawPipoLocal(rig: PipoRig, k: Float, glow: Color, L: Pipo
             drawCircle(darkColor(C.shellShade, 0.5f), 2.5f * k * sc, Offset(bx, hy(-50f)))
         }
         ear(ears[1])
+        rig.hat?.let { drawHat(it, Offset(hx(0f, 0f), hy(-89f)), hw, rig.time) }
+        // the helmet: red shell over his head, a gold faceplate with glowing slits (Mk III's flips up when he talks)
+        if (rig.suit > 0) {
+            val red = Color(0xFFB8262E); val gold = Color(0xFFE2B24A)
+            drawRoundRect(Brush.verticalGradient(listOf(lerp(red, Color.White, 0.2f), red), startY = hy(-91f), endY = hy(-40f)), Offset(-hw / 2f - 1f * k, hy(-91f)), Size(hw + 2f * k, 9f * k), CornerRadius(8f * k))
+            if (hc > 0.03f) {
+                val sc = hc.pow(0.5f); val scx = hx(0f, HEAD_DEPTH / 2f)
+                val sw = 52f * k * sc; val st = hy(-83f)
+                val up = rig.suit >= 3 && (rig.visorUp || rig.talking)
+                if (up) drawRoundRect(gold, Offset(scx - sw / 2f, st - 6f * k), Size(sw, 5f * k), CornerRadius(2.5f * k)) // flipped up
+                else {
+                    drawRoundRect(Brush.verticalGradient(listOf(lerp(gold, Color.White, 0.25f), gold, lerp(gold, Color.Black, 0.25f)), startY = st, endY = st + 37f * k),
+                        Offset(scx - sw / 2f, st), Size(sw, 37f * k), CornerRadius(12f * k * sc))
+                    for (side in listOf(-1f, 1f)) {
+                        val ec = Offset(scx + side * 11f * k * sc, st + 15f * k)
+                        drawCircle(Brush.radialGradient(listOf(Color(0xFF9FF3FF).copy(alpha = 0.6f), Color.Transparent), ec, 7f * k), 7f * k, ec)
+                        drawRoundRect(Color(0xFFDFFBFF), Offset(ec.x - 6f * k * sc, ec.y - 1.4f * k), Size(12f * k * sc, 2.8f * k), CornerRadius(1.4f * k))
+                    }
+                    drawLine(lerp(gold, Color.Black, 0.35f), Offset(scx - 8f * k * sc, st + 28f * k), Offset(scx + 8f * k * sc, st + 28f * k), 1.2f * k)
+                }
+            }
+        }
     }
 
     // ---- held item / book (between the hands)
@@ -304,7 +349,7 @@ private fun DrawScope.drawPipoLocal(rig: PipoRig, k: Float, glow: Color, L: Pipo
         val hc = Offset(px(0f, 15f), -42f * k + drop)
         val shape = rig.holdItem
         if (shape != null) drawItem(shape, hc, 13f * k)
-        else if (rig.anim == AnimState.PHONE) drawTinyPhone(hc, k, rig.time)
+        else if (rig.anim == AnimState.PHONE || rig.anim == AnimState.PHOTO) drawTinyPhone(hc, k, rig.time, if (rig.anim == AnimState.PHOTO) com.pipo.robot.engine.PhoneApp.CAMERA else rig.phoneApp)
         else if (rig.anim == AnimState.GAMING) drawController(hc, k, rig.time)
         else if (rig.anim == AnimState.READING) {
             drawRoundRect(Color(0xFF6F8FA6), Offset(hc.x - 8f * k, hc.y - 5f * k), Size(16f * k, 10f * k), CornerRadius(1.5f * k))
@@ -531,7 +576,9 @@ fun DrawScope.drawEmote(rig: PipoRig, hx: Float, hy: Float, k: Float) {
 private val reelColors = listOf(Color(0xFFFF8A7A), Color(0xFF7FD6FF), Color(0xFFFFD36B), Color(0xFFB690FF), Color(0xFF8BE8B0))
 
 /** Pipo's tiny phone, held in both hands; the screen light spills onto his face. */
-private fun DrawScope.drawTinyPhone(c: Offset, k: Float, time: Float) {
+/** His phone, showing the app he's using. The screen light spills onto his face and hands. */
+private fun DrawScope.drawTinyPhone(c: Offset, k: Float, time: Float, app: com.pipo.robot.engine.PhoneApp? = null) {
+    if (app != null && app != com.pipo.robot.engine.PhoneApp.FEED) { drawPhoneApp(c, k, time, app); return }
     val swipe = time / 1.7f
     val idx = swipe.toInt()
     val ph = swipe - idx
@@ -554,6 +601,61 @@ private fun DrawScope.drawTinyPhone(c: Offset, k: Float, time: Float) {
     drawCircle(Color(0xFFFF5A7A), 0.55f * k, Offset(sl + sw - 1.1f * k, st + sh * 0.62f))
     drawRect(Color.White.copy(alpha = 0.35f), Offset(sl + 0.4f * k, st + sh - 0.8f * k), Size((sw - 0.8f * k), 0.3f * k))
     drawRect(Color.White, Offset(sl + 0.4f * k, st + sh - 0.8f * k), Size((sw - 0.8f * k) * ph, 0.3f * k))
+}
+
+private fun DrawScope.drawPhoneApp(c: Offset, k: Float, time: Float, app: com.pipo.robot.engine.PhoneApp) {
+    val w = 7.5f * k; val h = 12f * k
+    val l = c.x - w / 2f; val t = c.y - h * 0.62f
+    val sl = l + 0.7f * k; val st = t + 0.9f * k; val sw = w - 1.4f * k; val sh = h - 1.8f * k
+    val bg = when (app) {
+        com.pipo.robot.engine.PhoneApp.CAMERA -> Color(0xFF2B3342); com.pipo.robot.engine.PhoneApp.WEATHER -> Color(0xFF6FA8E8)
+        com.pipo.robot.engine.PhoneApp.NOTES -> Color(0xFFF3E6B8); com.pipo.robot.engine.PhoneApp.RECORDER -> Color(0xFF1B2230)
+        com.pipo.robot.engine.PhoneApp.CALCULATOR -> Color(0xFF20242F); com.pipo.robot.engine.PhoneApp.MAP -> Color(0xFFE8DCC2)
+        else -> Color(0xFF8FA3A6)
+    }
+    drawCircle(Brush.radialGradient(listOf(bg.copy(alpha = 0.2f), Color.Transparent), center = Offset(c.x, t), radius = 15f * k), 15f * k, Offset(c.x, t))
+    drawRoundRect(Color(0xFF1B1F2B), Offset(l, t), Size(w, h), CornerRadius(1.6f * k))
+    drawRoundRect(bg, Offset(sl, st), Size(sw, sh), CornerRadius(0.9f * k))
+    val ink = Color(0xFF2B3342)
+    when (app) {
+        com.pipo.robot.engine.PhoneApp.CAMERA -> {
+            // viewfinder corners and a focus square that settles
+            val f = 1f + 0.15f * abs(sin(time * 4f))
+            drawRect(Color.White.copy(alpha = 0.8f), Offset(c.x - 1.4f * k * f, c.y - 2.5f * k - 1.4f * k * f), Size(2.8f * k * f, 2.8f * k * f), style = Stroke(0.25f * k))
+            drawCircle(Color.White, 0.8f * k, Offset(c.x, st + sh - 1.1f * k))
+        }
+        com.pipo.robot.engine.PhoneApp.GALLERY -> for (i in 0 until 4) drawRect(listOf(Color(0xFF7FB77E), Color(0xFFE88B7A), Color(0xFF9CCBEA), Color(0xFFF3C35A))[i],
+            Offset(sl + 0.4f * k + (i % 2) * sw * 0.5f, st + 0.5f * k + (i / 2) * sh * 0.3f), Size(sw * 0.45f, sh * 0.26f))
+        com.pipo.robot.engine.PhoneApp.WEATHER -> {
+            drawCircle(Color(0xFFFFE08A), 1.4f * k, Offset(c.x - 0.6f * k, st + 2.5f * k))
+            drawCircle(Color.White, 1.2f * k, Offset(c.x + 0.8f * k, st + 3.2f * k)); drawCircle(Color.White, 0.9f * k, Offset(c.x - 0.3f * k, st + 3.5f * k))
+            for (i in 0..2) drawRect(Color.White.copy(alpha = 0.7f), Offset(sl + 0.6f * k, st + (5.8f + i * 1.2f) * k), Size(sw - 1.2f * k, 0.35f * k))
+        }
+        com.pipo.robot.engine.PhoneApp.NOTES -> {
+            // he's typing: the last line grows
+            for (i in 0..3) {
+                val len = if (i == 3) ((time * 0.8f) % 1f) else 0.6f + 0.3f * ((i * 7) % 3) / 2f
+                drawRect(ink.copy(alpha = 0.6f), Offset(sl + 0.5f * k, st + (1.2f + i * 1.6f) * k), Size((sw - 1f * k) * len, 0.3f * k))
+            }
+        }
+        com.pipo.robot.engine.PhoneApp.RECORDER -> {
+            drawCircle(Color(0xFFE0605A).copy(alpha = 0.6f + 0.4f * abs(sin(time * 3f))), 0.5f * k, Offset(sl + 1f * k, st + 1f * k))
+            for (i in 0 until 9) {
+                val a = (0.3f + 0.7f * abs(sin(time * 7f + i * 1.3f))) * 2.2f * k
+                drawRect(Color(0xFF8FF5E2), Offset(sl + 0.5f * k + i * sw / 9.5f, c.y - 2.2f * k - a / 2f), Size(0.35f * k, a))
+            }
+        }
+        com.pipo.robot.engine.PhoneApp.CALCULATOR -> {
+            drawRect(Color(0xFF8FF5E2).copy(alpha = 0.8f), Offset(sl + 0.5f * k, st + 0.8f * k), Size(sw - 1f * k, 1.4f * k))
+            for (r in 0..2) for (col in 0..2) drawRoundRect(Color(0xFF3B4658), Offset(sl + 0.5f * k + col * sw * 0.31f, st + (3f + r * 2f) * k), Size(sw * 0.25f, 1.5f * k), CornerRadius(0.3f * k))
+        }
+        com.pipo.robot.engine.PhoneApp.MAP -> {
+            drawLine(Color(0xFF9CC5DA), Offset(sl, st + sh * 0.3f), Offset(sl + sw, st + sh * 0.6f), 0.5f * k)
+            drawLine(ink.copy(alpha = 0.4f), Offset(sl + sw * 0.2f, st + sh * 0.8f), Offset(sl + sw * 0.7f, st + sh * 0.25f), 0.3f * k)
+            drawCircle(Color(0xFFE0605A), 0.6f * k, Offset(sl + sw * 0.7f, st + sh * 0.25f + sin(time * 4f) * 0.2f * k))
+        }
+        else -> Unit
+    }
 }
 
 /** A small game controller with a glowing light bar. */

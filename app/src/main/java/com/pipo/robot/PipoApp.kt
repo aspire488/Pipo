@@ -12,6 +12,7 @@ class PipoApp : Application() {
     override fun onCreate() {
         super.onCreate()
         DebugFlags.load(this)
+        com.pipo.robot.ai.AiEndpoints.init(this)
         Notifier.createChannel(this)
         PipoWorker.schedule(this)
         ProcessLifecycleOwner.get().lifecycle.addObserver(LifecycleEventObserver { _, event ->

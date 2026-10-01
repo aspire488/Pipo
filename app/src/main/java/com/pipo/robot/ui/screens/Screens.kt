@@ -81,6 +81,16 @@ import com.pipo.robot.ui.common.PipoTopBar
 import com.pipo.robot.ui.common.clockTime
 import com.pipo.robot.ui.common.relativeDay
 import com.pipo.robot.ui.render.drawItem
+import com.pipo.robot.ui.render.drawDoodle
+import com.pipo.robot.ui.render.WallDrawing
+import com.pipo.robot.ui.home.PhotoCard
+import com.pipo.robot.ui.home.Reveal
+import com.pipo.robot.data.Foods
+import com.pipo.robot.data.Npcs
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.lerp
 import com.pipo.robot.ui.theme.PipoPalette
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -94,12 +104,19 @@ private fun catColor(c: JournalCategory) = when (c) {
     JournalCategory.CONVERSATION -> Color(0xFF9AD0FF)
     JournalCategory.MILESTONE -> Color(0xFFFFE08A)
     JournalCategory.MISCHIEF -> PipoPalette.lilac
+    JournalCategory.PLACE -> Color(0xFF9ACB7A)
+    JournalCategory.FOOD -> Color(0xFFFFB27A)
+    JournalCategory.PET -> Color(0xFFFFC27A)
+    JournalCategory.STRANGE -> Color(0xFF9FF3E0)
+    JournalCategory.THOUGHT -> Color(0xFFE8D4B0)
 }
 
 private fun catLabel(c: JournalCategory) = when (c) {
     JournalCategory.DISCOVERY -> "found"; JournalCategory.PROJECT -> "built"; JournalCategory.GAME -> "played"
     JournalCategory.MOMENT -> "moment"; JournalCategory.CONVERSATION -> "talked"; JournalCategory.MILESTONE -> "milestone"
-    JournalCategory.MISCHIEF -> "mischief"
+    JournalCategory.MISCHIEF -> "mischief"; JournalCategory.PLACE -> "went out"; JournalCategory.FOOD -> "ate"
+    JournalCategory.PET -> "Nib"; JournalCategory.STRANGE -> "???"
+    JournalCategory.THOUGHT -> "his notes"
 }
 
 /* =============================== Journal =============================== */
@@ -119,29 +136,80 @@ fun JournalScreen(onBack: () -> Unit) {
     }
 }
 
+private val notebookPaper = Color(0xFFF6F0E2)
+private val notebookRule = Color(0xFFB8CCD8)
+private val notebookInk = Color(0xFF2B3342)
+private val handwriting = androidx.compose.ui.text.font.FontFamily.Cursive
+
+/** A tiny doodle in the margin, by kind of entry. */
+private fun marginDoodle(c: JournalCategory): com.pipo.robot.data.ItemShape? = when (c) {
+    JournalCategory.DISCOVERY -> com.pipo.robot.data.ItemShape.PEBBLE
+    JournalCategory.PROJECT -> com.pipo.robot.data.ItemShape.GEAR
+    JournalCategory.GAME -> com.pipo.robot.data.ItemShape.MARBLE
+    JournalCategory.FOOD -> com.pipo.robot.data.ItemShape.NOODLES
+    JournalCategory.PLACE -> com.pipo.robot.data.ItemShape.UMBRELLA
+    JournalCategory.STRANGE -> com.pipo.robot.data.ItemShape.TOKEN
+    JournalCategory.MISCHIEF -> com.pipo.robot.data.ItemShape.HAT
+    JournalCategory.MILESTONE -> com.pipo.robot.data.ItemShape.LAMP
+    else -> null
+}
+
+/**
+ * His own notes sometimes have a word crossed out. Always the same word for the same entry
+ * (seeded by its id), never in the engine's summaries.
+ */
+private fun crossedOut(e: com.pipo.robot.data.JournalEntry): androidx.compose.ui.text.AnnotatedString {
+    val words = e.description.split(' ')
+    if (e.category != JournalCategory.THOUGHT || words.size < 6 || e.id % 3L != 0L) return androidx.compose.ui.text.AnnotatedString(e.description)
+    val i = (e.id % (words.size - 2)).toInt() + 1
+    return androidx.compose.ui.text.buildAnnotatedString {
+        words.forEachIndexed { j, w ->
+            if (j == i) {
+                pushStyle(androidx.compose.ui.text.SpanStyle(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough, color = notebookInk.copy(alpha = 0.45f)))
+                append(listOf("definitely", "probably", "obviously", "maybe").let { it[(e.id % it.size).toInt()] })
+                pop(); append(" ")
+            }
+            append(w); if (j < words.size - 1) append(" ")
+        }
+    }
+}
+
 @Composable
 private fun JournalList(entries: List<com.pipo.robot.data.JournalEntry>) {
         val grouped = entries.groupBy { relativeDay(it.timestamp) }
-        LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        LazyColumn(contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
             grouped.forEach { (day, list) ->
                 item(key = "h$day") {
-                    Text(day, color = PipoPalette.muted, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 14.dp, bottom = 2.dp, start = 4.dp))
+                    // the date, written at the top of a new page
+                    Text(day, color = notebookInk.copy(alpha = 0.75f), fontFamily = handwriting, fontSize = 22.sp,
+                        modifier = Modifier.fillMaxWidth().padding(top = 14.dp).clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp))
+                            .background(notebookPaper).padding(start = 44.dp, top = 12.dp, bottom = 4.dp))
                 }
                 items(list, key = { it.id }) { e ->
-                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(PipoPalette.card).padding(14.dp)) {
-                        Box(Modifier.size(12.dp).clip(CircleShape).background(catColor(e.category)).align(Alignment.Top))
-                        Spacer(Modifier.width(12.dp))
+                    Row(
+                        Modifier.fillMaxWidth().background(notebookPaper)
+                            .drawBehind {
+                                // ruled lines and the red margin line
+                                var y = 22.dp.toPx()
+                                while (y < size.height) { drawLine(notebookRule.copy(alpha = 0.5f), Offset(0f, y), Offset(size.width, y), 1f); y += 22.dp.toPx() }
+                                drawLine(Color(0xFFE0A0A0).copy(alpha = 0.6f), Offset(36.dp.toPx(), 0f), Offset(36.dp.toPx(), size.height), 1.5f)
+                            }
+                            .padding(start = 6.dp, end = 14.dp, top = 6.dp, bottom = 10.dp)
+                            .semantics(mergeDescendants = true) {},
+                    ) {
+                        Box(Modifier.width(30.dp), contentAlignment = Alignment.TopCenter) {
+                            marginDoodle(e.category)?.let { shape -> Canvas(Modifier.size(22.dp)) { drawItem(shape, Offset(size.width / 2, size.height / 2), size.minDimension * 0.85f) } }
+                        }
+                        Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(e.title, color = PipoPalette.text, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                                Text(clockTime(e.timestamp), color = PipoPalette.muted, style = MaterialTheme.typography.labelSmall)
+                                Text(e.title, color = notebookInk, fontFamily = handwriting, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.weight(1f))
+                                Text(clockTime(e.timestamp), color = notebookInk.copy(alpha = 0.45f), style = MaterialTheme.typography.labelSmall)
                             }
                             if (e.description.isNotBlank()) {
-                                Spacer(Modifier.height(4.dp))
-                                Text(e.description, color = PipoPalette.text.copy(alpha = 0.8f), style = MaterialTheme.typography.bodyMedium)
+                                Text(crossedOut(e), color = notebookInk.copy(alpha = 0.85f), fontFamily = handwriting, fontSize = 16.sp, lineHeight = 22.sp)
                             }
-                            Spacer(Modifier.height(6.dp))
-                            Text(catLabel(e.category), color = catColor(e.category), style = MaterialTheme.typography.labelSmall)
+                            Text(catLabel(e.category), color = catColor(e.category).let { lerp(it, notebookInk, 0.45f) }, style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }
@@ -155,16 +223,28 @@ private fun JournalList(entries: List<com.pipo.robot.data.JournalEntry>) {
 fun CollectionScreen(onBack: () -> Unit) {
     val repo = PipoRepository.get(LocalContext.current)
     val v by repo.version.collectAsState()
-    val things = remember(v) { repo.read { it.world.items.toList().sortedByDescending { i -> i.foundAt } } }
+    val all = remember(v) { repo.read { it.world.items.toList().sortedByDescending { i -> i.foundAt } } }
+    val things = all.filter { Catalog.item(it.catalogId)?.shopOnly != true }
+    val bought = all.filter { Catalog.item(it.catalogId)?.shopOnly == true }
     val projects = remember(v) { repo.read { it.projects.toList().sortedByDescending { p -> p.startedAt } } }
+    val drawings = remember(v) { repo.read { it.drawings.toList().reversed() } }
+    val photos = remember(v) { repo.read { it.photos.toList().reversed() } }
+    val life = remember(v) {
+        repo.read { s ->
+            LifeBits(s.pantry.toList(), s.coins, s.creatures.values.filter { c -> c.sightings > 0 }.sortedByDescending { c -> c.sightings },
+                s.records.toMap(), s.pet.adopted, s.npcs.filterValues { n -> n.visits > 0 }.keys.mapNotNull { id -> Npcs.byId(id)?.name },
+                s.recordings.takeLast(6).reversed().map { r -> "${r.label} (${relativeDay(r.at).lowercase()})" })
+        }
+    }
     var detail by remember { mutableStateOf<Long?>(null) }
-    val hidden = Catalog.items.count { d -> things.none { it.catalogId == d.id } }
+    var art by remember { mutableStateOf<Reveal?>(null) }
+    val hidden = Catalog.items.count { d -> !d.shopOnly && things.none { it.catalogId == d.id } }
 
     Column(Modifier.fillMaxSize().background(PipoPalette.night)) {
         PipoTopBar("Pipo's Things", onBack)
         LazyVerticalGrid(GridCells.Adaptive(104.dp), contentPadding = PaddingValues(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item(span = { GridItemSpan(maxLineSpan) }) {
-                Text(if (things.isEmpty()) "Nothing found yet. Pipo is looking." else "Found ${things.size}. ${if (hidden > 0) "$hidden more things are hidden somewhere." else "He found everything. Allegedly."}",
+                Text(if (things.isEmpty()) "Nothing found yet. Pipo is looking." else "Found ${things.size}. ${if (hidden > 0) "More things are hidden somewhere." else "He found everything. Allegedly."}",
                     color = PipoPalette.muted)
             }
             items(things, key = { it.id }) { it2 ->
@@ -176,6 +256,74 @@ fun CollectionScreen(onBack: () -> Unit) {
                     Canvas(Modifier.fillMaxWidth().aspectRatio(1f)) { drawItem(d.shape, Offset(size.width / 2, size.height / 2), size.minDimension * 0.62f) }
                     Text(d.name, color = PipoPalette.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, maxLines = 2)
                     Text(if (it2.revealed) "understood" else "???", color = if (it2.revealed) PipoPalette.mint else PipoPalette.muted, fontSize = 11.sp)
+                }
+            }
+            if (bought.isNotEmpty()) {
+                item(span = { GridItemSpan(maxLineSpan) }) { SectionTitle("From the shops") }
+                items(bought, key = { "b${it.id}" }) { b ->
+                    val d = Catalog.item(b.catalogId)
+                    if (d != null) Column(
+                        Modifier.clip(RoundedCornerShape(18.dp)).background(PipoPalette.card).clickable { detail = b.id }.padding(10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Canvas(Modifier.fillMaxWidth().aspectRatio(1f)) { drawItem(d.shape, Offset(size.width / 2, size.height / 2), size.minDimension * 0.62f) }
+                        Text(d.name, color = PipoPalette.text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, maxLines = 2)
+                        Text(if (b.usedInProjectId != 0L) "in a project" else "spare", color = PipoPalette.muted, fontSize = 11.sp)
+                    }
+                }
+            }
+            if (drawings.isNotEmpty()) {
+                item(span = { GridItemSpan(maxLineSpan) }) { SectionTitle("Drawings") }
+                items(drawings.take(30), key = { "d${it.id}" }) { d ->
+                    Column(
+                        Modifier.clip(RoundedCornerShape(12.dp)).background(Color(0xFFEDE3D2)).clickable { art = Reveal.Art(d) }.padding(6.dp)
+                            .semantics(mergeDescendants = true) { contentDescription = "Drawing: ${d.caption}" },
+                    ) {
+                        Canvas(Modifier.fillMaxWidth().aspectRatio(0.78f)) { drawDoodle(WallDrawing(d.subject, d.seed), Offset.Zero, size.width, size.height, size.width / 7f) }
+                    }
+                }
+            }
+            if (photos.isNotEmpty()) {
+                item(span = { GridItemSpan(maxLineSpan) }) { SectionTitle("Photos") }
+                items(photos.take(40), key = { "ph${it.id}" }) { ph ->
+                    Box(Modifier.clickable { art = Reveal.Snap(ph) }) { PhotoCard(ph, 100.dp) }
+                }
+            }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Column(Modifier.fillMaxWidth().padding(top = 18.dp).clip(RoundedCornerShape(18.dp)).background(PipoPalette.card).padding(16.dp)) {
+                    Text("The kitchen", style = MaterialTheme.typography.titleMedium, color = PipoPalette.text)
+                    Spacer(Modifier.height(8.dp))
+                    if (life.pantry.isEmpty()) Text("Empty. Echo empty.", color = PipoPalette.muted)
+                    else Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        life.pantry.take(8).mapNotNull { Foods.byId(it) }.forEach { f ->
+                            Canvas(Modifier.size(34.dp).semantics { contentDescription = f.name }) { drawItem(f.shape, Offset(size.width / 2, size.height / 2), size.minDimension * 0.85f) }
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text("Coin jar: ${life.coins} coins", color = PipoPalette.amber, style = MaterialTheme.typography.labelLarge)
+                    val bests = listOfNotNull(life.records["kickups"]?.let { "$it kick-ups" }, life.records["shot"]?.let { "a $it-step shot" })
+                    if (bests.isNotEmpty()) Text("Personal bests: ${bests.joinToString(", ")}", color = PipoPalette.mint, style = MaterialTheme.typography.labelLarge)
+                    val arcade = listOfNotNull(life.records["pipo:flappy"]?.let { "Flappy Pipo $it" }, life.records["pipo:shooter"]?.let { "Pixel Shooter $it" })
+                    if (arcade.isNotEmpty()) Text("His arcade records: ${arcade.joinToString(", ")}", color = PipoPalette.mint, style = MaterialTheme.typography.labelLarge)
+                    if (life.sounds.isNotEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text("Sounds he recorded", style = MaterialTheme.typography.titleSmall, color = PipoPalette.text)
+                        life.sounds.forEach { Text("\u2022 $it", color = PipoPalette.text.copy(alpha = 0.8f), style = MaterialTheme.typography.bodyMedium) }
+                    }
+                }
+            }
+            if (life.creatures.isNotEmpty() || life.people.isNotEmpty() || life.nib) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Column(Modifier.fillMaxWidth().padding(top = 10.dp).clip(RoundedCornerShape(18.dp)).background(PipoPalette.card).padding(16.dp)) {
+                        Text("Friends", style = MaterialTheme.typography.titleMedium, color = PipoPalette.text)
+                        Spacer(Modifier.height(6.dp))
+                        if (life.nib) Text("Nib — small, round, beeps, steals things.", color = PipoPalette.text.copy(alpha = 0.85f))
+                        life.creatures.take(12).forEach { c ->
+                            Text(if (c.name.isNotEmpty()) "${c.name} — ${c.look}. Seen ${c.sightings} times." else "${c.look.replaceFirstChar { it.uppercase() }}. No name yet.",
+                                color = PipoPalette.text.copy(alpha = 0.85f))
+                        }
+                        if (life.people.isNotEmpty()) { Spacer(Modifier.height(4.dp)); Text("Around town: ${life.people.joinToString(", ")}", color = PipoPalette.muted) }
+                    }
                 }
             }
             if (projects.isNotEmpty()) {
@@ -211,7 +359,30 @@ fun CollectionScreen(onBack: () -> Unit) {
         }
     }
 
-    val sel = things.firstOrNull { it.id == detail }
+    art?.let { r ->
+        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)).clickable { art = null }, contentAlignment = Alignment.Center) {
+            Column(Modifier.padding(28.dp).clip(RoundedCornerShape(24.dp)).background(PipoPalette.paper).padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                when (r) {
+                    is Reveal.Art -> {
+                        Canvas(Modifier.size(200.dp, 256.dp)) { drawRect(Color(0xFFEDE3D2)); drawDoodle(WallDrawing(r.drawing.subject, r.drawing.seed), Offset.Zero, size.width, size.height, size.width / 7f) }
+                        Spacer(Modifier.height(10.dp))
+                        Text("\u201C${r.drawing.caption}\u201D", color = PipoPalette.ink, textAlign = TextAlign.Center)
+                        Text(relativeDay(r.drawing.createdAt), color = PipoPalette.ink.copy(alpha = 0.5f), fontSize = 12.sp)
+                    }
+                    is Reveal.Snap -> {
+                        PhotoCard(r.photo, 230.dp)
+                        Spacer(Modifier.height(10.dp))
+                        Text(r.photo.caption, color = PipoPalette.ink, textAlign = TextAlign.Center)
+                        if (r.photo.anomaly && r.photo.anomalySeen) Text("...look behind.", color = Color(0xFF3D7D72), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text(relativeDay(r.photo.createdAt), color = PipoPalette.ink.copy(alpha = 0.5f), fontSize = 12.sp)
+                    }
+                    else -> Unit
+                }
+            }
+        }
+    }
+
+    val sel = all.firstOrNull { it.id == detail }
     val d = sel?.let { Catalog.item(it.catalogId) }
     if (sel != null && d != null) {
         AlertDialog(
@@ -231,6 +402,12 @@ fun CollectionScreen(onBack: () -> Unit) {
         )
     }
 }
+
+private class LifeBits(val pantry: List<String>, val coins: Int, val creatures: List<com.pipo.robot.data.Creature>, val records: Map<String, Int>, val nib: Boolean, val people: List<String>,
+                       val sounds: List<String> = emptyList())
+
+@Composable
+private fun SectionTitle(t: String) = Text(t, style = MaterialTheme.typography.headlineSmall, color = PipoPalette.text, modifier = Modifier.padding(top = 18.dp))
 
 /* =============================== Settings =============================== */
 
@@ -371,6 +548,13 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
         }
         item {
+            Section("Motion") {
+                ToggleRow("Calmer camera (no zoom or tilt)", st.calmMotion) { on -> edit { it.calmMotion = on } }
+                Text("Pipo still moves the way he moves. This only keeps the room still around him. It's also on automatically when Android's \"remove animations\" is on.",
+                    color = PipoPalette.muted, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        item {
             Section("Chatting") {
                 Text(
                     if (Brains.configured) "When you're online, Pipo thinks up his chat replies with Gemini (Groq as backup). Only what you type or say to him in chat, plus his mood and a few of his memories, is sent to make the reply. Offline he uses his own words. Phone actions never leave the phone."
@@ -380,6 +564,12 @@ fun SettingsScreen(onBack: () -> Unit) {
         }
         item {
             Section("Privacy") {
+                ToggleRow("Online AI (chat, \"look\", \"find out\")", st.onlineAi) { on -> edit { it.onlineAi = on } }
+                Text(if (st.onlineAi) "What you say to Pipo (and a photo, only when you show him one) is sent to Google's Gemini, or Groq as a backup, to make his replies. Nothing is kept."
+                    else "Pipo talks with his own built-in words. Nothing you say leaves the phone.", color = PipoPalette.muted, style = MaterialTheme.typography.bodyMedium)
+                ToggleRow("Real weather", st.realWeather) { on -> edit { it.realWeather = on } }
+                Text(if (st.realWeather) "Pipo's weather is yours. Your approximate city (from your network) is used to look it up; nothing else is shared."
+                    else "Pipo has his own little made-up climate.", color = PipoPalette.muted, style = MaterialTheme.typography.bodyMedium)
                 Text("Everything Pipo remembers stays on this phone. No account, no ads, no analytics. " +
                     "The mic only listens while you hold the conversation open, and the camera and photos are only used when you ask. " +
                     "Pipo never reads messages, contacts, or your gallery on his own.",

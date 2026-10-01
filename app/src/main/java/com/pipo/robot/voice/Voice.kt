@@ -280,24 +280,40 @@ class SpeechInput(private val ctx: Context) {
     private var rec: SpeechRecognizer? = null
     val available: Boolean get() = SpeechRecognizer.isRecognitionAvailable(ctx)
 
-    fun start(onPartial: (String) -> Unit, onLevel: (Float) -> Unit, onResult: (String?) -> Unit) {
+    private var lastPartial = ""
+    private var deliverNow: ((String?) -> Unit)? = null
+
+    /**
+     * Listens for one utterance. Tolerates a natural pause mid-sentence; a "busy"/client hiccup
+     * (common right after the previous session) retries once instead of failing.
+     */
+    fun start(onPartial: (String) -> Unit, onLevel: (Float) -> Unit, onResult: (String?) -> Unit, retry: Boolean = true) {
         stop()
         val r = SpeechRecognizer.createSpeechRecognizer(ctx)
         rec = r
+        lastPartial = ""
         var delivered = false
-        fun deliver(v: String?) { if (!delivered) { delivered = true; onResult(v) } }
+        fun deliver(v: String?) { if (!delivered) { delivered = true; deliverNow = null; onResult(v?.takeIf { it.isNotBlank() } ?: lastPartial.takeIf { it.isNotBlank() }) } }
+        deliverNow = { v -> deliver(v) }
         r.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {}
             override fun onBeginningOfSpeech() {}
             override fun onRmsChanged(rmsdB: Float) { onLevel(((rmsdB + 2f) / 12f).coerceIn(0f, 1f)) }
             override fun onBufferReceived(buffer: ByteArray?) {}
             override fun onEndOfSpeech() {}
-            override fun onError(error: Int) { deliver(null) }
+            override fun onError(error: Int) {
+                if (retry && !delivered && lastPartial.isBlank() && (error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY || error == SpeechRecognizer.ERROR_CLIENT)) {
+                    delivered = true
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ start(onPartial, onLevel, onResult, retry = false) }, 350)
+                    return
+                }
+                deliver(null)
+            }
             override fun onResults(results: Bundle?) {
                 deliver(results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull())
             }
             override fun onPartialResults(partialResults: Bundle?) {
-                partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.let(onPartial)
+                partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.takeIf { it.isNotBlank() }?.let { lastPartial = it; onPartial(it) }
             }
             override fun onEvent(eventType: Int, params: Bundle?) {}
         })
@@ -305,11 +321,23 @@ class SpeechInput(private val ctx: Context) {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            // people pause mid-sentence, especially when talking to a little robot
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1200L)
         }
         r.startListening(intent)
     }
 
+    /** "I'm done talking": keeps what was said (the recognizer finishes, or what it heard so far is used). */
+    fun finish() {
+        val r = rec ?: return
+        runCatching { r.stopListening() }
+        // some recognizers never deliver after stopListening: use what we heard
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ deliverNow?.invoke(null) }, 1200)
+    }
+
     fun stop() {
+        deliverNow = null
         rec?.let { runCatching { it.cancel() }; runCatching { it.destroy() } }
         rec = null
     }

@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
@@ -54,6 +56,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
@@ -83,8 +89,23 @@ import com.pipo.robot.ui.render.drawBlanket
 import com.pipo.robot.ui.render.drawEmote
 import com.pipo.robot.ui.render.drawForeground
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.geometry.Rect
+import com.pipo.robot.ui.render.HideSpot
+import com.pipo.robot.ui.render.PinnedPhoto
+import com.pipo.robot.ui.render.WallDrawing
+import com.pipo.robot.ui.render.drawDoodle
+import com.pipo.robot.ui.render.drawPhotoImage
+import com.pipo.robot.data.Places
+import com.pipo.robot.engine.Economy
+import com.pipo.robot.engine.Weather
+import com.pipo.robot.ui.common.relativeDay
 import com.pipo.robot.ui.render.drawItem
 import com.pipo.robot.ui.render.drawLighting
+import com.pipo.robot.ui.render.drawOccluder
+import com.pipo.robot.ui.render.drawPet
 import com.pipo.robot.ui.render.drawPipo
 import com.pipo.robot.ui.render.drawRoom
 import com.pipo.robot.ui.theme.PipoPalette
@@ -141,6 +162,9 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
             if (Build.VERSION.SDK_INT >= 33) notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
+    // "Pipo, look!": your own camera app takes one photo into Pipo's private cache (no camera permission for Pipo)
+    val lookLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok -> vm.onLookTaken(ok) }
+    LaunchedEffect(vm.lookShot) { vm.lookShot?.let { runCatching { lookLauncher.launch(it) }.onFailure { vm.onLookTaken(false) } } }
     // System photo picker: no storage permission; the user chooses exactly one photo.
     val photoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> vm.onPhotoPicked(uri) }
     LaunchedEffect(vm.pickPhoto) {
@@ -150,6 +174,8 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
         }
     }
 
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    val focus = androidx.compose.ui.platform.LocalFocusManager.current
     fun mic() {
         if (vm.listening) { vm.stopListening(); return }
         if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) vm.startListening()
@@ -160,6 +186,8 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
         // ---------------- the world
         Canvas(
             Modifier.fillMaxSize()
+                // screen readers: what's actually going on in the room, in plain words
+                .semantics { contentDescription = vm.sceneDescription; liveRegion = LiveRegionMode.Polite }
                 .pointerInput(Unit) {
                     awaitPointerEventScope {
                         while (true) {
@@ -201,13 +229,30 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
             withTransform({ scale(z, z, pivot = vm.zoomPivotPublic()) }) {
                 val skip = PerfProbe.skip // debug builds only: layer cost attribution
                 if ("room" !in skip) drawRoom(g, vm.camU, room, t, inBed)
+                val light = vm.lightNow(room)
+                // his faint reflection in the window glass at night
+                if (vm.reflectionVisible()) {
+                    val wl = (88f - vm.camU) * g.u; val wr = (120f - vm.camU) * g.u
+                    val wt = g.floorY - 74f * g.u; val wb = g.floorY - 40f * g.u
+                    clipRect(wl, wt, wr, wb) {
+                        drawIntoCanvas { c ->
+                            c.saveLayer(Rect(wl, wt, wr, wb), Paint().apply { alpha = 0.13f })
+                            drawPipo(vm.reflection, (vm.pipoX - vm.camU) * g.u, wb + 2f * g.u, g.pipoH * 0.8f, shadow = false, light = light)
+                            c.restore()
+                        }
+                    }
+                }
                 val foot = vm.footScreen()
-                if ("pipo" !in skip) drawPipo(vm.rig, foot.x, foot.y, g.pipoH, vm.lift * g.u, shadow = !inBed, light = vm.lightNow(room))
-                if (inBed) drawBlanket(g, foot, g.pipoH / 100f, t)
+                val petFoot = vm.petFootScreen()
+                if ("pipo" !in skip && !vm.away) drawPipo(vm.rig, foot.x, foot.y, g.pipoH, vm.lift * g.u, shadow = !inBed && vm.hideSpot != HideSpot.BOX, light = light)
+                if (inBed && !vm.away) drawBlanket(g, foot, g.pipoH / 100f, t, overHead = vm.hideSpot == HideSpot.BLANKET)
+                if (!vm.away) drawOccluder(g, vm.camU, room, vm.hideSpot, t)
+                // Nib walks a little nearer the camera than Pipo, so Nib is drawn in front
+                if (vm.petHome) drawPet(vm.pet, petFoot.x, petFoot.y, 12f * g.u, light)
                 val head = vm.headScreen()
-                if ("light" !in skip) drawLighting(g, vm.camU, room, head, vm.glowColor(), t)
+                if ("light" !in skip) drawLighting(g, vm.camU, room, if (vm.away) Offset(-9999f, -9999f) else head, vm.glowColor(), t)
                 if ("fg" !in skip) drawForeground(g, vm.camU, room)
-                drawEmote(vm.rig, head.x, head.y, g.pipoH / 100f)
+                if (!vm.away && vm.hideSpot == null) drawEmote(vm.rig, head.x, head.y, g.pipoH / 100f)
             }
         }
 
@@ -252,6 +297,32 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
             }
         }
 
+        // ---------------- a text from his little phone, while he's out
+        vm.text?.let { msg ->
+            Row(
+                Modifier.align(Alignment.TopCenter).windowInsetsPadding(WindowInsets.safeDrawing).padding(top = 64.dp, start = 24.dp, end = 24.dp)
+                    .widthIn(max = 340.dp).clip(RoundedCornerShape(18.dp)).background(PipoPalette.card.copy(alpha = 0.96f)).padding(horizontal = 14.dp, vertical = 10.dp)
+                    .semantics(mergeDescendants = true) { contentDescription = "Message from Pipo: $msg" },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.size(28.dp).clip(CircleShape).background(PipoPalette.mint), contentAlignment = Alignment.Center) { Text("P", color = Color(0xFF0F2A2A), fontWeight = FontWeight.Bold) }
+                Spacer(Modifier.width(10.dp))
+                Column {
+                    Text("Pipo", color = PipoPalette.muted, fontSize = 12.sp)
+                    Text(msg, color = PipoPalette.text, fontSize = 15.sp, lineHeight = 20.sp)
+                }
+            }
+        }
+
+        // ---------------- the note on the door (tap the door while he's out)
+        vm.doorNote?.let { note ->
+            Box(Modifier.fillMaxSize().clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { vm.doorNote = null }, contentAlignment = Alignment.Center) {
+                Box(Modifier.rotate(-3f).widthIn(max = 260.dp).clip(RoundedCornerShape(4.dp)).background(Color(0xFFF3DB7A)).padding(horizontal = 20.dp, vertical = 18.dp)) {
+                    Text(note, color = PipoPalette.ink, fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.Medium)
+                }
+            }
+        }
+
         // ---------------- your last line
         vm.userLine?.let {
             Box(
@@ -263,10 +334,12 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
 
         // ---------------- top-right menu (subtle)
         Box(Modifier.align(Alignment.TopEnd).windowInsetsPadding(WindowInsets.safeDrawing).padding(12.dp)) {
-            RoundButton(Glyph.MENU, { menuOpen = true }, size = 42.dp, bg = PipoPalette.card.copy(alpha = 0.55f))
+            RoundButton(Glyph.MENU, { menuOpen = true }, size = 48.dp, bg = PipoPalette.card.copy(alpha = 0.55f), description = "Menu")
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 DropdownMenuItem(text = { Text("Journal") }, onClick = { menuOpen = false; onNavigate("journal") })
+                DropdownMenuItem(text = { Text("Map") }, onClick = { menuOpen = false; onNavigate("map") })
                 DropdownMenuItem(text = { Text("Pipo's things") }, onClick = { menuOpen = false; onNavigate("collection") })
+                DropdownMenuItem(text = { Text("Nib") }, onClick = { menuOpen = false; onNavigate("nib") })
                 DropdownMenuItem(text = { Text("Settings") }, onClick = { menuOpen = false; onNavigate("settings") })
             }
         }
@@ -275,13 +348,14 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
         Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().windowInsetsPadding(WindowInsets.safeDrawing).imePadding().padding(16.dp)) {
             when {
                 vm.listening -> ListeningPill(vm) { vm.stopListening() }
-                vm.openChat -> ChatField(chatText, { chatText = it }, onSend = {
-                    vm.sendChat(chatText); chatText = ""
+                vm.openChat -> ChatField(chatText, { chatText = it }, placeholder = if (vm.away) "Text Pipo…" else "Say something to Pipo…", onSend = {
+                    // sent: the keyboard goes away so you can watch him answer (and do it)
+                    vm.sendChat(chatText); chatText = ""; keyboard?.hide(); focus.clearFocus(); vm.openChat = false
                 }, onClose = { vm.openChat = false })
                 else -> Row(Modifier.align(Alignment.Center), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                    RoundButton(Glyph.CHAT, { vm.openChat = true }, size = 54.dp)
-                    RoundButton(Glyph.MIC, { mic() }, size = 54.dp, bg = PipoPalette.mint.copy(alpha = 0.9f), tint = Color(0xFF0F2A2A))
-                    RoundButton(Glyph.GAMES, { gamesOpen = true }, size = 54.dp)
+                    RoundButton(Glyph.CHAT, { vm.openChat = true }, size = 54.dp, description = if (vm.away) "Text Pipo" else "Talk to Pipo")
+                    RoundButton(Glyph.MIC, { mic() }, size = 54.dp, bg = PipoPalette.mint.copy(alpha = 0.9f), tint = Color(0xFF0F2A2A), description = "Speak to Pipo")
+                    RoundButton(Glyph.GAMES, { gamesOpen = true }, size = 54.dp, description = "Play a game with Pipo")
                 }
             }
         }
@@ -312,11 +386,13 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)).clickable { gamesOpen = false }, contentAlignment = Alignment.BottomCenter) {
                 Column(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).background(PipoPalette.card)
-                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}.windowInsetsPadding(WindowInsets.safeDrawing).padding(20.dp),
+                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}.windowInsetsPadding(WindowInsets.safeDrawing)
+                        .heightIn(max = 620.dp).verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(20.dp),
                 ) {
                     Text("Play with Pipo", style = MaterialTheme.typography.headlineSmall, color = PipoPalette.text)
                     Spacer(Modifier.height(14.dp))
-                    listOf("rps" to "Rock Paper Scissors", "memory" to "Memory Match", "reaction" to "Reaction Race", "tictactoe" to "Tic-Tac-Toe").forEach { (id, name) ->
+                    listOf("rps" to "Rock Paper Scissors", "memory" to "Memory Match", "reaction" to "Reaction Race", "tictactoe" to "Tic-Tac-Toe",
+                        "flappy" to "Flappy Pipo", "shooter" to "Pixel Shooter", "cricket" to "Cricket", "pingpong" to "Table Tennis").forEach { (id, name) ->
                         Row(
                             Modifier.fillMaxWidth().padding(vertical = 5.dp).clip(RoundedCornerShape(16.dp)).background(PipoPalette.cardHi)
                                 .clickable { gamesOpen = false; vm.requestGame(id) }.padding(16.dp),
@@ -334,16 +410,16 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
 }
 
 @Composable
-private fun ChatField(text: String, onText: (String) -> Unit, onSend: () -> Unit, onClose: () -> Unit) {
+private fun ChatField(text: String, onText: (String) -> Unit, placeholder: String, onSend: () -> Unit, onClose: () -> Unit) {
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     Row(verticalAlignment = Alignment.CenterVertically) {
-        RoundButton(Glyph.CLOSE, onClose, size = 44.dp)
+        RoundButton(Glyph.CLOSE, onClose, size = 48.dp, description = "Close")
         Spacer(Modifier.width(8.dp))
         TextField(
             value = text, onValueChange = onText,
             modifier = Modifier.weight(1f).focusRequester(focus),
-            placeholder = { Text("Say something to Pipo…") },
+            placeholder = { Text(placeholder) },
             singleLine = true,
             shape = RoundedCornerShape(24.dp),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
@@ -354,7 +430,7 @@ private fun ChatField(text: String, onText: (String) -> Unit, onSend: () -> Unit
             ),
         )
         Spacer(Modifier.width(8.dp))
-        RoundButton(Glyph.SEND, { if (text.isNotBlank()) onSend() }, size = 48.dp, bg = PipoPalette.mint, tint = Color(0xFF0F2A2A))
+        RoundButton(Glyph.SEND, { if (text.isNotBlank()) onSend() }, size = 48.dp, bg = PipoPalette.mint, tint = Color(0xFF0F2A2A), description = "Send")
     }
 }
 
@@ -378,27 +454,33 @@ private fun ListeningPill(vm: HomeViewModel, onStop: () -> Unit) {
         Spacer(Modifier.width(10.dp))
         Text(vm.heard.ifBlank { "Pipo is listening…" }, color = if (vm.heard.isBlank()) PipoPalette.muted else PipoPalette.text,
             modifier = Modifier.weight(1f), maxLines = 2, fontSize = 15.sp)
-        RoundButton(Glyph.STOP, onStop, size = 40.dp, bg = PipoPalette.cardHi)
+        RoundButton(Glyph.STOP, onStop, size = 48.dp, bg = PipoPalette.cardHi, description = "Stop listening")
     }
 }
 
 @Composable
 private fun RevealCard(r: Reveal) {
     Column(
-        Modifier.padding(32.dp).clip(RoundedCornerShape(26.dp)).background(PipoPalette.paper).padding(24.dp),
+        Modifier.padding(28.dp).widthIn(max = 380.dp).clip(RoundedCornerShape(26.dp)).background(PipoPalette.paper).padding(24.dp)
+            .semantics(mergeDescendants = true) {},
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        val shape = when (r) { is Reveal.Item -> r.def.shape; is Reveal.Project -> r.def.shape }
-        Canvas(Modifier.size(120.dp)) {
-            drawCircle(PipoPalette.mint.copy(alpha = 0.25f), size.minDimension / 2f)
-            drawItem(shape, Offset(size.width / 2, size.height / 2), size.minDimension * 0.62f)
+        when (r) {
+            is Reveal.Item, is Reveal.Project -> {
+                val shape = if (r is Reveal.Item) r.def.shape else (r as Reveal.Project).def.shape
+                Canvas(Modifier.size(120.dp)) {
+                    drawCircle(PipoPalette.mint.copy(alpha = 0.25f), size.minDimension / 2f)
+                    drawItem(shape, Offset(size.width / 2, size.height / 2), size.minDimension * 0.62f)
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+            else -> Unit
         }
-        Spacer(Modifier.height(12.dp))
         when (r) {
             is Reveal.Item -> {
                 Text(r.def.name, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = PipoPalette.ink)
                 Spacer(Modifier.height(6.dp))
-                Text("\u201C${r.def.foundLine}\u201D", color = PipoPalette.ink.copy(alpha = 0.8f), textAlign = TextAlign.Center)
+                Text("“${r.def.foundLine}”", color = PipoPalette.ink.copy(alpha = 0.8f), textAlign = TextAlign.Center)
                 Spacer(Modifier.height(10.dp))
                 Text(if (r.item.revealed) r.def.secret else "Purpose: ???", color = if (r.item.revealed) Color(0xFF3D7D72) else PipoPalette.ink.copy(alpha = 0.5f),
                     fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
@@ -417,8 +499,69 @@ private fun RevealCard(r: Reveal) {
                     story.forEach { Text("· $it", color = PipoPalette.ink.copy(alpha = 0.55f), fontSize = 13.sp, textAlign = TextAlign.Center) }
                 }
             }
+            is Reveal.Trip -> {
+                val place = Places.byId(r.report.placeId)
+                Text(place?.name ?: "Out", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = PipoPalette.ink)
+                val things = r.report.bought.mapNotNull { Economy.shapeOf(it) }
+                if (things.isNotEmpty()) {
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        things.take(5).forEach { sh ->
+                            Canvas(Modifier.size(44.dp)) {
+                                drawCircle(PipoPalette.mint.copy(alpha = 0.2f), size.minDimension / 2f)
+                                drawItem(sh, Offset(size.width / 2, size.height / 2), size.minDimension * 0.7f)
+                            }
+                        }
+                    }
+                }
+                r.photo?.let { p ->
+                    Spacer(Modifier.height(12.dp))
+                    PhotoCard(p, 150.dp)
+                }
+                Spacer(Modifier.height(10.dp))
+                r.report.story.take(3).forEach { Text(it, color = PipoPalette.ink.copy(alpha = 0.85f), textAlign = TextAlign.Center, fontSize = 15.sp) }
+                if (r.report.npcLine.isNotBlank()) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(r.report.npcLine, color = PipoPalette.ink.copy(alpha = 0.55f), textAlign = TextAlign.Center, fontSize = 13.sp)
+                }
+                if (r.report.spent > 0 || r.report.earned > 0) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(if (r.report.earned > 0) "+${r.report.earned} coins" else "spent ${r.report.spent} coins", color = PipoPalette.ink.copy(alpha = 0.45f), fontSize = 12.sp)
+                }
+            }
+            is Reveal.Art -> {
+                Canvas(Modifier.size(180.dp, 230.dp)) {
+                    drawRect(Color(0xFFEDE3D2))
+                    drawDoodle(WallDrawing(r.drawing.subject, r.drawing.seed), Offset.Zero, size.width, size.height, size.width / 7f)
+                }
+                Spacer(Modifier.height(12.dp))
+                Text("“${r.drawing.caption}”", color = PipoPalette.ink.copy(alpha = 0.85f), textAlign = TextAlign.Center)
+                Spacer(Modifier.height(4.dp))
+                Text("by Pipo · ${relativeDay(r.drawing.createdAt).lowercase()}", color = PipoPalette.ink.copy(alpha = 0.45f), fontSize = 12.sp)
+            }
+            is Reveal.Snap -> {
+                PhotoCard(r.photo, 220.dp)
+                Spacer(Modifier.height(12.dp))
+                Text(r.photo.caption, color = PipoPalette.ink.copy(alpha = 0.85f), textAlign = TextAlign.Center)
+                if (r.photo.anomaly && r.photo.anomalySeen) {
+                    Spacer(Modifier.height(6.dp))
+                    Text("...look behind.", color = Color(0xFF3D7D72), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
         }
         Spacer(Modifier.height(14.dp))
         Text("tap to close", color = PipoPalette.ink.copy(alpha = 0.4f), fontSize = 12.sp)
+    }
+}
+
+/** One of his photos, as a polaroid. */
+@Composable
+fun PhotoCard(p: com.pipo.robot.data.Photo, width: androidx.compose.ui.unit.Dp) {
+    val pinned = PinnedPhoto(p.subject, p.seed, Places.byId(p.placeId)?.color ?: 0xFF8C9B7A, p.hour >= 20 || p.hour < 6,
+        runCatching { Weather.valueOf(p.weather) }.getOrDefault(Weather.CLEAR), p.anomaly && p.anomalySeen, p.ref)
+    Canvas(Modifier.size(width, width * 1.1f).semantics { contentDescription = "Photo: ${p.caption}" }) {
+        drawRect(Color(0xFFF7F4EE))
+        val pad = size.width * 0.06f
+        drawPhotoImage(pinned, Offset(pad, pad), size.width - pad * 2, size.width - pad * 2, 0f)
     }
 }

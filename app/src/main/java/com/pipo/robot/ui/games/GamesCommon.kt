@@ -68,6 +68,8 @@ class GamePipo(val repo: PipoRepository, val gameId: String = "", private val vo
     val rig = PipoRig(rng.nextInt())
     val synth = SoundSynth()
     val traits: Traits = repo.read { it.profile.traits.copy() }
+    /** Calmer camera / reduced motion: no screen flashes or shakes in games. */
+    val calm: Boolean = repo.read { it.settings.calmMotion }
     val mood: Mood = repo.read { it.mood.current }
     val energy: Float = repo.read { it.mood.energy }
     private var shown by mutableStateOf("")
@@ -117,7 +119,7 @@ class GamePipo(val repo: PipoRepository, val gameId: String = "", private val vo
         v.speak(text, mood) {}
     }
 
-    fun shutdown() { voice?.stop(); voice?.shutdown() }
+    fun shutdown() { voice?.stop(); voice?.shutdown(); synth.shutdown() }
 
     fun react(anim: AnimState, expr: Expr, text: String? = null, sfx: Sfx? = null, emote: EmoteKind? = null, secs: Float = 1.4f) {
         rig.anim = anim; rig.expr = expr
@@ -255,6 +257,10 @@ fun GameHost(id: String, onExit: () -> Unit) {
         "rps" -> RpsGame(onExit)
         "memory" -> MemoryGame(onExit)
         "reaction" -> ReactionGame(onExit)
+        "flappy" -> FlappyGame(onExit)
+        "shooter" -> ShooterGame(onExit)
+        "cricket" -> CricketGame(onExit)
+        "pingpong" -> PingPongGame(onExit)
         else -> TicTacToeGame(onExit)
     }
 }

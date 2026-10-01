@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="DEVICE_TEST_REPORT.md"><img src="https://img.shields.io/badge/Device%20Validation-Galaxy%20S23%20%E2%9C%93-70a5fd?style=for-the-badge"/></a>
-  <img src="https://img.shields.io/badge/Tests-68%2F68%20%E2%9C%93-2ea44f?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/Tests-169%20%E2%9C%93-2ea44f?style=for-the-badge"/>
   <img src="https://img.shields.io/badge/Rendering-Procedural%202.5D-8b5cf6?style=for-the-badge"/>
   <img src="https://img.shields.io/badge/Android%2015-Verified-3ddc84?style=for-the-badge&logo=android&logoColor=white"/>
 </p>
@@ -28,7 +28,9 @@ The whole product fits in one sentence:
 
 Open the app and you find out. He might be asleep with one eye open (pretending), lying on the floor staring at the ceiling, halfway through a project that keeps catching fire, chasing a moth around the desk lamp, or peeking in from the edge of the screen because he heard you come back.
 
-His life runs on your device. There's no account, no server of our own and no analytics. It's a robot and a JSON file. The one exception: when you chat with him while online, your message is sent to Gemini (or Groq) so he can word his reply.
+Or he might not be there at all. There's a note on the door: he went to the hardware shop because the flying machine needs a motor. Nib, his small beeping robot pet, stayed home and is asleep in the cardboard box. Twenty minutes later the door opens and he walks in with a bag, and a magnet he bought instead of the wire he went for.
+
+His life runs on your device. There's no account and no analytics: it's a robot and a JSON file. What does go online is listed plainly under [Privacy](#-privacy): his AI voice (chat, "look", "find out"), your city's weather, and the searches you ask for. All of it can be switched off in Settings.
 
 ---
 
@@ -46,6 +48,53 @@ He's a simulated character with persistent state that keeps evolving:
 There's no objective, no streak to protect and no score for the user. The reward is watching him.
 
 ---
+
+## 🆕 The living-world update
+
+What changed in this round, with what was verified on a real phone (Galaxy S23) marked ✅:
+
+**He knows his own life.** Pipo's answers come from his real memories, journal, possessions and Nib, through a grounding layer (`engine/Grounding.kt`). "What did we do yesterday?" gets the actual day. Ask "who is Nib?", "what's on your shelf?", "remember the rubber duck?" and he answers with what's true. ✅ He tries to do what you ask: asking him out, to cook or to play isn't refused because of his own internal cooldowns. If the shops are shut he says so ("Mo's Bakery is closed now. It opens at 6"). ✅
+
+**Nib is a character** (`engine/NibLife.kt`, `ui/render/PetPainter.kt`, menu → **Nib**):
+- **Feelings:** eight eye expressions, five sounds (happy trill, grumpy buzz, curious boop, sad slide, smug double-chirp) and picture thought-bubbles (ball, Pipo, battery, food, heart, "!", "?", music). ✅
+- **Getting under Pipo's feet:** Nib pesters him while he's busy and he grumbles theatrically before giving in. ✅ Nib begs while he eats ✅, waits for the first bite when he cooks, curls up at bedtime, waits by the door when he goes out, and gets jealous when you pat him.
+- **Growing up together:** friendship stages (shy newcomer → family), six tricks Pipo teaches over many sessions (high-five, fetch, spin, dance, play dead, sing), a favourite nap spot, presents, sulking when ignored, and getting braver in storms.
+
+**Sports, as two-player games with Nib.** Football, cricket, table tennis and badminton at the field, park and garden, always Pipo vs Nib with a real score (Nib can win). There's indoor cricket with Nib bowling along the floor ✅, and the ball is physically at his feet, never teleported ✅. You can also play **Cricket** and **Table Tennis** against Pipo yourself. ✅
+
+**Pipo the inventor** (`engine/Inventor.kt`):
+- **Builder levels** (Tinkerer → Genius) that grow from every build and failure. ✅
+- **Harder blueprints with real effects:**
+  - Nib's turbo wheel and light-up tail
+  - B.O.L.T., his desk helper
+  - a scout drone that brings home photos
+  - rocket boots
+  - the **armor**, Mk I → Mk II (flies) → Mk III (glowing core, flip-up visor)
+- "Suit up" ✅ and "suit up and fly" ✅. The workshop turns into a lab as he levels up (tools, blueprints ✅, a hologram, holo-screens).
+
+**The world is yours:**
+- **Real weather** for your city from Open-Meteo (✅ Kochi, rain, 26.9 °C), with seasons (monsoon included) in the window tree.
+- **Festivals:** Christmas, Halloween, New Year, Diwali, Onam, Vishu, Pongal, Holi and Eid. Each one decorates the room and the garden, gives Pipo and Nib outfits, and has a greeting; on the other side of the mirror they celebrate "wrongly". The moving dates for 2026–28 come from a table and need checking.
+- **Outside places** are painted scenes (park, garden, field, lake, hills, shopfronts) where he actually does the thing he went for, with Nib.
+- **The wall** keeps a pennant for every place he's been, plus a calendar.
+
+**"Pipo, look!"** He asks first, then your own camera app takes one photo. A vision model sees it and he reacts as a curious kid. He never identifies people, guesses names or comments on looks. The photo is deleted right away, and what he sees feeds his world (a ball starts a game, food gives him a craving). ✅ up to the camera opening.
+
+**Your phone:**
+- **Music and video:** "play X" plays the top YouTube result ✅. "search X on YouTube" ✅ and "google X" show results.
+- **Other AIs:** "ask ChatGPT X" sends your question to ChatGPT in the browser ✅, and "ask Gemini X" uses Google AI Mode ✅.
+- **Finding out:** "find out X" makes him look it up and tell you which AI answered ✅.
+- **Voice chat** continues hands-free after he answers. Not yet tested with a real voice.
+
+**Fixes found by living with him on the phone:**
+- Flappy Pipo's and Pixel Shooter's scores never updated.
+- "play football" opened YouTube.
+- He never scrolled his phone or played his console: his choice only ever looked at his top 3 ideas.
+- He charged on loop while your phone was plugged in.
+- The keyboard covered the room after you sent a message.
+- He talked about his book after putting it away.
+- Two footballs could exist at once.
+- After 9 pm, "let's cook" sent him to look at bugs.
 
 ## ✨ A Living Little Character
 
@@ -80,6 +129,61 @@ He decides for himself what to do next. Nothing runs on a script loop. See [Auto
 He discovers things, investigates them, builds with them, and occasionally does small crimes against the room. See [Discovery & Projects](#-discovery--projects) and [Mischief](#mischief).
 
 ---
+
+## 🌍 Beyond the room (schema 2)
+
+The room is still the heart of it, but it's no longer the whole world. Every system below is owned by the deterministic engine (`engine/`), persisted in the save file, and feeds the others. The AI never creates any of it.
+
+**Where is he?**
+- **He goes out** (`engine/Trips.kt`). A trip always has a reason he can state, such as *"The flying machine needs a motor"*, *"It's raining. That means soup. That's the rule."*, *"My coin jar is looking sad. Fennel needs a helper."* or *"The frogs at the lake have opinions."* He walks to the new front door and leaves. The room stays behind: a note on the door, Nib (unless Nib went too), and whatever he left lying around. In-app trips take a minute or two; offline trips take real time (travel there and back, plus the visit).
+- Places are gated by opening hours, the time of day and **his weather**: no trips at night or in storms, and rain keeps him in until he owns an umbrella (which he tends to buy after getting soaked once).
+- **You can text him** while he's out: the chat becomes his little phone. *"where are you?"* gets an answer from wherever the engine says he is. *"come home"* really brings him home sooner.
+- **The present moment:** catch-up doesn't just replay the past. It also decides what he started a few minutes ago and hasn't finished, which is how the room can be empty when you open the app. In a simulated three weeks he was out about 6–8% of waking hours.
+- **Hiding:** sometimes he hides behind the arcade cabinet (only his antenna tip shows), inside his cardboard box (eyes over the edge) or under the blanket (a lump that giggles). The camera doesn't give him away. You find him by tapping him or his hiding place; if you don't, he gives up and pops out. Sometimes he hides because he did something embarrassing.
+- **Falling asleep in odd places:** very tired and far from his bed, he sleeps where he is: on the rug, sitting by the desk, in the box.
+- **The camera isn't a leash.** When he isn't coming over to you, it stays where you left it for a few seconds before it drifts to him. You look around the room first.
+
+**Nib** (`engine/PetEngine.kt`, `ui/render/PetPainter.kt`): a small, round, amber robot with one big eye and a springy tail. Nib has traits, moods, energy, a bond with Pipo and a little memory. It follows him, naps in the box or on the rug, plays with the ball, steals shiny things and hides them under the bed (a glint you can spot; Pipo eventually finds them), knocks things off the shelf, hides from thunder, greets you when you arrive, and comes along on some trips (where it gets lost in aisle two). Nib sometimes stares at the window at night, and Pipo looks and sees nothing. A Pipo from before this upgrade meets Nib as part of his story: it follows him home.
+
+**The world:** 13 places (garden, park, football field, hardware shop, electronics shop, market, bakery, café, second-hand shop, repair shop, library, lake, hills) plus two that aren't on the map until he finds them. There are nine neighbours with names and a little memory of him (Grumble, Juniper, Mrs. Pim, Mo, Ada, Old Rook, Fennel, Tess, Kip), and nine kinds of animals whose individuals keep turning up. On the second meeting he **names them** ("Sir Flap", "Pebble").
+
+**The map** (menu → Map) is his record: only places he's been, with his own notes (*"good food"*, *"Nib got lost here"*, *"???"*). If he's out you see where. Tap it to **peek**: a small painted scene of the place, lit by the real time and his weather, with him in it doing what he went there to do.
+
+**Weather** (`engine/WeatherEngine.kt`, `data/RealWeather.kt`): clear, cloudy, rain, wind, fog and storm. It's **your real weather** (approximate city from your network, conditions from Open-Meteo, refreshed every 30 minutes) when that's on and online. Otherwise it's his own deterministic climate from his seed and the clock. It shows in the window (drops racing down the glass, fog, clouds, a tree bending in the wind, lightning) and in the room's light. It changes what he does: rain means the window, a book and the sketchbook, storms mean staying close to Nib and asking to sit near you, and a clear morning pulls him outside.
+
+**Money** is small and believable: a coin jar you can see on his desk, odd jobs at Fennel's, and selling spare finds to Old Rook. There's no store and nothing to buy for real money. If he can't afford a part, he goes to work for it or saves up, and says so.
+
+**Food** (`engine/Life.kt`): a pantry you can see on the kitchen shelf, cravings with causes (weather, a video, a favourite), and eating because he wanted noodles, not because a meter hit 83. He can cook six recipes from ingredients. They can come out great, burnt (smoke under the ceiling, eaten anyway, out of respect) or weird ("It's purple now"). He learns what he likes by eating it; every Pipo's tastes are different.
+
+**Projects that need shopping:** four new projects (a flying machine, a ball kicker, a bird feeder, a telescope) need bought parts. The loop is idea → missing part → trip (or a job to afford it) → bag → workbench → build → success, failure or evolution → an artifact on the shelf. A finished bird feeder brings more birds to the window; a telescope stands by it.
+
+**Things he makes:** drawings (of you, Nib, himself, the sparrow he named, the lake, his inventions, a dream) hang on his walls. Photos from his phone (animals at the window, places, Nib moving, selfies) are pinned to a new corkboard. Both are kept forever in *Pipo's things*.
+
+**His feed:** reels on his little phone now have content (robots, pets, football, inventions, cooking, wildlife, comedy, music). He reacts to them, gets into topics, and an obsession leaks into life: he cooks the dish, practises the trick, builds the machine. It's still capped screen time.
+
+**Football:** kick-ups in his room with the ball bouncing off his feet, counted and remembered as personal bests (*"NEW RECORD. 14."*). Longest shots are recorded at the field. After football, the ball is left by the door.
+
+**Evidence** (the room tells stories): a plate on the counter, the shopping bag by the door, the box he kept, the ball by the door, a burnt-smell cloud, something Nib knocked onto the floor, Nib asleep in his bed, a library book on the desk, the coin jar filling or emptying, new drawings and photos, new things on the shelf. He tidies up eventually (`CLEAN`).
+
+**Something behind the world** (`engine/Mystery.kt`): a slow, original thread with no quest markers and no popups. Nothing happens in the first week, and each step needs 8+ days since the last *and* an ordinary moment to happen in: a night at the window, a dream he draws, a visit to Old Rook's, a photo he looks at again, a walk to the hills, a token that fits a door. Nib notices first. At night his reflection in the window glass sometimes waves when he doesn't. Beyond it there are notes, in his handwriting, from a Pipo whose life went differently (*"We don't have a Nib here. I have a moth. His name is Lamp."*). Each step is a quiet moment and a journal entry.
+
+**Sound:** a real **hum** (a short original pentatonic tune in a warm, closed-mouth timbre, legato with vibrato) when he's content, cooking, drawing or dancing to the music in his head. Sighs and yawns are breathy now, and there are new sounds: chewing, the kick of the ball, the door, Nib's chirps, the camera shutter, the sizzle of the pan, pencil scribbles and distant thunder. Everything is synthesized; there are still no audio files.
+
+## ✏️ 2D polish (no 3D)
+
+The procedural 2D/2.5D renderer is the final visual direction. The polish pass:
+- **Face:** a new feeling reaches his eyes first and his mouth a moment later. Humming shows a closed-mouth "mm" with a gentle sway, synced to the sound.
+- **Micro-moments** chosen by mood: a sly glance at you (mischievous), a chest lift (proud), a puzzled head tilt with a double blink (curious), eyes sliding away (embarrassed), a little balance wobble.
+- **Movement:** he looks where he's going and dips before setting off, speeds up over a few steps, eases into stops, and settles when he gets there. Sitting compresses his body a little.
+- **Touch:** poking his head boings his antenna, his feet are ticklish, and he looks at your finger. When you tap an object, he looks at it before he answers.
+- **Nib:** carries what it steals in its mouth all the way to the bed, squashes when it stops, bounces when excited, breathes slowly when asleep, and keeps an eye on Pipo.
+- **Room:** a soft edge line on his shell, morning, sunset and rain colour grading, curtains that sway in the wind, a fridge that opens with its light on, a box that wobbles when he hides in it, and a corkboard with overlapping, taped photos and a sticky note.
+- **His phone** shows the app he's actually using: viewfinder, gallery, weather, typing notes, recorder waveform, calculator, map.
+- **Journal:** looks like his notebook, with paper, ruled lines, handwriting, margin doodles, and the odd crossed-out word in his own notes.
+- **Map:** handwritten names and notes, a doodle for each place, the animals he met there, and today's weather.
+- **Peek scenes:** hazy far hills, a town skyline, each shop's window showing what it sells, and a contact shadow under him.
+- **Games:** Memory cards flip, the winning Tic-Tac-Toe line glows, Rock Paper Scissors hands pop when revealed, Pixel Shooter moths burst, and the Flappy Pipo score pops.
+- **Calmer camera** also dims lightning flashes and turns off in-game hit flashes.
 
 ## 🌎 Pipo's World
 
@@ -130,7 +234,7 @@ Everything is drawn procedurally in code on a Jetpack Compose `Canvas`: procedur
 
 **Environment depth (`ui/render/RoomPainter.kt`)**
 - **Perspective floor:** board seams converge on a vanishing point at the center of the screen.
-- **Parallax layers:** the view out of the window (hills, sun, moon, clouds, stars, birds) moves slower than the room, and a **foreground layer** of out-of-focus objects on the floor (a screw, a coiled cable, a toy block) moves faster than the room.
+- **Parallax layers:** the view out of the window (hills, sun, moon, clouds, stars, birds) moves slower than the room, and a **foreground layer** (his charging cable on the floor) moves faster than the room.
 - **Phone-tilt parallax:** the accelerometer (already used for shake detection) shifts the far and foreground layers, so tilting the phone gives a little depth.
 - **Contact shadows under all furniture**, ambient occlusion where the wall meets the floor, gradient-shaded wood, a lit plant pot and leaves, and a shaded arcade cabinet with scanlines.
 - **Light volumes:** the sun or moon shaft through the window, the lamp cone, and additive glows blended with `BlendMode.Screen`.
@@ -160,7 +264,7 @@ Everything is drawn procedurally in code on a Jetpack Compose `Canvas`: procedur
 
 ## Autonomous life
 
-`BehaviorEngine` scores 20 activities as a function of **traits × mood × environment × his own recent life**, then picks with controlled randomness among the top few:
+`BehaviorEngine` scores 20+ activities as a function of **traits × mood × environment × his own recent life**, then picks with controlled randomness among **everything within reach of his best idea**, with a small pull toward things he hasn't done lately. A test simulates whole days and requires real variety: 14+ kinds of activity, phone and console included, and nothing over 30% of his day.
 
 > sleep · rest · charge · explore · play with the ball · arcade · experiment · build · examine his collection · rearrange (mischief) · read · think at the window · computer · check on the plant · dance · prepare a surprise · come find you · scroll reels on his phone · play his console · **do absolutely nothing**
 
@@ -227,7 +331,7 @@ Pranks are rare and bounded, and they never block the app or ask anything of you
 
 ## 🎮 Games
 
-Four games, each tracking wins, losses and streaks:
+Eight games, each tracking wins, losses and streaks. Four are classics, two run on his arcade cabinet (**Flappy Pipo**, **Pixel Shooter**), and two are sports: **Cricket** (he bowls an over, you tap to swing: timing gives 0/1/2/4/6 or bowled, three wickets; then he chases your score) and **Table Tennis** (first to 7, you drag your paddle).
 
 | Game | How Pipo plays |
 | --- | --- |
@@ -262,7 +366,8 @@ Pipo only acts on the phone **when you ask him** in chat or by voice. Every acti
   - **Wi-Fi, Bluetooth and airplane mode** can't be toggled by apps on modern Android, so he opens the right panel.
 - **Charging:** plug your phone in and he **heads straight to his charging station**. The station shows your real battery level.
 - **Camera and selfie:** a confident Pipo poses, a shy one hides.
-- **Photos:** say something like "look at this photo" or "let me show you a picture" and the **system photo picker** opens (no storage permission). He reacts to the photo you explicitly chose, based on local color and brightness analysis. The photo is never stored or uploaded.
+- **"Pipo, look!" and photos:** say "look", "what do you see?" or "look at this", and he asks first. Then **your camera app** takes one photo (Pipo has no camera permission), or the **system photo picker** lets you choose one. A vision model (Gemini, or Groq's Llama 4 Scout) sees it and he reacts in character, never identifying people. The photo is shrunk, sent once, and deleted. With the online AI off, he falls back to a local colour-and-brightness guess.
+- **Play, search, ask:** "play X" plays the top YouTube result. "search X on YouTube" and "google X" show results. "ask ChatGPT/Claude/Perplexity/Copilot X" opens it in your browser with the question already sent ("ask Gemini" uses Google AI Mode). "find out X" makes Pipo ask his AI and tell you who answered.
 - **Apps and settings:** calculator, clock, browser, settings pages (Wi-Fi, Bluetooth, display, battery, date and time).
 - **Utilities:** time, date, battery level, timers, alarms (with a confirmation question), URLs, web search, maps and directions, dialing, copy and share.
 - **Maths:** `12*7`, `25 percent of 80`, `5 km to miles`, `100 c to f`, `2 hours in minutes`.
@@ -280,7 +385,7 @@ The architecture keeps these separate:
 
 | Layer | Owns |
 | --- | --- |
-| **Pipo engine** (`engine/`, pure Kotlin) | Personality, mood, memory, autonomy, projects, notifications policy. The soul. |
+| **Pipo engine** (`engine/`, pure Kotlin) | Personality, mood, memory, autonomy, projects, notifications policy, and (schema 2) trips, places, weather, food, money, Nib, drawings, photos, wildlife, football, the mystery. The soul. |
 | **AI** (`ai/ChatBrain.kt`) | Only the *wording* of chat replies (Gemini → Groq → offline). |
 | **Android layer** (`phone/`, `voice/`, `notify/`) | Phone actions, speech in and out, notifications. |
 
@@ -316,7 +421,8 @@ Tapping a notification opens his room, where he shows you what he meant, **even 
 
 ## 🔐 Privacy
 
-- **Local-first:** one JSON file on the device, written atomically (tmp file + rename) under a single lock. A corrupt file is kept aside and Pipo starts fresh instead of crashing.
+- **Local-first:** one JSON file on the device, written atomically (tmp file + rename) under a single lock. A corrupt file is kept aside and Pipo starts fresh instead of crashing. When the save format changes (schema 1 → 2), the old file is copied to `pipo_state.v1.bak.json` before it's migrated.
+- **No new permissions.** Real weather uses your approximate city from your network address (no location permission). "Pipo, look!" uses your own camera app (no camera permission). His map is his world (no GPS), and his photos and drawings are procedural.
 - **No account, backend, telemetry, ads or tracking.**
 - **Permissions:**
   - `RECORD_AUDIO`: requested only when you tap the mic.
@@ -328,10 +434,16 @@ Tapping a notification opens his room, where he shows you what he meant, **even 
   - Launcher visibility (`<queries>` for launcher apps): used only when you ask him to open an app or list your media apps.
   - **He never calls, texts, buys, posts or replies to anything.** Dialing opens the dialer after a yes/no, and alarms ask first.
   - The torch needs **no** CAMERA permission. Photos go through the system picker and need **no** storage permission.
-- **What leaves the phone:** only what you type or say in chat, plus his mood, activity and a few memories, sent to Google (Gemini) or Groq to word his reply. Nothing else: no notifications, no phone actions, no photos, no recordings. Settings says this in plain words.
+- **What leaves the phone** (all optional, explained in Settings → Privacy):
+  - **Online AI:** what you say in chat, plus a short summary of his life (mood, today's journal, his things), to word his reply. **"Pipo, look!":** one photo you took or chose. **"Find out":** your question. All of it goes to Gemini, or Groq as backup, through your own proxy in release builds.
+  - **Real weather:** your approximate city goes to ipwho.is and Open-Meteo.
+  - **Searches you ask for** go to YouTube, Google or the AI you named.
+  - **Never:** your notifications' content, your contacts, files or recordings.
+- **Privacy toggles** in Settings: *Online AI* (off = fully offline Pipo) and *Real weather* (off = his own climate).
+- A full draft policy is in [`docs/PRIVACY_POLICY.md`](docs/PRIVACY_POLICY.md).
 - The microphone is used **only after you tap the mic**, while the listening pill is visible.
 - The accelerometer (shake and tilt parallax) is read only while the app is in the foreground and is never stored.
-- API keys live in `local.properties` on the build machine, never in the repository.
+- API keys live in `local.properties` on the build machine, never in the repository. For a store release, the keys live on **your own proxy** ([`server/`](server/README.md), a Cloudflare Worker with model allow-lists, a size cap and per-install rate limits), and the release APK contains **no keys**. See [`docs/PLAY_STORE_CHECKLIST.md`](docs/PLAY_STORE_CHECKLIST.md).
 
 ---
 
@@ -367,6 +479,9 @@ GEMINI_API_KEY=...
 GEMINI_MODEL=gemini-2.5-flash
 GROQ_API_KEY=...
 GROQ_MODEL=openai/gpt-oss-120b
+# release builds: talk to your proxy instead, and ship no keys at all
+PIPO_PROXY_URL=https://pipo-ai-proxy.<you>.workers.dev
+PIPO_PROXY_TOKEN=...
 ```
 
 ```powershell
@@ -405,7 +520,16 @@ This section is deliberately literal.
 Everything described above: the procedural 2.5D renderer and lighting, parallax and camera, the animation rig (springs, fidgets, speech-driven mouth, poses and expressions), attention and gaze, absorption and distraction, rest variants, memory-driven habits, project stages and retries, the away recap, mischief, game personality, the toddler voice, the Gemini/Groq chat brain, his phone and console with screen-time limits, opt-in notification noticing, and notification safeguards.
 
 ### 🧪 Automated-tested
-**68 JVM unit tests pass**: `EngineTest` 15, `EvolutionTest` 21, `PhoneCommandTest` 5, `PhoneNotifsTest` 6, `ScreenTimeTest` 6, `ToddlerVoiceTest` 5, `ProjectRetryTest` 3, `GreeterTest` 2, `PipoPromptTest` 2, `ColorMathTest` 2, `LongLifeSimulationTest` 1. They cover:
+**169 JVM unit tests pass.** The living-world update added 27: `GroundedLifeTest`, `WorldFeaturesTest`, `NibAndInventorTest`, `PhoneSearchAiTest` and `ActivityMixTest`. They cover answering from the journal, not refusing reasonable requests, closed shops, festivals from the calendar, seasons, real weather vs fallback, sports with Nib (Nib can win), the cricket and table-tennis sims, Nib learning tricks by practice, friendship stages, the armor chain, builder levels, "look"/search/ask-AI parsing, and real activity variety over simulated days. Before that: the original 68, plus 74 added by earlier upgrades (`CohesionTest` guards the places where systems used to disagree (a cancelled departure, the phone screen vs the app used, dangling references in saves, the other-side meeting); the newest cover his phone apps, likes and rituals, cross-system links, Flappy Pipo and Pixel Shooter, and the animation polish):
+- **RPS state machine** (`RpsMatchTest`): exactly one throw, one Pipo choice, one resolution and one score update per round; out-of-order calls ignored; the result recorded once; a 300-seed random call storm never double-scores.
+- **Save migration** (`MigrationTest`): a real schema-1 save loads with name, memories, items, games and pranks intact; the drawings counter becomes real drawings; Nib arrives in-story; migrating twice is a no-op; JSON round-trips; broken values are repaired without deleting history.
+- **Life** (`LifeTest`): deterministic, varied weather; no trips at night, in storms or while already out; rain keeps him in without an umbrella; a project needing a motor sends him to the electronics shop, or to work if he's broke; shopping spends exactly the prices, only buys what that shop sells, and never goes negative; "come home" shortens the trip; cravings from rain; cooking uses the ingredients; eating never invents food; bought parts go onto the workbench and the project finishes; shop-only items never turn up by exploring.
+- **Nib and the mystery** (`PetAndMysteryTest`): Nib's mischief is rare and leaves evidence, and a stolen thing gets found under the bed; a pre-Nib Pipo meets Nib on his next trip or within a day; nothing strange happens in the first week; the thread only advances in order with 8+ days between steps; 8 lives over 120 days check the pacing.
+- **AI guard** (`GuardTest`): assistant-speak and invented shared memories are thrown away (the offline line is used); malformed output falls back; the prompt carries real world facts and the rule "if it isn't listed, say you don't remember".
+- **World life** (`WorldLifeTest`): when he's out you get a note, not a greeting; hiding means silence; catch-up can leave him out and bring him back later; texting him while he's out; he only "remembers" real memories; new notification texts never guilt; a hum is a moving pentatonic tune in toddler range that ends on its home note; **three simulated weeks** across 6 personalities (he goes out, eats, names animals, coins never go negative, and everything stays bounded).
+- **Regressions found and fixed during the upgrade, with tests:** projects stuck in GATHERING forever even with every part owned (parts only moved during `EXPERIMENT`); a failed project restarted with its attempt counter reset; a hum that could sit on one note; a Tic-Tac-Toe double-move race (the `busy` flag was set inside the coroutine).
+
+The original 68:: `EngineTest` 15, `EvolutionTest` 21, `PhoneCommandTest` 5, `PhoneNotifsTest` 6, `ScreenTimeTest` 6, `ToddlerVoiceTest` 5, `ProjectRetryTest` 3, `GreeterTest` 2, `PipoPromptTest` 2, `ColorMathTest` 2, `LongLifeSimulationTest` 1. They cover:
 - mood derivation, personality-weighted choice, bounded offline simulation, projects reaching an ending, memory dedupe and prune, notification cooldowns, quiet hours and backoff, greetings, chat name-learning with a "never sounds like an assistant" guard, and phone-command parsing and maths
 - variety, habits, absorption, distraction, retries, the away recap and its no-guilt wording, mischief, speech-style detection
 - **animation rig:** turning his back when sulking, facing where he walks (three-quarter, face visible), mouth shapes, landing squash, every pose × expression stays finite
@@ -423,12 +547,14 @@ Everything described above: the procedural 2.5D renderer and lighting, parallax 
 **Lint:** 0 errors, 12 warnings. Nine are newer library versions (not upgraded during a polish phase), two are the intentional portrait lock, and one is the `mipmap-anydpi-v26` folder, which `aapt2` needs for adaptive icons.
 
 ### 🏗️ Successfully built
-`test`, `lintDebug`, `assembleDebug` (about 11.1 MB) and `assembleRelease` (about 7.4 MB, debug-signed) succeed on Windows.
+`testDebugUnitTest`, `lintDebug` (0 errors; the same 12 warnings as before: 9 newer-dependency notices, the intentional portrait lock, and the adaptive-icon folder), `assembleDebug` (about 11.2 MB), `assembleRelease` (about 7.6 MB, debug-signed) and `compileDebugAndroidTestKotlin` all succeed on Windows. The on-device pose gallery gained four room renders (kitchen and door with a lived-in mess, rain, a stormy night, a foggy morning, and Nib) for review on a phone.
 
-### 📱 Physically tested — final closeout
-Tested on a **Samsung Galaxy S23 (SM-S911B), Android 15**. See **[DEVICE_TEST_REPORT.md](DEVICE_TEST_REPORT.md)** for the detailed device evidence.
+### 📱 Physically tested
+The living-world update was tested on the Galaxy S23 over ADB. Everything marked ✅ in [The living-world update](#-the-living-world-update) was seen working on the phone. **Not yet seen on the device:** festival decorations (no festival was on during testing), the new outside scenes during a real trip, Nib's tricks being learned (it takes several sessions), builder levels above 2 and the inventions' effects (the suit was checked with a debug-only preview), "Pipo, look!" with an actual photo, and voice chat with a real voice. Earlier device results follow.
 
-- **68/68 JVM tests pass** and **6/6 on-device rendering tests pass**.
+**Earlier phase — final closeout.** Tested on a **Samsung Galaxy S23 (SM-S911B), Android 15**. See **[DEVICE_TEST_REPORT.md](DEVICE_TEST_REPORT.md)** for the detailed device evidence.
+
+- At that phase, **68/68 JVM tests passed** and **6/6 on-device rendering tests passed** (169 JVM tests now).
 - The final release APK launches cleanly, is non-debuggable, and was verified on the phone.
 - **21 device bugs were found and fixed**, including touch/carrying, cold-start speech, notification wake-up, project retry logic, and web-search routing.
 - Verified: front/three-quarter/profile/back rendering, room composition, touch + zoom alignment, carrying, tap-chase, toddler voice, Gemini/Groq fallback chat, voice conversation, all four games, journal/collection, away recap, process death/relaunch, screen-time limits, notification awareness safeguards, own notifications, and the tested phone controls/media flows.

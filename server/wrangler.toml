@@ -1,0 +1,16 @@
+name = "pipo-ai-proxy"
+main = "worker.js"
+compatibility_date = "2025-09-01"
+
+# Optional hard rate limit (Cloudflare Rate Limiting binding). Uncomment to enable:
+# [[ratelimits]]
+# name = "RATE_LIMITER"
+# namespace_id = "1001"
+#   [ratelimits.simple]
+#   limit = 20
+#   period = 60
+
+# Secrets (never in this file): set them with
+#   npx wrangler secret put GEMINI_API_KEY
+#   npx wrangler secret put GROQ_API_KEY
+#   npx wrangler secret put APP_TOKEN

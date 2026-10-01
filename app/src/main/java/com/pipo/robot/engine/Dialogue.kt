@@ -182,7 +182,8 @@ object Dialogue {
     }
 
     fun gameName(id: String) = when (id) {
-        "rps" -> "rock paper scissors"; "memory" -> "memory"; "reaction" -> "reaction"; "tictactoe" -> "tic-tac-toe"; else -> "a game"
+        "rps" -> "rock paper scissors"; "memory" -> "memory"; "reaction" -> "reaction"; "tictactoe" -> "tic-tac-toe"
+        "flappy" -> "Flappy Pipo"; "shooter" -> "Pixel Shooter"; "cricket" -> "cricket"; "pingpong" -> "table tennis"; else -> "a game"
     }
 
     val gameStartConfident = listOf("Prepare to lose.", "I've never lost. Recently.", "This will be quick.")
@@ -216,22 +217,75 @@ object Dialogue {
     val insulted = listOf("Rude.", "Wow. Okay.", "I'm telling the plant.", "I'm going to pretend I didn't hear that.")
     val brainWeird = listOf("My brain is being weird.", "Hold on, my thoughts are loading.", "Something in my head went bzzt.")
 
-    /* ---------------- callbacks to memories ---------------- */
+    /* ---------------- callbacks to memories (only real ones: the memory is passed in) ---------------- */
     fun callback(m: PipoMemory, s: PipoState, rng: Random): String = when (m.type) {
         MemoryType.JOKE -> "Remember when I said \"${m.content.take(60)}\"? Still funny."
         MemoryType.GAME -> "I keep thinking about ${m.content}. I want a rematch."
         MemoryType.USER_FACT -> "You told me ${m.content}. I remembered."
         MemoryType.MOMENT -> "Remember when ${m.content.replaceFirst("I ", "I ")}? Good times."
+        MemoryType.PLACE -> "I keep thinking about when ${m.content}. I want to go back."
+        MemoryType.PET -> pick(listOf("Remember ${m.content.removePrefix("the ")}? Nib doesn't. Nib pretends.", "${m.content.replaceFirstChar { it.uppercase() }}. I think about that a lot."), rng)
+        MemoryType.FOOD -> "${m.content.replaceFirstChar { it.uppercase() }}. Just so you know."
+        MemoryType.STRANGE -> pick(listOf("...I still think about it. ${m.content.replaceFirstChar { it.uppercase() }}.", "Can I tell you something? ${m.content.replaceFirstChar { it.uppercase() }}. I'm not making it up."), rng)
         else -> pick(thoughts, rng)
     }
 
     fun activityAnswer(s: PipoState): String {
         val a = BehaviorEngine.describe(s.activity.type)
         val p = s.activeProject()
+        val need = Trips.materialsNeeded(s).firstOrNull()
         return when {
+            s.trip != null -> "I'm out! At ${com.pipo.robot.data.Places.byId(s.trip!!.placeId)?.let { Trips.placePhrase(it) } ?: "somewhere"}. Back soon."
             p != null && p.state == ProjectState.BUILDING -> "I'm building a ${p.title.lowercase()}. It's ${(p.progress * 100).toInt()}% done. Don't touch."
+            p != null && need != null && s.coins < Economy.priceOf(need) -> "I need ${article(Economy.nameOf(need))} ${Economy.nameOf(need)} for the ${p.title.lowercase()}. I'm saving up. I have ${s.coins} coins."
+            p != null && need != null -> "The ${p.title.lowercase()} needs ${article(Economy.nameOf(need))} ${Economy.nameOf(need)}. I'll have to go and buy one."
             p != null -> "I'm collecting parts for a ${p.title.lowercase()}. I need more stuff."
+            s.craving.isNotEmpty() -> "I'm $a. And thinking about ${Economy.nameOf(s.craving)}. Mostly the second one."
             else -> "I'm $a. Obviously."
         }
     }
+
+    /* ---------------- the world ---------------- */
+    fun weatherLine(w: WeatherNow, rng: Random): String = when (w.kind) {
+        Weather.RAIN -> pick(listOf("It's raining. I like watching the drops race.", "Rain. The window is crying. Happy crying.", "The drop on the left is winning."), rng)
+        Weather.STORM -> pick(listOf("That thunder was LOUD. I'm fine. I'm fine.", "The sky is angry. Not at us. I hope."), rng)
+        Weather.FOG -> pick(listOf("The whole world went away. Just us now.", "Fog. The hills are hiding."), rng)
+        Weather.WIND -> pick(listOf("The wind is pushing the trees around. Rude.", "Windy. My antenna can feel it from here."), rng)
+        Weather.CLOUDY -> pick(listOf("Cloudy. The sky is thinking.", "That cloud looks like a screw."), rng)
+        Weather.CLEAR -> pick(listOf("It's nice out.", "Look at that sky."), rng)
+    }
+
+    fun windowCreature(c: com.pipo.robot.data.Creature, photo: Boolean, rng: Random): String {
+        val who = WildlifeLife.label(c)
+        val base = when {
+            c.sightings == 1 -> "Look! ${c.look.replaceFirstChar { it.uppercase() }}."
+            c.sightings == 2 -> "It's ${c.look} again. I'm naming them ${c.name}."
+            else -> pick(listOf("$who is back!", "Hi, $who.", "$who came to visit. As usual."), rng)
+        }
+        return if (photo) "$base I took a picture." else base
+    }
+
+    fun photoMemory(p: com.pipo.robot.data.Photo, rng: Random): String =
+        pick(listOf("I'm looking at my photos. \"${p.caption}\" Good one.", "This one: \"${p.caption}\" I remember that.", "Photo album time. ${p.caption}"), rng)
+
+    fun bookLine(topic: String, rng: Random): String = when (topic) {
+        "stars" -> pick(listOf("Did you know some stars are already gone? The light's just late.", "Stars are far. Really far. Farther than the market."), rng)
+        "bridges" -> pick(listOf("Bridges are just roads that got brave.", "This bridge book has a chapter called Wobbling. I'm scared."), rng)
+        "birds" -> pick(listOf("Sparrows can see colors we can't. Show-offs.", "I'm learning bird. It's all tweets."), rng)
+        "cooking" -> pick(listOf("This book says eggs are 'easy'. Lies.", "Chapter three: pancakes. I'm holding my breath."), rng)
+        "machines" -> pick(listOf("This machine has 400 parts. I have 12.", "Gears are just circles with teeth. Terrifying."), rng)
+        else -> pick(listOf("The sea is mostly water. Big twist.", "There are fish that glow. Like me, but wet."), rng)
+    }
+
+    val hideNotFound = listOf("You didn't find me. I win. Hide and seek champion.", "Did you even look? I was RIGHT there.", "I've been hiding for ages. I got bored. Still counts.")
+    val hideFound = listOf("NO. How did you find me?", "Okay. Okay. You found me. Good eyes.", "BOO! ...you already saw me. Never mind.")
+    val hideEmbarrassed = listOf("I'm not hiding. I'm... resting behind here.", "Don't look at me. Something happened. It's fine.")
+    val petPlay = listOf("Nib and I played tag. Nib cheats.", "Nib wins again. Nib always wins.", "I threw the ball. Nib brought back a sock. Where did Nib get a sock?", "Nib is so fast. I'm so tired.")
+    val petStare = listOf("What is it, Nib? ...there's nothing there.", "Nib? What are you looking at? ...Nib?", "There's nothing out there. Right?")
+    val backHome = listOf("I'm back!", "Home!", "I'm hoooome.", "Back! Did you miss me? Don't answer.")
+    val texting = listOf("I'm busy being outside.", "Can't talk. Very important errand.", "Hi from outside!", "I'm on my way. Slowly.")
+    val comingHome = listOf("Okay okay. Coming home. Running.", "On my way! My legs are small, give me a minute.", "Coming! Don't start anything without me.")
+    val kickups = listOf("{k} kick-ups! Count them. I did.", "{k}. My feet are tired. My feet are proud.", "{k} kick-ups. The ball and I are a team.")
+    val kickupsRecord = listOf("{k}! That's my best EVER. Did you see? DID YOU SEE?", "NEW RECORD. {k}. I'm writing it down. In pen.")
+    val kickupsBad = listOf("One. ...it counts.", "Zero. The ball has left me.", "Two. I'm warming up.")
 }

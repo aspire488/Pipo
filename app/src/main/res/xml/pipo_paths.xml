@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only the one snapshot you show Pipo, in the app's private cache. Deleted right after he looks. -->
+<paths>
+    <cache-path name="look" path="look/" />
+</paths>

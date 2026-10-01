@@ -35,15 +35,16 @@ fun article(word: String) = if (word.first().lowercaseChar() in "aeiou") "an" el
 object Discovery {
     fun ownedDefs(s: PipoState): List<ItemDef> = s.world.items.mapNotNull { Catalog.item(it.catalogId) }
 
-    /** Rolls for a discovery. Prefers things the active project needs. */
-    fun roll(s: PipoState, rng: Random, now: Long): OwnedItem? {
+    /** Rolls for a discovery. Prefers things the active project needs, and things that belong where he is. */
+    fun roll(s: PipoState, rng: Random, now: Long, placeTags: Set<String> = emptySet()): OwnedItem? {
         val ownedIds = s.world.items.map { it.catalogId }.toSet()
         val needed = neededTags(s)
-        val pool = Catalog.items.filter { !(it.unique && it.id in ownedIds) }
+        val pool = Catalog.items.filter { !it.shopOnly && !(it.unique && it.id in ownedIds) }
         if (pool.isEmpty()) return null
         val weights = pool.map { d ->
             var w = d.weight
             if (d.tags.any { it in needed }) w *= 3.5f
+            if (d.tags.any { it in placeTags }) w *= 2f
             if (d.id in ownedIds) w *= 0.45f // prefer new things
             w
         }
@@ -54,6 +55,7 @@ object Discovery {
         }
         val item = OwnedItem(s.nextId(), chosen.id, now)
         s.world.items.add(item)
+        s.activeProject()?.let { Projects.gather(s, it) } // if the project needed it, it goes straight on the bench
         Chronicle.journal(s, "Pipo found ${article(chosen.name)} ${chosen.name.lowercase()}", chosen.foundLine, JournalCategory.DISCOVERY, now)
         Chronicle.remember(s, MemoryType.DISCOVERY, "I found ${article(chosen.name)} ${chosen.name.lowercase()}", 0.5f, now, "found:${chosen.id}")
         Chronicle.event(s, EventType.DISCOVERY, 0.5f + (1f - chosen.weight.coerceAtMost(1.2f) / 1.2f) * 0.35f, now, item.id.toString())
@@ -89,14 +91,26 @@ object Discovery {
 }
 
 object Projects {
-    fun maybeStart(s: PipoState, rng: Random, now: Long, chance: Float): PipoProject? {
+    /** A tag you can buy somewhere (so a project needing it isn't hopeless). */
+    fun purchasable(tag: String) = Catalog.items.any { it.shopOnly && tag in it.tags && com.pipo.robot.data.Places.sellersOf(it.id).isNotEmpty() }
+
+    /**
+     * [prefer] = an idea that came from somewhere specific (a video, a library book). It still has
+     * to be buildable and not already finished.
+     */
+    fun maybeStart(s: PipoState, rng: Random, now: Long, chance: Float, prefer: String? = null): PipoProject? {
         if (s.activeProject() != null) return null
-        if (s.world.items.size < 2) return null
+        if (prefer == null && s.world.items.size < 2) return null
         val t = s.profile.traits
         if (rng.nextFloat() > chance * (0.5f + t.curiosity * 0.5f + t.confidence * 0.3f)) return null
         val tagsOwned = s.world.items.filter { it.usedInProjectId == 0L }
             .flatMap { Catalog.item(it.catalogId)?.tags ?: emptySet() }.toSet()
-        val doneIds = s.projects.filter { it.state == ProjectState.DONE }.map { it.templateId }.toSet()
+        // settled = worked, or turned into something else: he's done with that one (unless he's done with everything)
+        val settledIds = s.projects.filter { it.state == ProjectState.DONE || it.state == ProjectState.EVOLVED }.map { it.templateId }.toSet()
+        prefer?.let { Catalog.project(it) }?.takeIf { it.id !in settledIds && it.needs.all { n -> n in tagsOwned || purchasable(n) } }?.let { def ->
+            return begin(s, def, now, "${def.title}. \"${def.idea}\"")
+        }
+        if (s.world.items.size < 2) return null
         // Unfinished business: a recent failure he hasn't let go of.
         retryCandidate(s, now)?.let { failed ->
             if (rng.nextFloat() < 0.35f + t.stubbornness * 0.4f + t.patience * 0.2f) {
@@ -111,15 +125,30 @@ object Projects {
                 return p
             }
         }
-        val options = Catalog.projects.filter { it.id !in doneIds && it.needs.any { n -> n in tagsOwned } }
+        // Something he has parts for, or something he could buy the parts for (with a bit of saving).
+        fun feasible(d: com.pipo.robot.data.ProjectDef) = d.needs.all { n -> n in tagsOwned || purchasable(n) || Catalog.items.any { !it.shopOnly && n in it.tags } }
+        // as he levels up, the harder blueprints are what he dreams about
+        val unlocked = Inventor.blueprintsFor(s).filter { it.id !in settledIds && feasible(it) }
+        if (unlocked.isNotEmpty() && rng.nextFloat() < 0.55f) unlocked[rng.nextInt(unlocked.size)].let { return begin(s, it, now, "${it.title}. \"${it.idea}\"") }
+        val options = Catalog.projects.filter { it.id !in settledIds && feasible(it) && (it.needs.any { n -> n in tagsOwned } || it.needs.all { n -> purchasable(n) }) }
             .ifEmpty { Catalog.projects.filter { it.needs.any { n -> n in tagsOwned } } }
         if (options.isEmpty()) return null
         val def = options[rng.nextInt(options.size)]
-        val p = PipoProject(s.nextId(), def.id, def.title, components = def.needs.toMutableList(), startedAt = now)
+        return begin(s, def, now, "${def.title}. \"${def.idea}\"")
+    }
+
+    private fun begin(s: PipoState, def: com.pipo.robot.data.ProjectDef, now: Long, journal: String): PipoProject {
+        // Something he's tried before carries its history: attempt numbers never go backwards.
+        val before = s.projects.filter { it.templateId == def.id }
+        val prior = before.maxOfOrNull { it.attempts } ?: 0
+        val settled = before.any { it.state == ProjectState.DONE || it.state == ProjectState.EVOLVED }
+        val p = PipoProject(s.nextId(), def.id, def.title, components = def.needs.toMutableList(), startedAt = now, attempts = prior)
+        if (settled) p.log.add("Version ${before.size + 1}. Improvements. Allegedly.")
+        else if (prior > 0) p.log.add("Attempt ${prior + 1}. Different idea this time.")
         s.projects.add(p)
         if (s.projects.size > 40) s.projects.removeAt(0)
         gather(s, p)
-        Chronicle.journal(s, "Pipo started a project", "${def.title}. \"${def.idea}\"", JournalCategory.PROJECT, now)
+        Chronicle.journal(s, when { settled -> "Pipo is building another one"; prior > 0 -> "Pipo is trying again"; else -> "Pipo started a project" }, journal, JournalCategory.PROJECT, now)
         Chronicle.remember(s, MemoryType.PROJECT, "I started building a ${def.title.lowercase()}", 0.5f, now, "project:${p.id}")
         return p
     }
@@ -136,12 +165,18 @@ object Projects {
             .filter { it.state == ProjectState.FAILED && now - it.finishedAt < 3 * DAY && Catalog.project(it.templateId) != null }
             .maxByOrNull { it.finishedAt }
 
-    /** Uses owned, unused items that match missing component tags. */
+    /** Everything the project needs is either on the bench or in his room: time to assemble. */
+    fun readyToAssemble(s: PipoState, p: PipoProject): Boolean {
+        val free = Inventory.freeTags(s)
+        return p.components.all { it in p.collected || it in free }
+    }
+
+    /** Uses owned, unused items that match missing component tags (never the one Nib ran off with). */
     fun gather(s: PipoState, p: PipoProject) {
         for (tag in p.components) {
             if (tag in p.collected) continue
             val item = s.world.items.firstOrNull {
-                it.usedInProjectId == 0L && (Catalog.item(it.catalogId)?.tags?.contains(tag) == true)
+                it.usedInProjectId == 0L && it.id != s.pet.stolenItemId && (Catalog.item(it.catalogId)?.tags?.contains(tag) == true)
             } ?: continue
             item.usedInProjectId = p.id
             p.collected.add(tag)
@@ -156,6 +191,7 @@ object Projects {
         if (p.state != ProjectState.BUILDING) return null
         val t = s.profile.traits
         val before = p.progress
+        Inventor.gain(s, 2, now)
         p.progress += (0.16f + rng.nextFloat() * 0.14f) * (0.6f + t.confidence * 0.5f + t.patience * 0.3f) * effort
         // Projects don't go in a straight line.
         val r = rng.nextFloat()
@@ -172,7 +208,7 @@ object Projects {
         if (p.progress < 1f) return null
         p.progress = 1f
         val def = Catalog.project(p.templateId)!!
-        val successChance = (0.62f + t.confidence * 0.2f + t.patience * 0.1f - def.difficulty * 0.5f + p.attempts * 0.15f).coerceIn(0.15f, 0.92f)
+        val successChance = (0.62f + t.confidence * 0.2f + t.patience * 0.1f - def.difficulty * 0.5f + p.attempts * 0.15f + Inventor.successBonus(s)).coerceIn(0.15f, 0.92f)
         val roll = rng.nextFloat()
         p.finishedAt = now
         p.attempts += 1
@@ -199,6 +235,7 @@ object Projects {
             else -> {
                 p.state = ProjectState.FAILED
                 p.result = def.failure
+                s.world.objectStates["scraps"] = def.id // bits of it on the floor by the workbench, until he tidies
                 // Parts come back. Nothing is lost forever.
                 s.world.items.filter { it.usedInProjectId == p.id }.forEach { it.usedInProjectId = 0L }
                 Chronicle.journal(s, "Pipo's ${def.title.lowercase()} didn't work", def.failure, JournalCategory.PROJECT, now)
@@ -210,6 +247,7 @@ object Projects {
             }
         }
         s.count("projects_finished")
+        Inventor.gain(s, Inventor.xpFor(p.state, def.difficulty), now)
         return p
     }
 

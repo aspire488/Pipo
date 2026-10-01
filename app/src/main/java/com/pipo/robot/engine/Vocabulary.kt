@@ -11,7 +11,9 @@ enum class AnimState {
     // verbs
     HOP, STRETCH, SPIN, SHAKE, LOOK_AROUND, PEEK, FALLEN, WAVE, HELD, READING, CHARGING, PRESENTING, PHONE, GAMING,
     // evolution pass: fuller body language
-    CHEERFUL, YAWN, SNEAK, ARMS_CROSSED, TURN_AWAY, LIE_DOWN, GET_UP, DIZZY, LAUGH, SIGH, CELEBRATE, SULK, FINGER_UP
+    CHEERFUL, YAWN, SNEAK, ARMS_CROSSED, TURN_AWAY, LIE_DOWN, GET_UP, DIZZY, LAUGH, SIGH, CELEBRATE, SULK, FINGER_UP,
+    // a life beyond the room
+    EATING, COOKING, DRAWING, KICKUPS, PETTING, CARRYING, PHOTO
 }
 
 /** Face expressions. */
@@ -24,7 +26,13 @@ enum class Expr {
 enum class EmoteKind { ZZZ, QUESTION, EXCLAIM, NOTES, HEART, SPARKLE, SWEAT, ANGER, DOTS, IDEA }
 
 /** Nonverbal sounds. */
-enum class Sfx { BEEP, LAUGH, SIGH, SURPRISED, SLEEPY, HAPPY, GRUMBLE, BOOP, WIN, LOSE, YAWN, SERVO, GIGGLE, HMM }
+enum class Sfx { BEEP, LAUGH, SIGH, SURPRISED, SLEEPY, HAPPY, GRUMBLE, BOOP, WIN, LOSE, YAWN, SERVO, GIGGLE, HMM,
+    /** A real closed-mouth hum: a little original tune, legato, with vibrato. Not the letters "hmm". */
+    HUM,
+    CHEW, KICK, DOOR, PET_CHIRP,
+    /** Nib's feelings, in Nib: a happy trill, a grumpy buzz, a curious rising boop, a sad slide, a smug double-chirp. */
+    PET_HAPPY, PET_GRUMP, PET_CURIOUS, PET_SAD, PET_SMUG,
+    SHUTTER, SIZZLE, EFFORT, THUNDER, SCRIBBLE }
 
 object Vocab {
     fun moodExpr(m: Mood): Expr = when (m) {
@@ -40,6 +48,9 @@ object Vocab {
         Mood.EMBARRASSED -> Expr.EMBARRASSED
         Mood.MISCHIEVOUS -> Expr.MISCHIEF
         Mood.RELAXED -> Expr.CONTENT
+        Mood.WORRIED -> Expr.WORRIED
+        Mood.THOUGHTFUL -> Expr.FOCUSED
+        Mood.PLAYFUL -> Expr.HAPPY
     }
 
     /** Idle body language for a mood (used when Pipo is not doing a specific action). */
@@ -56,6 +67,9 @@ object Vocab {
         Mood.EMBARRASSED -> AnimState.EMBARRASSED
         Mood.MISCHIEVOUS -> AnimState.MISCHIEVOUS
         Mood.RELAXED -> AnimState.IDLE
+        Mood.WORRIED -> AnimState.NERVOUS
+        Mood.THOUGHTFUL -> AnimState.THINKING
+        Mood.PLAYFUL -> AnimState.CHEERFUL
     }
 
     fun activityAnim(a: ActivityType): AnimState = when (a) {
@@ -79,6 +93,13 @@ object Vocab {
         ActivityType.SCROLL_PHONE -> AnimState.PHONE
         ActivityType.PLAY_CONSOLE -> AnimState.GAMING
         ActivityType.NOTHING -> AnimState.IDLE
+        ActivityType.GO_OUT -> AnimState.WALKING
+        ActivityType.EAT -> AnimState.EATING
+        ActivityType.COOK -> AnimState.COOKING
+        ActivityType.DRAW -> AnimState.DRAWING
+        ActivityType.CLEAN -> AnimState.BUILDING
+        ActivityType.HIDE -> AnimState.HIDING
+        ActivityType.PLAY_PET -> AnimState.PETTING
     }
 
     fun activityExpr(a: ActivityType, mood: Mood): Expr = when (a) {
@@ -86,9 +107,10 @@ object Vocab {
         ActivityType.BUILD, ActivityType.EXPERIMENT, ActivityType.WORK_COMPUTER -> Expr.FOCUSED
         ActivityType.READ -> Expr.FOCUSED
         ActivityType.EXPLORE, ActivityType.EXAMINE, ActivityType.INSPECT_PLANT, ActivityType.THINK -> Expr.CURIOUS
-        ActivityType.PLAY_ARCADE, ActivityType.PLAY_TOY, ActivityType.DANCE, ActivityType.SCROLL_PHONE, ActivityType.PLAY_CONSOLE -> Expr.HAPPY
-        ActivityType.PREPARE_SURPRISE, ActivityType.REARRANGE -> Expr.MISCHIEF
-        ActivityType.CHARGE -> Expr.CONTENT
+        ActivityType.PLAY_ARCADE, ActivityType.PLAY_TOY, ActivityType.DANCE, ActivityType.SCROLL_PHONE, ActivityType.PLAY_CONSOLE, ActivityType.PLAY_PET -> Expr.HAPPY
+        ActivityType.PREPARE_SURPRISE, ActivityType.REARRANGE, ActivityType.HIDE -> Expr.MISCHIEF
+        ActivityType.CHARGE, ActivityType.EAT -> Expr.CONTENT
+        ActivityType.COOK, ActivityType.DRAW, ActivityType.CLEAN -> Expr.FOCUSED
         else -> moodExpr(mood)
     }
 
@@ -99,6 +121,8 @@ object Vocab {
         Mood.EXCITED, Mood.HAPPY, Mood.PROUD -> Sfx.HAPPY
         Mood.MISCHIEVOUS -> Sfx.LAUGH
         Mood.NERVOUS, Mood.EMBARRASSED -> Sfx.SURPRISED
+        Mood.WORRIED, Mood.THOUGHTFUL -> Sfx.HMM
+        Mood.PLAYFUL -> Sfx.GIGGLE
         else -> Sfx.BEEP
     }
 }

@@ -29,10 +29,19 @@ android {
         buildConfigField("String", "GEMINI_MODEL", "\"${prop("GEMINI_MODEL", "gemini-2.5-flash")}\"")
         buildConfigField("String", "GROQ_API_KEY", "\"${prop("GROQ_API_KEY")}\"")
         buildConfigField("String", "GROQ_MODEL", "\"${prop("GROQ_MODEL", "llama-3.3-70b-versatile")}\"")
+        // Store builds: the app talks to your own proxy (server/), which holds the real keys.
+        buildConfigField("String", "PIPO_PROXY_URL", "\"${prop("PIPO_PROXY_URL")}\"")
+        buildConfigField("String", "PIPO_PROXY_TOKEN", "\"${prop("PIPO_PROXY_TOKEN")}\"")
     }
 
     buildTypes {
         release {
+            // With a proxy configured, the provider keys are NOT compiled into the release APK at all.
+            val local = Properties().apply { rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) } }
+            if (!(local.getProperty("PIPO_PROXY_URL") ?: System.getenv("PIPO_PROXY_URL")).isNullOrBlank()) {
+                buildConfigField("String", "GEMINI_API_KEY", "\"\"")
+                buildConfigField("String", "GROQ_API_KEY", "\"\"")
+            }
             isMinifyEnabled = false
             // Debug signing so `assembleRelease` produces an installable APK out of the box.
             signingConfig = signingConfigs.getByName("debug")

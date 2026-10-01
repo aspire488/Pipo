@@ -140,12 +140,20 @@ class PoseGalleryTest {
     }
 
     /** Whole room at a given hour, camera at [camU], Pipo standing at [pipoX]. */
-    private fun room(name: String, hour: Float, camU: Float, pipoX: Float, anim: AnimState = AnimState.IDLE, console: Boolean = false) {
+    private fun room(name: String, hour: Float, camU: Float, pipoX: Float, anim: AnimState = AnimState.IDLE, console: Boolean = false,
+                     weather: com.pipo.robot.engine.Weather = com.pipo.robot.engine.Weather.CLEAR, lived: Boolean = false, pet: Float? = null) {
         val w = 1080; val h = 2400
         val img = ImageBitmap(w, h)
         val g = SceneGeo(w.toFloat(), h.toFloat())
-        val st = RoomState(hour = hour, drawings = 2, charging = true, battery = 64, computerActive = true, benchActive = true, plantRustle = 0.6f,
-            pranks = setOf("plant_hat", "clock_sideways"), consoleActive = console)
+        val drawings = listOf(com.pipo.robot.data.DrawSubject.USER, com.pipo.robot.data.DrawSubject.PET, com.pipo.robot.data.DrawSubject.BUILDING,
+            com.pipo.robot.data.DrawSubject.CREATURE, com.pipo.robot.data.DrawSubject.PLACE).mapIndexed { i, d -> WallDrawing(d, i * 97 + 3) }
+        val photos = listOf(com.pipo.robot.data.PhotoSubject.CREATURE, com.pipo.robot.data.PhotoSubject.PET, com.pipo.robot.data.PhotoSubject.SELFIE, com.pipo.robot.data.PhotoSubject.PLACE)
+            .mapIndexed { i, sub -> PinnedPhoto(sub, i * 31, 0xFF7FB77E, i == 3, com.pipo.robot.engine.Weather.CLEAR, i == 3, "sparrow:0") }
+        val st = RoomState(hour = hour, drawings = drawings, charging = true, battery = 64, computerActive = true, benchActive = true, plantRustle = 0.6f,
+            pranks = setOf("plant_hat", "clock_sideways"), consoleActive = console, weather = weather, weatherAmt = 0.8f, photos = photos,
+            box = lived, bag = lived, plate = lived, cooking = lived, doorNote = lived, umbrella = lived, coins = 14,
+            pantry = if (lived) listOf(com.pipo.robot.data.ItemShape.NOODLES, com.pipo.robot.data.ItemShape.BREAD, com.pipo.robot.data.ItemShape.APPLE) else emptyList(),
+            flash = if (weather == com.pipo.robot.engine.Weather.STORM) 1f else 0f)
         val rig = PipoRig(9)
         settle(rig, anim, Expr.CONTENT)
         CanvasDrawScope().draw(Density(2.625f), LayoutDirection.Ltr, Canvas(img), Size(w.toFloat(), h.toFloat())) {
@@ -153,6 +161,7 @@ class PoseGalleryTest {
             drawRoom(g, camU, st, t, pipoInBed = false)
             val fx = g.sx(pipoX, camU)
             drawPipo(rig, fx, g.pipoFootY, g.pipoH, light = pipoLight(st, pipoX, Color(rig.glow), false))
+            if (pet != null) drawPet(PetRig(3).apply { this.anim = PetAnim.WAG; update(0.3f) }, g.sx(pet, camU), g.pipoFootY + 2.5f * g.u, 12f * g.u)
             drawLighting(g, camU, st, androidx.compose.ui.geometry.Offset(fx, g.pipoFootY - g.pipoH), Color(rig.glow), t)
             drawForeground(g, camU, st)
         }
@@ -168,5 +177,10 @@ class PoseGalleryTest {
         room("06_room_day_bed", 9f, 0f, 70f, AnimState.CHEERFUL)
         room("07_room_night_console", 21.5f, 55f, 92f, AnimState.GAMING, console = true)
         room("07_room_day_phone", 15f, 40f, 80f, AnimState.PHONE)
+        // schema 2: the kitchen and the door, with a lived-in mess; weather; Nib
+        room("08_room_day_kitchen_door", 12f, 200f, 258f, AnimState.COOKING, lived = true, pet = 240f)
+        room("08_room_rain_window", 16f, 60f, 104f, AnimState.THINKING, weather = com.pipo.robot.engine.Weather.RAIN, pet = 112f)
+        room("08_room_storm_night", 22f, 60f, 104f, AnimState.NERVOUS, weather = com.pipo.robot.engine.Weather.STORM)
+        room("08_room_fog_morning", 7f, 100f, 138f, AnimState.DRAWING, weather = com.pipo.robot.engine.Weather.FOG)
     }
 }

@@ -1,5 +1,9 @@
 package com.pipo.robot.ui.common
 
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -89,8 +93,10 @@ fun DrawScope.drawGlyph(g: Glyph, c: Color) {
 }
 
 @Composable
-fun RoundButton(g: Glyph, onClick: () -> Unit, modifier: Modifier = Modifier, bg: Color = PipoPalette.card.copy(alpha = 0.85f), tint: Color = PipoPalette.text, size: Dp = 48.dp) {
-    Box(modifier.size(size).clip(CircleShape).background(bg).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
+fun RoundButton(g: Glyph, onClick: () -> Unit, modifier: Modifier = Modifier, bg: Color = PipoPalette.card.copy(alpha = 0.85f), tint: Color = PipoPalette.text, size: Dp = 48.dp, description: String? = null) {
+    // Screen readers get a real label; every round button is at least a 48dp target.
+    val label = description ?: when (g) { Glyph.BACK -> "Back"; Glyph.CHAT -> "Chat"; Glyph.MIC -> "Microphone"; Glyph.GAMES -> "Games"; Glyph.MENU -> "Menu"; Glyph.SEND -> "Send"; Glyph.CLOSE -> "Close"; Glyph.STOP -> "Stop"; Glyph.PHOTO -> "Photo" }
+    Box(modifier.size(size.coerceAtLeast(48.dp)).clip(CircleShape).background(bg).clickable(onClickLabel = label, role = Role.Button, onClick = onClick).semantics { contentDescription = label }, contentAlignment = Alignment.Center) {
         GlyphIcon(g, color = tint, size = size * 0.5f)
     }
 }
