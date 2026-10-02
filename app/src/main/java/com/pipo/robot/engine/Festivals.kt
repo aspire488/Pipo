@@ -119,7 +119,7 @@ object Seasons {
         val m = Calendar.getInstance().apply { timeInMillis = now }.get(Calendar.MONTH) + 1
         val la = lat ?: if (java.util.TimeZone.getDefault().id.startsWith("Asia/Kolkata") || java.util.TimeZone.getDefault().id.startsWith("Asia/Calcutta")) 15.0 else 45.0
         return when {
-            la in -23.5..23.5 && la >= 5.0 -> when (m) { in 3..5 -> Season.SUMMER; in 6..9 -> Season.MONSOON; 10, 11 -> Season.AUTUMN; else -> Season.WINTER } // the subcontinent's year
+            la in -23.5..23.5 && la >= 5.0 -> when (m) { in 3..5 -> Season.SUMMER; in 6..9 -> Season.MONSOON; 10, 11 -> if (la < 15.0) Season.MONSOON else Season.AUTUMN; else -> Season.WINTER } // the subcontinent's year
             la in -23.5..23.5 -> if (m in 5..10) Season.MONSOON else Season.SUMMER
             la > 0 -> when (m) { in 3..5 -> Season.SPRING; in 6..8 -> Season.SUMMER; in 9..11 -> Season.AUTUMN; else -> Season.WINTER }
             else -> when (m) { in 3..5 -> Season.AUTUMN; in 6..8 -> Season.WINTER; in 9..11 -> Season.SPRING; else -> Season.SUMMER }

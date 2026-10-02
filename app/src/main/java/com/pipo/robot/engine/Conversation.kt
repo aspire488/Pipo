@@ -18,6 +18,14 @@ enum class ChatAction { NONE, DANCE, SLEEP, WAKE, PLAY, SPIN, HIDE, EMBARRASSED,
     DRAW, GO_OUT, COOK, EAT, KICK, PLAY_PET,
     /** Put on the armor (payload "fly" = and take off). */
     SUIT_UP,
+    /** Start building something (payload = blueprint id). */
+    BUILD_THIS,
+    /** Bolt answers (payload = what was asked). */
+    BOLT,
+    /** A message to Nib (payload = what you said). */
+    NIB_TEXT,
+    /** Movie night (payload = optional genre). */
+    MOVIE,
     /** A text from his phone while he's out (no body in the room to animate). */
     TEXT }
 
@@ -77,7 +85,7 @@ object LocalBrain {
             val place = com.pipo.robot.data.Places.byId(trip.placeId)
             val where = place?.let { Trips.placePhrase(it) } ?: "outside"
             return when {
-                has(s, "come home", "come back", "where are you", "come here", "get back") && has(s, "come home", "come back", "come here", "get back") ->
+                has(s, "come home", "come back", "comeback", "come here", "get back", "return", "home now", "back home") ->
                     ChatResult(Dialogue.pick(Dialogue.comingHome, rng), ChatAction.COME_HOME, sfx = Sfx.BEEP, locked = true)
                 has(s, "where are you", "where r u", "wya", "what are you doing", "wyd") ->
                     ChatResult("I'm at $where. ${trip.reason}".trim(), ChatAction.TEXT, sfx = Sfx.BEEP)
@@ -137,6 +145,26 @@ object LocalBrain {
             val inv = Grounding.possessions(st)
             return ChatResult(if (inv.isEmpty()) "Not much yet. A shelf full of potential." else "I've got ${inv.take(5).joinToString(", ")}" + (if (inv.size > 5) ", and more. It's a collection." else ". All very important."), ChatAction.HAPPY)
         }
+        // talking TO Bolt (his desk helper) or Nib directly
+        if (Regex("^(?:hey |ok |okay )?(bolt|b\\.o\\.l\\.t\\.?|jarvis)\\b").containsMatchIn(s)) return ChatResult("", ChatAction.BOLT, payload = s, locked = true)
+        if (Regex("^(?:hey |hi |hello |@)?nib\\b[,!:]?").containsMatchIn(s) && NibLife.Trick.entries.none { has(s, it.title) } && !has(s, "trick", "tricks")) return ChatResult("", ChatAction.NIB_TEXT, payload = s, locked = true)
+        // movie night
+        if (has(s, "movie", "movies", "film", "watch tv", "watch a show", "cartoon", "movie night")) {
+            return ChatResult(pick(rng, "MOVIE NIGHT! Nib, get the popcorn. Nib can't carry popcorn. I'll get the popcorn.", "Yes! I'll make popcorn. Nib, saves us the good spot."), ChatAction.MOVIE, payload = s, sfx = Sfx.HAPPY)
+        }
+        // "build me a suit / Bolt / a drone"
+        if (has(s, "build", "make", "invent", "craft") && Inventor.blueprintFor(s) != null) {
+            var id = Inventor.blueprintFor(s)!!
+            if (id == "armor") id = Inventor.nextArmor(st) ?: return ChatResult("I've built every armor there is. Mark Three is the best one. For now.", ChatAction.HAPPY)
+            if (Inventor.has(st, id)) return ChatResult("I already built that! It's right here. Look.", ChatAction.HAPPY)
+            val need = Inventor.levelFor(id)
+            if (Inventor.level(st) < need) {
+                val r = Inventor.ranks.first { it.level == need }
+                return ChatResult("That's a level $need thing. I'm a level ${Inventor.level(st)}. I need ${r.xp - Inventor.xp(st)} more practice. " +
+                    (if (id.startsWith("armor")) "But I could make a cardboard one right now!" else "Every build counts. Even the explodey ones."), if (id.startsWith("armor")) ChatAction.SUIT_UP else ChatAction.THINK)
+            }
+            return ChatResult(pick(rng, "Ooh. Yes. Blueprints! Clear the workbench.", "On it. Let me check what parts I have. Nib, not THAT screwdriver."), ChatAction.BUILD_THIS, payload = id, sfx = Sfx.HAPPY)
+        }
         if (has(s, "suit up", "armor", "armour", "iron man", "ironman", "suit on") || (has(s, "fly") && Inventor.armorMark(st) >= 2)) {
             return ChatResult(if (Inventor.armorMark(st) > 0) pick(rng, "Oh, it's suit time.", "You don't have to ask me twice.") else "Armor? I wish. I'm working on it.",
                 ChatAction.SUIT_UP, payload = if (has(s, "fly", "take off")) "fly" else "", sfx = Sfx.HAPPY)
@@ -190,7 +218,9 @@ object LocalBrain {
             return ChatResult(pick(rng, "Ooh. Okay. Adventure. $where!", "Yes! Good idea. My idea, actually. Going to $where.", "Coming right up. $where, here I come."),
                 ChatAction.GO_OUT, payload = s, sfx = Sfx.HAPPY)
         }
-        if (has(s, "cook", "make food", "make dinner", "make lunch", "make breakfast", "make something")) {
+        // "cook", "make dinner", or making any actual dish ("make noodle soup", "make me an omelette")
+        val dish = Regex("\\b(soup|omelette|omelet|toast|salad|noodles?|rice|pizza|pancakes?|sandwich|breakfast|lunch|dinner|food|meal|snack)\\b").containsMatchIn(s)
+        if (has(s, "cook", "make food", "make dinner", "make lunch", "make breakfast", "make something") || (dish && Regex("\\b(make|prepare|fix)\\b").containsMatchIn(s))) {
             val r = FoodLife.feasible(st)
             if (r.isNotEmpty()) return ChatResult(pick(rng, "Chef Pipo, reporting. ${Economy.nameOf(r.first().id).replaceFirstChar { it.uppercase() }}!", "Okay. Stand back. Things might get crispy."), ChatAction.COOK, sfx = Sfx.HAPPY)
             // nothing to cook with: he goes and gets some, if he can

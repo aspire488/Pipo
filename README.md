@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="DEVICE_TEST_REPORT.md"><img src="https://img.shields.io/badge/Device%20Validation-Galaxy%20S23%20%E2%9C%93-70a5fd?style=for-the-badge"/></a>
-  <img src="https://img.shields.io/badge/Tests-169%20%E2%9C%93-2ea44f?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/Tests-172%20%E2%9C%93-2ea44f?style=for-the-badge"/>
   <img src="https://img.shields.io/badge/Rendering-Procedural%202.5D-8b5cf6?style=for-the-badge"/>
   <img src="https://img.shields.io/badge/Android%2015-Verified-3ddc84?style=for-the-badge&logo=android&logoColor=white"/>
 </p>
@@ -49,6 +49,24 @@ There's no objective, no streak to protect and no score for the user. The reward
 
 ---
 
+## 🪞 The mirror-world, Bolt and neighbours update
+
+The newest round, played on a Galaxy S23 (✅ = seen working on the phone):
+
+- **Real conversations out in the world** (`engine/Talks.kt`). When you peek at him, Pipo talks with whoever is there. Each neighbour has their own voice: Grumble at the hardware shop is grumpy, Juniper is all blinking lights, Coach Raj is at the cricket ground, Lin plays table tennis and Bea plays badminton. They talk about what he came for (the part and the project it's for), the match, the weather and how often he's been. Nib chips in. A bubble shows over whoever is speaking, the transcript builds up underneath, and he brings a line of it home in his story. ✅
+- **New sports places:** a cricket ground (pitch, boundary rope, sight-screen), Riverside Sports Hall (table tennis) and a badminton court, each with its own neighbour. While he's out playing, a **"Watch the match"** button on the home screen opens the live view. ✅
+- **Cricket, two innings.** You bat first and tap when the ball reaches you. Mistimed swings show "too early" or "too late", and the stumps fly when you're bowled. Then the view flips: Pipo bats, and you bowl by tapping when the sweeping arrow lines up with his stumps. ✅
+- **The hallway mirror.** A tall mirror by the front door shows his reflection. He checks himself before going out, and you can tap it. Once the mystery has started, the glass shimmers cyan, and sometimes his reflection stays behind and waves on its own. ✅ (reflection and tap)
+- **Nib doesn't trust the mirror.** Nib goes and growls at it, then runs to tell Pipo in its own words ("Pipo, listen! Other Pipo in mirror. Same face. Different."). Pipo goes to check. ✅
+- **Nib is its own character.** Text Nib directly ("nib, ...") and it answers in its own small voice and short words. It isn't Pipo's assistant, except in the lab. ✅ **Pipo answers Nib** when Nib says something. ✅
+- **Bolt, his J.A.R.V.I.S.** "Hey Bolt" talks to his desk helper. If Bolt isn't built yet, he offers to build it, then really goes out for the missing parts (a little light from Juniper, wire from Grumble). ✅
+- **Suit Mk 0:** before he can build real armour, "suit up" gets him a cardboard suit with tape, marker eyes and a drawn-on core. ✅
+- **Movie nights:** popcorn, the rug, Nib, and a film on the TV (space, dinosaurs, scary, nature or cartoon), with reactions and a review afterwards. ✅
+- **"Pipo, come back"** brings him home within seconds, wherever he is. ✅
+- **The map** shows places he hasn't been yet as dashed "?" circles, with fog over the edge of the world. ✅
+
+---
+
 ## 🆕 The living-world update
 
 What changed in this round, with what was verified on a real phone (Galaxy S23) marked ✅:
@@ -66,7 +84,7 @@ What changed in this round, with what was verified on a real phone (Galaxy S23) 
 - **Builder levels** (Tinkerer → Genius) that grow from every build and failure. ✅
 - **Harder blueprints with real effects:**
   - Nib's turbo wheel and light-up tail
-  - B.O.L.T., his desk helper
+  - Bolt, his desk helper
   - a scout drone that brings home photos
   - rocket boots
   - the **armor**, Mk I → Mk II (flies) → Mk III (glowing core, flip-up visor)

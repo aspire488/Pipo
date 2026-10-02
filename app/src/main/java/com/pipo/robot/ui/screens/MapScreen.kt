@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -103,7 +104,7 @@ fun MapScreen(onBack: () -> Unit) {
     val today = remember(v) { repo.read { WeatherEngine.at(it.seed, System.currentTimeMillis()).kind } }
     val measurer = androidx.compose.ui.text.rememberTextMeasurer()
     val unexplored = Places.all.count { it.kind != PlaceKind.HIDDEN && it.id !in known.keys }
-    var selected by remember { mutableStateOf<String?>(null) }
+    var selected by remember(trip?.id) { mutableStateOf<String?>(trip?.placeId) }
 
     Column(Modifier.fillMaxSize().background(PipoPalette.night)) {
         PipoTopBar("Pipo's Map", onBack)
@@ -173,6 +174,11 @@ private fun DrawScope.drawMapWriting(tm: androidx.compose.ui.text.TextMeasurer, 
         friends[p.id]?.take(2)?.let { drawText(tm, "(${it.joinToString(", ")})", Offset(c.x - w * 0.06f, c.y + w * 0.105f), tiny) }
     }
     drawText(tm, "home", Offset(homeX * w - w * 0.03f, homeY * h + w * 0.04f), small)
+    // the places he hasn't been: a pencilled question mark
+    for (p in Places.all.filter { it.kind != PlaceKind.HIDDEN && it.id !in known.keys }) {
+        val r = tm.measure("?", tiny)
+        drawText(r, topLeft = Offset(p.mapX * w - r.size.width / 2f, p.mapY * h - r.size.height / 2f))
+    }
     drawText(tm, "today: ${WeatherEngine.describe(today)}", Offset(w * 0.62f, h * 0.93f), tiny)
 }
 
@@ -195,6 +201,19 @@ private fun DrawScope.drawMap(known: Map<String, PlaceMemory>, trip: TripState?,
         drawPath(Path().apply { moveTo(cx - w * 0.09f, h * 0.14f); lineTo(cx, h * 0.04f); lineTo(cx + w * 0.09f, h * 0.14f) }, Color(0xFF9DB08A).copy(alpha = 0.55f), style = Stroke(3f))
     }
     val places = mapPlaces(known, trip)
+    // places he hasn't been yet: faint pencil circles with a "?" (his world is bigger than he knows)
+    for (p in Places.all.filter { it.kind != PlaceKind.HIDDEN && it.id !in known.keys && it.id != trip?.placeId }) {
+        val c = o(p.mapX, p.mapY)
+        drawCircle(mapInk.copy(alpha = 0.18f), w * 0.03f, c, style = Stroke(2f, pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(5f, 6f))))
+    }
+    // the edge of the map he never drew: fog, and something faint in it
+    if ("otherside" !in known.keys) {
+        for (i in 0 until 7) {
+            val fc = o(0.82f + (i % 3) * 0.06f + sin(t * 0.3f + i) * 0.01f, 0.08f + (i / 3) * 0.07f)
+            drawCircle(Color(0xFFB8C2CC).copy(alpha = 0.35f), w * 0.07f, fc)
+        }
+        if (stage >= 1) drawSymbol(o(0.88f, 0.16f), w * 0.02f, mapInk.copy(alpha = 0.15f + 0.1f * sin(t * 1.5f)))
+    }
     // wobbly paths from home to everywhere he's been
     for (p in places) {
         val a = o(homeX, homeY); val b = o(p.mapX, p.mapY)
@@ -288,19 +307,52 @@ private fun PeekCard(p: Place, trip: TripState) {
     val repo = PipoRepository.get(LocalContext.current)
     val weather = remember { repo.read { WeatherEngine.at(it.seed, now) } }
     val festival = remember { com.pipo.robot.engine.Festivals.today(now) }
+    // what they're saying out there: a real back-and-forth, one line every few seconds
+    val talk = remember(trip.id) { repo.read { com.pipo.robot.engine.Talks.script(it, trip, p) } }
+    val talkStart = remember(trip.id) { System.nanoTime() }
     LaunchedEffect(trip.id) {
         director.rig.hat = com.pipo.robot.ui.render.hatFor(festival, false); director.pet.hat = com.pipo.robot.ui.render.hatFor(festival, true)
         var last = 0L
         while (true) withFrameNanos { t -> if (last != 0L) director.update((t - last) / 1e9f); last = t; frame = t }
     }
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(PipoPalette.card).padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Canvas(Modifier.fillMaxWidth().aspectRatio(0.95f).clip(RoundedCornerShape(16.dp)).semantics { contentDescription = "Pipo at ${p.name}. ${trip.reason}" }) {
-            @Suppress("UNUSED_VARIABLE") val f = frame
-            drawOutside(p, director, hour, weather.kind, festival)
+        val lineSecs = 3.4f
+        val idx = if (talk.isEmpty()) -1 else (((frame - talkStart).coerceAtLeast(0L) / 1e9f) / lineSecs).toInt() % (talk.size + 2) // a little pause, then again
+        val line = talk.getOrNull(idx)
+        val npcName = com.pipo.robot.data.Npcs.byId(p.npc)?.name ?: ""
+        Box(Modifier.fillMaxWidth().aspectRatio(0.95f)) {
+            Canvas(Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp)).semantics { contentDescription = "Pipo at ${p.name}. ${trip.reason}" }) {
+                @Suppress("UNUSED_VARIABLE") val f = frame
+                drawOutside(p, director, hour, weather.kind, festival)
+            }
+            // the speech bubble, over whoever is talking
+            if (line != null) {
+                val fx = when (line.who) {
+                    com.pipo.robot.engine.Talks.Who.PIPO -> director.pipoX
+                    com.pipo.robot.engine.Talks.Who.NIB -> director.petX
+                    com.pipo.robot.engine.Talks.Who.NPC -> when (p.id) { "field" -> 0.1f; "cricket" -> 0.9f; "sports_hall" -> 0.09f; "court" -> 0.08f
+                        else -> if (p.kind == com.pipo.robot.data.PlaceKind.SHOP || p.kind == com.pipo.robot.data.PlaceKind.INDOOR) 0.08f else 0.85f }
+                }
+                val bg = when (line.who) { com.pipo.robot.engine.Talks.Who.PIPO -> Color(0xFFFFF8EE); com.pipo.robot.engine.Talks.Who.NIB -> Color(0xFFFFE3B8); else -> Color(0xFFE6F0FF) }
+                Box(Modifier.align(androidx.compose.ui.BiasAlignment(((fx.coerceIn(0.15f, 0.85f)) * 2f - 1f), -0.15f)).widthIn(max = 220.dp)
+                    .clip(RoundedCornerShape(14.dp)).background(bg).padding(horizontal = 10.dp, vertical = 6.dp)) {
+                    Text(line.text, color = Color(0xFF1F2733), fontSize = 13.sp, lineHeight = 16.sp)
+                }
+            }
         }
         Spacer(Modifier.height(10.dp))
         Text("He's at ${Trips.placePhrase(p)}.", style = MaterialTheme.typography.titleMedium, color = PipoPalette.text)
         Text(trip.reason, color = PipoPalette.text.copy(alpha = 0.8f), textAlign = TextAlign.Center)
+        // what you've overheard so far
+        if (idx > 0) {
+            Spacer(Modifier.height(8.dp))
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.Black.copy(alpha = 0.18f)).padding(10.dp)) {
+                for (l in talk.take(idx.coerceAtMost(talk.size)).takeLast(4)) {
+                    val who = when (l.who) { com.pipo.robot.engine.Talks.Who.PIPO -> "Pipo"; com.pipo.robot.engine.Talks.Who.NIB -> "Nib"; else -> npcName }
+                    Text("$who: ${l.text}", color = PipoPalette.text.copy(alpha = 0.85f), fontSize = 13.sp)
+                }
+            }
+        }
         val mins = ((trip.endsAt - now) / MINUTE).coerceAtLeast(0)
         Spacer(Modifier.height(4.dp))
         Text(if (mins <= 1) "Back any minute." else "Back in about $mins minutes. Or you could text him.", color = PipoPalette.muted, style = MaterialTheme.typography.labelLarge)

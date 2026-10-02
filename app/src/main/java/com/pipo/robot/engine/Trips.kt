@@ -47,6 +47,9 @@ object Trips {
     fun foodNeeded(s: PipoState): List<String> {
         val out = mutableListOf<String>()
         if (s.craving.isNotEmpty()) out += FoodLife.missingFor(s, s.craving)
+        // finish the recipe that's closest (noodles at home: buy an egg, and it's noodle soup)
+        if (FoodLife.feasible(s).isEmpty()) com.pipo.robot.data.Foods.recipes
+            .map { r -> r.needs.filter { it !in s.pantry } }.filter { it.isNotEmpty() }.minByOrNull { it.size }?.let { out += it }
         if (FoodLife.edible(s).size + FoodLife.feasible(s).size <= 1) out += listOf("noodles", "egg", "apple", "bread").filter { it !in s.pantry }.take(2)
         return out.distinct().take(3)
     }
@@ -76,7 +79,7 @@ object Trips {
     }
 
     private val wishes = listOf(
-        "football" to "field", "field" to "field", "park" to "park", "walk" to "park", "garden" to "garden", "bugs" to "garden",
+        "football" to "field", "field" to "field", "cricket" to "cricket", "sports hall" to "sports_hall", "table tennis" to "sports_hall", "court" to "court", "badminton" to "court", "park" to "park", "walk" to "park", "garden" to "garden", "bugs" to "garden",
         "lake" to "lake", "frogs" to "lake", "hills" to "hills", "library" to "library", "book" to "library",
         "market" to "market", "groceries" to "market", "food" to "market", "bakery" to "bakery", "bread" to "bakery", "cafe" to "cafe",
         "café" to "cafe", "hardware" to "hardware", "electronics" to "electronics", "rook" to "secondhand", "fennel" to "repair",
@@ -105,7 +108,7 @@ object Trips {
                 else -> TripPurpose.WALK
             }
             val list = if (purpose == TripPurpose.FOOD) foodNeeded(s).ifEmpty { listOf("apple") } else emptyList()
-            return TripIdea(named, purpose, list, "You said ${place.name.lowercase().removePrefix("the ")}. Good idea.", 1f)
+            return TripIdea(named, purpose, list, "${place.name}? Good idea.", 1f)
         }
         if (Regex("\\b(shop|shopping|buy|store|groceries)").containsMatchIn(t))
             return ideas.firstOrNull { it.purpose == TripPurpose.FOOD || it.purpose == TripPurpose.SHOP } ?: openFoodShop(s, env)
@@ -192,9 +195,9 @@ object Trips {
         add("garden", TripPurpose.WILDLIFE, emptyList(), "I'm going to look at bugs. Professionally.", 0.2f + t.curiosity * 0.25f + restless * 0.5f + (if (env.hour in 20..21) 0.25f else 0f))
         add("park", TripPurpose.WALK, emptyList(), "I need a walk. My legs said so.", 0.15f + restless + (s.feed["wildlife"] ?: 0f) * 0.2f)
         if (s.pet.adopted && env.hour in 7..18) {
-            add("field", TripPurpose.CRICKET, emptyList(), "Cricket with Nib. Nib bowls. Nib doesn't know the rules. Neither do I. Perfect.", 0.08f + t.playfulness * 0.35f + s.pet.bond * 0.2f + m.energy * 0.15f)
-            add("park", TripPurpose.TABLE_TENNIS, emptyList(), "There's a table tennis table at the park. Nib and I have a rivalry.", 0.06f + t.playfulness * 0.3f + s.pet.bond * 0.2f)
-            if (env.weather.kind != Weather.WIND) add("garden", TripPurpose.BADMINTON, emptyList(), "Badminton in the garden. Nib versus me. Winner gets... winning.", 0.05f + t.playfulness * 0.3f + s.pet.bond * 0.15f)
+            add("cricket", TripPurpose.CRICKET, emptyList(), "Cricket with Nib. Nib bowls. Nib doesn't know the rules. Neither do I. Perfect.", 0.08f + t.playfulness * 0.35f + s.pet.bond * 0.2f + m.energy * 0.15f)
+            add("sports_hall", TripPurpose.TABLE_TENNIS, emptyList(), "Table tennis at the sports hall. Nib and I have a rivalry. Lin keeps score.", 0.06f + t.playfulness * 0.3f + s.pet.bond * 0.2f)
+            if (env.weather.kind != Weather.WIND) add("court", TripPurpose.BADMINTON, emptyList(), "Badminton at the court. Nib versus me. Winner gets... winning.", 0.05f + t.playfulness * 0.3f + s.pet.bond * 0.15f)
         }
         if (env.hour in 8..19) add("field", TripPurpose.FOOTBALL, emptyList(), "Football. I've been practising in my head.", 0.1f + t.playfulness * 0.4f + (s.feed["football"] ?: 0f) * 0.6f + m.energy * 0.2f)
         add("library", TripPurpose.LIBRARY, emptyList(), "I need a book. About something. I'll know when I see it.", 0.1f + t.curiosity * 0.25f + (1f - t.adventurousness) * 0.15f + (if (env.weather.wet) 0.3f else 0f))
@@ -253,7 +256,8 @@ object Trips {
     /** He's asked to come home (you texted him). He hurries. No sulking. */
     fun hurryHome(s: PipoState, now: Long) {
         val t = s.trip ?: return
-        t.endsAt = min(t.endsAt, now + 25_000L)
+        // you called him home: he drops everything and comes straight back (a few seconds' walk)
+        t.endsAt = min(t.endsAt, now + 4_000L)
     }
 
     /** He's back. What happened out there becomes things, memories and a story. */
@@ -289,6 +293,7 @@ object Trips {
                 nm.fondness > 0.55f && rng.nextFloat() < 0.5f -> npc.friendly.random(rng)
                 else -> npc.lines.filter { it != nm.lastLine }.random(rng)
             }
+            Talks.recap(s, trip, place)?.let { r -> if (rng.nextFloat() < 0.7f) npcLine = r }
             nm.visits++; nm.lastVisit = now; nm.lastLine = npcLine
             nm.fondness = (nm.fondness + 0.04f).coerceAtMost(1f)
         }
@@ -297,7 +302,7 @@ object Trips {
             TripPurpose.SHOP, TripPurpose.FOOD -> {
                 val list = trip.shoppingList.toMutableList()
                 // "I went for eggs and came back with chocolate": curiosity, impatience and Nib all help
-                val wrongChance = 0.05f + (1f - t.patience) * 0.1f + t.curiosity * 0.05f + (if (trip.withPet) 0.06f else 0f)
+                val wrongChance = (0.05f + (1f - t.patience) * 0.1f + t.curiosity * 0.05f + (if (trip.withPet) 0.06f else 0f)) * (if (trip.purpose == TripPurpose.FOOD) 0.5f else 1f) // dinner depends on it
                 if (list.isNotEmpty() && rng.nextFloat() < wrongChance) {
                     val decoy = place.sells.filter { it !in list }.randomOrNull(rng)
                     if (decoy != null && Economy.priceOf(decoy) <= s.coins) {
@@ -314,7 +319,7 @@ object Trips {
                     bought += id
                     if (Foods.byId(id) != null) s.pantry.add(id) else Inventory.add(s, id, now).also { it.seenByUser = false }
                 }
-                if (bought.isNotEmpty() && wrong.isEmpty()) story.add(0, "Got ${listPhrase(bought.map { Economy.nameOf(it) })} at ${place.name.removePrefix("The ")}.")
+                if (bought.isNotEmpty() && wrong.isEmpty()) story.add(0, "Got ${listPhrase(bought.map { Economy.nameOf(it).let { n -> "${article(n)} $n" } })} at ${place.name.removePrefix("The ")}.")
                 if (bought.any { Catalog.item(it) != null }) {
                     s.world.objectStates["box"] = "1" // he kept the box. obviously.
                     s.activeProject()?.let { Projects.gather(s, it) } // parts go straight onto the workbench

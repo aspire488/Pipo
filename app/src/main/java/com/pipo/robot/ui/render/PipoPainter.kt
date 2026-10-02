@@ -213,13 +213,13 @@ private fun DrawScope.drawPipoLocal(rig: PipoRig, k: Float, glow: Color, L: Pipo
         drawRoundRect(C.joint, Offset(-5f * k * (0.6f + 0.4f * abs(cy)), -41f * k + drop), Size(10f * k * (0.6f + 0.4f * abs(cy)), 5f * k), CornerRadius(2f * k))
         // the armor: red plates, gold trim, and (Mk III) a glowing core
         if (rig.suit > 0) {
-            val red = Color(0xFFB8262E); val gold = Color(0xFFE2B24A)
+            val red = if (rig.cardboard) Color(0xFFC49A6C) else Color(0xFFB8262E); val gold = if (rig.cardboard) Color(0xFFE8DCC4) else Color(0xFFE2B24A)
             drawRoundRect(Brush.verticalGradient(listOf(lerp(red, Color.White, 0.18f), red, lerp(red, Color.Black, 0.3f)), startY = bodyTop, endY = bodyBot),
                 Offset(-bw / 2f + 1f * k, bodyTop + 1f * k), Size(bw - 2f * k, bodyBot - bodyTop - 2f * k), CornerRadius(9f * k))
             drawRoundRect(gold, Offset(-bw / 2f + 1f * k, bodyBot - 6f * k), Size(bw - 2f * k, 3f * k), CornerRadius(1.5f * k)) // belt
             if (cy > 0.05f) {
                 val core = Offset(px(0f, 11f), -25f * k + drop)
-                val coreCol = if (rig.suit >= 3) Color(0xFF9FF3FF) else gold
+                val coreCol = if (rig.cardboard) Color(0xFFE0605A) else if (rig.suit >= 3) Color(0xFF9FF3FF) else gold // Mk 0's "core" is a drawn-on red circle
                 if (rig.suit >= 3) drawCircle(Brush.radialGradient(listOf(coreCol.copy(alpha = 0.7f), Color.Transparent), core, 11f * k), 11f * k, core)
                 drawCircle(Color(0xFF2B3342), 4.4f * k, core); drawCircle(coreCol, 3.4f * k, core); drawCircle(Color.White.copy(alpha = 0.7f), 1.2f * k, Offset(core.x - 1f * k, core.y - 1f * k))
             }
@@ -323,8 +323,8 @@ private fun DrawScope.drawPipoLocal(rig: PipoRig, k: Float, glow: Color, L: Pipo
         rig.hat?.let { drawHat(it, Offset(hx(0f, 0f), hy(-89f)), hw, rig.time) }
         // the helmet: red shell over his head, a gold faceplate with glowing slits (Mk III's flips up when he talks)
         if (rig.suit > 0) {
-            val red = Color(0xFFB8262E); val gold = Color(0xFFE2B24A)
-            drawRoundRect(Brush.verticalGradient(listOf(lerp(red, Color.White, 0.2f), red), startY = hy(-91f), endY = hy(-40f)), Offset(-hw / 2f - 1f * k, hy(-91f)), Size(hw + 2f * k, 9f * k), CornerRadius(8f * k))
+            val red = if (rig.cardboard) Color(0xFFC49A6C) else Color(0xFFB8262E); val gold = if (rig.cardboard) Color(0xFFB98A5A) else Color(0xFFE2B24A)
+            drawRoundRect(Brush.verticalGradient(listOf(lerp(red, Color.White, 0.2f), red), startY = hy(-91f), endY = hy(-40f)), Offset(-hw / 2f - 1f * k, hy(-91f)), Size(hw + 2f * k, 9f * k), CornerRadius(if (rig.cardboard) 2f * k else 8f * k))
             if (hc > 0.03f) {
                 val sc = hc.pow(0.5f); val scx = hx(0f, HEAD_DEPTH / 2f)
                 val sw = 52f * k * sc; val st = hy(-83f)
@@ -333,7 +333,17 @@ private fun DrawScope.drawPipoLocal(rig: PipoRig, k: Float, glow: Color, L: Pipo
                 else {
                     drawRoundRect(Brush.verticalGradient(listOf(lerp(gold, Color.White, 0.25f), gold, lerp(gold, Color.Black, 0.25f)), startY = st, endY = st + 37f * k),
                         Offset(scx - sw / 2f, st), Size(sw, 37f * k), CornerRadius(12f * k * sc))
-                    for (side in listOf(-1f, 1f)) {
+                    if (rig.cardboard) {
+                        // two eye holes cut with scissors (his real eyes peek through), tape, and "MK 0" in marker
+                        for (side in listOf(-1f, 1f)) {
+                            val ec = Offset(scx + side * 11f * k * sc, st + 15f * k)
+                            drawOval(Color(0xFF141B27), Offset(ec.x - 5f * k * sc, ec.y - 4f * k), Size(10f * k * sc, 8f * k))
+                            drawCircle(Color(0xFF8FF5E2), 2.2f * k, ec)
+                        }
+                        drawRect(Color(0xFFE8DCC4).copy(alpha = 0.8f), Offset(scx - 3f * k * sc, st), Size(6f * k * sc, 37f * k))
+                        drawLine(Color(0xFF3B2A20), Offset(scx - 6f * k * sc, st + 27f * k), Offset(scx - 2f * k * sc, st + 31f * k), 1f * k)
+                        drawLine(Color(0xFF3B2A20), Offset(scx + 2f * k * sc, st + 27f * k), Offset(scx + 6f * k * sc, st + 31f * k), 1f * k)
+                    } else for (side in listOf(-1f, 1f)) {
                         val ec = Offset(scx + side * 11f * k * sc, st + 15f * k)
                         drawCircle(Brush.radialGradient(listOf(Color(0xFF9FF3FF).copy(alpha = 0.6f), Color.Transparent), ec, 7f * k), 7f * k, ec)
                         drawRoundRect(Color(0xFFDFFBFF), Offset(ec.x - 6f * k * sc, ec.y - 1.4f * k), Size(12f * k * sc, 2.8f * k), CornerRadius(1.4f * k))

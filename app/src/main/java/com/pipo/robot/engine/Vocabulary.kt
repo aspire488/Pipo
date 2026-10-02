@@ -13,7 +13,9 @@ enum class AnimState {
     // evolution pass: fuller body language
     CHEERFUL, YAWN, SNEAK, ARMS_CROSSED, TURN_AWAY, LIE_DOWN, GET_UP, DIZZY, LAUGH, SIGH, CELEBRATE, SULK, FINGER_UP,
     // a life beyond the room
-    EATING, COOKING, DRAWING, KICKUPS, PETTING, CARRYING, PHOTO
+    EATING, COOKING, DRAWING, KICKUPS, PETTING, CARRYING, PHOTO,
+    /** Sitting on the rug, popcorn in his lap, eyes on the TV. */
+    WATCHING
 }
 
 /** Face expressions. */

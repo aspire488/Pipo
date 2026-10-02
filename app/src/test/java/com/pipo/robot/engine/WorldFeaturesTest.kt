@@ -73,14 +73,16 @@ class WorldFeaturesTest {
     fun cricketOverScoresByTimingAndPipoChases() {
         val sim = CricketSim(4, 0.6f)
         sim.start()
-        var guard = 0
+        var guard = 0; var bowled = 0
         while (sim.phase != CricketSim.Phase.OVER && guard++ < 20000) {
             if (sim.phase == CricketSim.Phase.BOWLING && sim.progress >= 0.9f) sim.swing() // perfect timing
+            if (sim.phase == CricketSim.Phase.PIPO_AIM && kotlin.math.abs(sim.aim) < 0.05f) { sim.bowl(); bowled++ } // you bowl at his stumps
             sim.step(1f / 60f)
         }
         assertEquals(CricketSim.Phase.OVER, sim.phase)
         assertEquals(36, sim.yourRuns) // six sixes
         assertNotNull(sim.pipoWon)
+        assertTrue("you bowled $bowled", bowled in 1..6) // Pipo batted, and you bowled to him
         assertTrue(sim.claimResult()); assertTrue(!sim.claimResult())
     }
 
@@ -92,5 +94,41 @@ class WorldFeaturesTest {
         while (sim.phase != ArcadePhase.OVER && guard++ < 200000) { sim.moveTo(sim.ballX); sim.step(1f / 60f) } // a perfect tracker
         assertEquals(ArcadePhase.OVER, sim.phase)
         assertTrue("you ${sim.you} pipo ${sim.pipo}", sim.you == 7 || sim.pipo == 7)
+    }
+
+    @Test
+    fun neighboursReallyTalkAboutWhyHeCame() {
+        val s = PipoState()
+        val shop = com.pipo.robot.data.Places.byId("hardware")!!
+        val trip = com.pipo.robot.data.TripState(42L, "hardware", TripPurpose.SHOP, 0L, 1L, withPet = true, shoppingList = listOf("wire"), reason = "x")
+        val talk = Talks.script(s, trip, shop)
+        assertTrue(talk.size >= 6)
+        assertEquals(Talks.Who.NPC, talk.first().who)                       // Grumble starts
+        assertTrue(talk.any { it.who == Talks.Who.PIPO })                   // Pipo answers
+        val wire = Economy.nameOf("wire")
+        assertTrue(talk.any { it.text.contains(wire) })                     // about what he came for
+        assertEquals(talk, Talks.script(s, trip, shop))                     // same script every peek
+        // nobody there: Pipo and Nib talk to each other
+        val lake = com.pipo.robot.data.Places.byId("lake")!!
+        val walk = Talks.script(s, trip.copy(placeId = "lake", purpose = TripPurpose.WALK), lake)
+        assertTrue(walk.all { it.who != Talks.Who.NPC } && walk.any { it.who == Talks.Who.NIB })
+    }
+
+    @Test
+    fun pipoHasAnAnswerForEverythingNibSays() {
+        for ((key, lines) in NibLife.words) for (l in lines) {
+            assertEquals(key, NibLife.keyOf(l))
+            assertNotNull("no answer for $key", NibLife.pipoAnswers[key])
+        }
+        assertEquals("mirror", NibLife.keyOf(NibLife.mirrorTellsPipo.first()))
+    }
+
+    @Test
+    fun groceriesFinishTheClosestRecipe() {
+        val s = PipoState()
+        s.pantry.clear(); s.pantry += listOf("noodles", "milk")
+        assertTrue(FoodLife.feasible(s).isEmpty())
+        assertTrue("noodles at home: buy an egg", "egg" in Trips.foodNeeded(s))
+        assertEquals("some", article("milk")); assertEquals("an", article("egg")); assertEquals("a", article("spool of wire"))
     }
 }

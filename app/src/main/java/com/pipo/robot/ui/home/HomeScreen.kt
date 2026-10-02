@@ -85,6 +85,7 @@ import com.pipo.robot.data.ProjectState
 import com.pipo.robot.ui.common.Glyph
 import com.pipo.robot.ui.common.GlyphIcon
 import com.pipo.robot.ui.common.RoundButton
+import com.pipo.robot.ui.render.SceneGeo
 import com.pipo.robot.ui.render.drawBlanket
 import com.pipo.robot.ui.render.drawEmote
 import com.pipo.robot.ui.render.drawForeground
@@ -242,6 +243,18 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
                         }
                     }
                 }
+                // his reflection in the hallway mirror (when he's near it). Usually it copies him.
+                if (vm.mirrorVisible()) {
+                    val ml = (SceneGeo.MIRROR_L - vm.camU) * g.u; val mr = (SceneGeo.MIRROR_R - vm.camU) * g.u
+                    val mt = g.floorY - 46f * g.u; val mb = g.floorY - 6f * g.u
+                    clipRect(ml, mt, mr, mb) {
+                        drawIntoCanvas { c ->
+                            c.saveLayer(Rect(ml, mt, mr, mb), Paint().apply { alpha = 0.55f })
+                            drawPipo(vm.reflection, (vm.mirrorPipoX() - vm.camU) * g.u, g.floorY - 17f * g.u, g.pipoH * 0.55f, shadow = false, light = light)
+                            c.restore()
+                        }
+                    }
+                }
                 val foot = vm.footScreen()
                 val petFoot = vm.petFootScreen()
                 if ("pipo" !in skip && !vm.away) drawPipo(vm.rig, foot.x, foot.y, g.pipoH, vm.lift * g.u, shadow = !inBed && vm.hideSpot != HideSpot.BOX, light = light)
@@ -254,6 +267,35 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
                 if ("fg" !in skip) drawForeground(g, vm.camU, room)
                 if (!vm.away && vm.hideSpot == null) drawEmote(vm.rig, head.x, head.y, g.pipoH / 100f)
             }
+        }
+
+        // ---------------- he's out playing: watch the match
+        vm.outPlaying?.let { sport ->
+            @Suppress("UNUSED_VARIABLE") val tick = vm.frame
+            Box(Modifier.align(Alignment.TopCenter).windowInsetsPadding(WindowInsets.safeDrawing).padding(top = 70.dp)
+                .clip(RoundedCornerShape(50)).background(PipoPalette.mint).clickable { onNavigate("map") }.padding(horizontal = 18.dp, vertical = 10.dp)) {
+                Text("Watch the match: Pipo vs Nib, ${sport.lowercase().replace('_', ' ')}", color = Color(0xFF0F2A2A), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            }
+        }
+
+        // ---------------- Nib's own little bubble (Nib talks for itself), over Nib's head
+        vm.nibLine?.let { line ->
+            Box(
+                Modifier
+                    .layout { m, c ->
+                        @Suppress("UNUSED_VARIABLE") val tick = vm.frame
+                        val p = m.measure(c.copy(minWidth = 0, minHeight = 0, maxWidth = min(c.maxWidth, 600)))
+                        layout(c.maxWidth, c.maxHeight) {
+                            val h = vm.nibHeadView()
+                            val x = (h.x - p.width / 2f).coerceIn(16f, (c.maxWidth - p.width - 16f).coerceAtLeast(16f))
+                            val y = (h.y - 24f - p.height).coerceIn(80f, (c.maxHeight - p.height).toFloat().coerceAtLeast(80f))
+                            p.place(x.roundToInt(), y.roundToInt())
+                        }
+                    }
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xFFFFE7C7))
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+            ) { Text(line, color = Color(0xFF7A3F12), fontSize = 14.sp, fontWeight = FontWeight.Bold) }
         }
 
         // ---------------- speech bubble, anchored above Pipo's head every frame

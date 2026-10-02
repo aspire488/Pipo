@@ -322,7 +322,8 @@ fun DrawScope.drawRoom(g: SceneGeo, camU: Float, st: RoomState, t: Float, pipoIn
             drawRect(Color(0xFF14171F), Offset(X(cx - 0.8f), Y(6f)), Size(1.6f * u, 1f * u))
             drawRoundRect(Color(0xFF14171F), Offset(X(l + 0.3f), Y(15.5f)), Size((r - l - 0.6f) * u, 9.6f * u), CornerRadius(0.6f * u))
             val sl = X(l + 0.9f); val st0 = Y(15f); val sw = (r - l - 1.8f) * u; val sh = 8.6f * u
-            if (st.consoleActive) clipRect(sl, st0, sl + sw, st0 + sh) {
+            if (st.movie != null) clipRect(sl, st0, sl + sw, st0 + sh) { drawMovie(st.movie, sl, st0, sw, sh, u, t) }
+            else if (st.consoleActive) clipRect(sl, st0, sl + sw, st0 + sh) {
                 // a tiny platformer: sky, hills scrolling, a hero hopping over blocks, coins
                 drawRect(Brush.verticalGradient(listOf(Color(0xFF3E6FD8), Color(0xFF8FC3FF)), startY = st0, endY = st0 + sh), Offset(sl, st0), Size(sw, sh))
                 val scroll = (t * 2.2f) % 6f
@@ -405,7 +406,7 @@ fun DrawScope.drawRoom(g: SceneGeo, camU: Float, st: RoomState, t: Float, pipoIn
             drawCircle(Color(0xFF7FE3F0).copy(alpha = pulse), 0.8f * u, Offset(X(94.2f), Y(19f)))
         }
 
-        // --- B.O.L.T., his helper screen, on the end of the desk: a face that looks around
+        // --- Bolt, his helper screen, on the end of the desk: a face that looks around
         if (st.helper && seen(150f, 158f)) {
             val c = Offset(X(153.5f), Y(27f))
             drawRoundRect(Color(0xFF2B3342), Offset(c.x - 3.2f * u, c.y - 2.6f * u), Size(6.4f * u, 5.2f * u), CornerRadius(1f * u))
@@ -654,6 +655,25 @@ fun DrawScope.drawRoom(g: SceneGeo, camU: Float, st: RoomState, t: Float, pipoIn
             if (st.smoke) for (i in 0 until 3) drawCircle(Color(0xFF8A8F99).copy(alpha = 0.18f), (3f + i) * u, Offset(X(262f + i * 3f + sin(t * 0.4f + i) * 1.5f), Y(52f + i * 2.5f)))
         }
 
+        // --- the hallway mirror: a tall, slightly old mirror. Usually just a mirror.
+        if (seen(SceneGeo.MIRROR_L - 2f, SceneGeo.MIRROR_R + 2f)) run {
+            val ml = SceneGeo.MIRROR_L; val mr = SceneGeo.MIRROR_R
+            drawRoundRect(Color.Black.copy(alpha = 0.16f), Offset(X(ml - 0.4f), Y(46.6f)), Size((mr - ml + 1.4f) * u, 42.4f * u), CornerRadius(1.6f * u))
+            drawRoundRect(Brush.verticalGradient(listOf(Color(0xFFB98A55), Color(0xFF8C6239)), startY = Y(47f), endY = Y(5f)), Offset(X(ml - 0.8f), Y(47f)), Size((mr - ml + 1.6f) * u, 42f * u), CornerRadius(1.8f * u))
+            val glass = Brush.linearGradient(listOf(lerp(Color(0xFFCFE3EA), wall, 0.45f), lerp(Color(0xFF9DB9C6), wall, 0.5f), lerp(Color(0xFFDDEDF2), wall, 0.4f)), start = Offset(X(ml), Y(46f)), end = Offset(X(mr), Y(6f)))
+            drawRoundRect(glass, Offset(X(ml), Y(46f)), Size((mr - ml) * u, 40f * u), CornerRadius(1.2f * u))
+            // the room, faintly, in the glass: the floor line
+            drawLine(lerp(floor, Color.White, 0.3f).copy(alpha = 0.45f), Offset(X(ml), Y(14f)), Offset(X(mr), Y(14f)), 0.5f * u)
+            // later on, the glass isn't always quite the room. A cyan shimmer, like the dome.
+            if (st.mirrorStage >= 1) {
+                val a = ((sin(t * 0.7f) * 0.5f + 0.5f) * (0.05f + 0.04f * st.mirrorStage.coerceAtMost(5))) * (0.5f + night * 0.5f)
+                drawRoundRect(Color(0xFF9FF3E0).copy(alpha = a), Offset(X(ml), Y(46f)), Size((mr - ml) * u, 40f * u), CornerRadius(1.2f * u))
+            }
+            // two streaks of shine
+            drawLine(Color.White.copy(alpha = 0.35f), Offset(X(ml + 1f), Y(40f)), Offset(X(ml + 3.5f), Y(44f)), 0.4f * u)
+            drawLine(Color.White.copy(alpha = 0.25f), Offset(X(ml + 1f), Y(35f)), Offset(X(ml + 4.6f), Y(41f)), 0.3f * u)
+        }
+
         // --- once he's an inventor, the door says so
         if (st.builderLevel >= 4 && seen(278f, 294f)) {
             val tl = Offset(X(281f), Y(52f))
@@ -692,8 +712,8 @@ fun DrawScope.drawRoom(g: SceneGeo, camU: Float, st: RoomState, t: Float, pipoIn
             drawOval(Color(0xFF8C6A5A).copy(alpha = 0.75f), Offset(X(dl - 1f), fy + 1.5f * u), Size((dr - dl + 2f) * u, 3.2f * u))
             // umbrella on its hook
             if (st.umbrella) {
-                drawLine(Color(0xFF8E99A8), Offset(X(dl - 3f), Y(34f)), Offset(X(dl - 3f), Y(33f)), 0.4f * u)
-                rotate(180f, Offset(X(dl - 3f), Y(29f))) { drawItem(ItemShape.UMBRELLA, Offset(X(dl - 3f), Y(29f)), 6f * u) }
+                drawLine(Color(0xFF8E99A8), Offset(X(dr + 2f), Y(34f)), Offset(X(dr + 2f), Y(33f)), 0.4f * u)
+                rotate(180f, Offset(X(dr + 2f), Y(29f))) { drawItem(ItemShape.UMBRELLA, Offset(X(dr + 2f), Y(29f)), 5f * u) }
             }
             // shopping bag he hasn't unpacked
             if (st.bag) drawItem(ItemShape.BAG, Offset(X(dl - 4.5f), fy - 3f * u), 6f * u)
@@ -788,6 +808,51 @@ private fun DrawScope.drawArcadeCabinet(u: Float, fy: Float, st: RoomState, t: F
 }
 
 /** The cardboard box he kept. [frontOnly] = just the front panel, drawn over him when he's inside. */
+/** Movie night: a little animated film on the TV, by genre. */
+private fun DrawScope.drawMovie(genre: String, sl: Float, st0: Float, sw: Float, sh: Float, u: Float, t: Float) {
+    when (genre) {
+        "space" -> {
+            drawRect(Color(0xFF070B1E), Offset(sl, st0), Size(sw, sh))
+            for (i in 0 until 14) drawCircle(Color.White.copy(alpha = 0.6f), 0.15f * u, Offset(sl + ((i * 37 + t * 8f) % (sw / u)) * u, st0 + ((i * 53) % 86) / 10f * u))
+            val rx = sl + sw * 0.3f + sin(t * 0.8f) * sw * 0.15f; val ry = st0 + sh * 0.5f + cos(t * 1.1f) * sh * 0.15f
+            drawRoundRect(Color(0xFFE8ECF1), Offset(rx - 1.2f * u, ry - 0.5f * u), Size(2.4f * u, 1f * u), CornerRadius(0.5f * u))
+            drawOval(Color(0xFFFF9A4A), Offset(rx - 2.2f * u, ry - 0.3f * u), Size(1f * u, 0.6f * u))
+            drawCircle(Color(0xFFB0A3C9), 2.2f * u, Offset(sl + sw * 0.8f, st0 + sh * 0.3f))
+        }
+        "dino" -> {
+            drawRect(Brush.verticalGradient(listOf(Color(0xFFFFB27A), Color(0xFFFFE0A0)), startY = st0, endY = st0 + sh), Offset(sl, st0), Size(sw, sh))
+            drawRect(Color(0xFF5E8C4A), Offset(sl, st0 + sh * 0.8f), Size(sw, sh * 0.2f))
+            val dx = sl + ((t * 1.5f) % 1f) * sw; val step = sin(t * 8f) * 0.3f * u
+            drawOval(Color(0xFF3F6E3A), Offset(dx - 2f * u, st0 + sh * 0.5f), Size(3.5f * u, 2f * u))
+            drawLine(Color(0xFF3F6E3A), Offset(dx + 1.2f * u, st0 + sh * 0.55f), Offset(dx + 2.4f * u, st0 + sh * 0.3f), 0.7f * u)
+            drawCircle(Color(0xFF3F6E3A), 0.6f * u, Offset(dx + 2.5f * u, st0 + sh * 0.28f))
+            drawLine(Color(0xFF3F6E3A), Offset(dx - 1f * u, st0 + sh * 0.68f), Offset(dx - 1f * u + step, st0 + sh * 0.8f), 0.4f * u)
+            drawLine(Color(0xFF3F6E3A), Offset(dx + 0.5f * u, st0 + sh * 0.68f), Offset(dx + 0.5f * u - step, st0 + sh * 0.8f), 0.4f * u)
+        }
+        "scary" -> {
+            drawRect(Color(0xFF0B0B12), Offset(sl, st0), Size(sw, sh))
+            val blink = if ((t % 3f) < 0.15f) 0.1f else 1f
+            for (side in listOf(-1f, 1f)) drawOval(Color(0xFFFFE066), Offset(sl + sw / 2f + side * 1.2f * u - 0.5f * u, st0 + sh * 0.45f), Size(1f * u, 0.6f * u * blink))
+            if ((t % 7f) < 0.1f) drawRect(Color.White.copy(alpha = 0.6f), Offset(sl, st0), Size(sw, sh)) // lightning
+        }
+        "nature" -> {
+            drawRect(Brush.verticalGradient(listOf(Color(0xFF8EC5E8), Color(0xFF6FA8C9)), startY = st0, endY = st0 + sh), Offset(sl, st0), Size(sw, sh))
+            drawOval(Color(0xFF4F8A45), Offset(sl + sw * 0.2f, st0 + sh * 0.65f), Size(sw * 0.3f, sh * 0.15f))
+            val hop = abs(sin(t * 2f)) * sh * 0.25f
+            drawCircle(Color(0xFF7CC26E), 0.9f * u, Offset(sl + sw * 0.35f, st0 + sh * 0.65f - hop))
+            drawCircle(Color.Black, 0.2f * u, Offset(sl + sw * 0.35f + 0.3f * u, st0 + sh * 0.6f - hop))
+        }
+        else -> { // a cartoon: a robot bouncing, colours everywhere
+            drawRect(Brush.linearGradient(listOf(Color(0xFFFF8FD0), Color(0xFF8FD0FF)), start = Offset(sl, st0), end = Offset(sl + sw, st0 + sh)), Offset(sl, st0), Size(sw, sh))
+            val bx = sl + sw * (0.5f + sin(t * 1.3f) * 0.3f); val by = st0 + sh * 0.7f - abs(sin(t * 3f)) * sh * 0.4f
+            drawRoundRect(Color(0xFFE8ECF1), Offset(bx - 1f * u, by - 1f * u), Size(2f * u, 1.6f * u), CornerRadius(0.4f * u))
+            drawRect(Color(0xFF141B27), Offset(bx - 0.7f * u, by - 0.7f * u), Size(1.4f * u, 0.9f * u))
+        }
+    }
+    // the TV's glow is the movie's colour
+    drawRect(Color.White.copy(alpha = 0.05f + 0.03f * sin(t * 2f)), Offset(sl, st0), Size(sw, sh))
+}
+
 private fun DrawScope.drawCardboardBox(u: Float, fy: Float, frontOnly: Boolean) {
     fun X(v: Float) = v * u
     fun Y(v: Float) = fy - v * u

@@ -189,6 +189,19 @@ class SoundSynth {
     /** Robot babble: one chirp per syllable, pitch/speed shaped by mood. [volume] < 1 = whisper. */
     fun babble(text: String, mood: Mood, onDone: () -> Unit) = babble(text, mood, 1f, onDone)
 
+    /** Nib's own small voice: quick, squeaky, sing-song, one chirp per syllable, pitch rising on questions. */
+    fun nibSpeak(text: String) {
+        val syll = Regex("[aeiouy]+", RegexOption.IGNORE_CASE).findAll(text).count().coerceIn(1, 8)
+        val rng = Random(text.hashCode())
+        val q = text.trim().endsWith("?")
+        val excited = text.contains("!")
+        val notes = (0 until syll).map { i ->
+            val f = (1900f + rng.nextFloat() * 500f) * (if (excited) 1.15f else 1f) * (if (q && i == syll - 1) 1.3f else 1f)
+            Note(f, f * (if (q && i == syll - 1) 1.35f else 0.92f + rng.nextFloat() * 0.2f), 45 + rng.nextInt(25), vol = 0.15f, gapMs = 22, vibrato = 0.05f)
+        }
+        play(notes) {}
+    }
+
     fun babble(text: String, mood: Mood, volume: Float, onDone: () -> Unit) {
         val syll = Regex("[aeiouy]+", RegexOption.IGNORE_CASE).findAll(text).count().coerceIn(1, 18)
         val (base, len, gap) = when (mood) {

@@ -15,7 +15,7 @@ import com.pipo.robot.data.ProjectState
  */
 object Inventor {
     data class Rank(val level: Int, val title: String, val xp: Int)
-    val ranks = listOf(Rank(1, "Tinkerer", 0), Rank(2, "Builder", 60), Rank(3, "Engineer", 160), Rank(4, "Inventor", 320), Rank(5, "Genius", 550))
+    val ranks = listOf(Rank(1, "Tinkerer", 0), Rank(2, "Builder", 40), Rank(3, "Engineer", 100), Rank(4, "Inventor", 190), Rank(5, "Genius", 320))
 
     /** His experience. A save from before levels existed gets credit for everything he already built. */
     fun xp(s: PipoState) = s.records["builder_xp"] ?: s.projects.sumOf { p ->
@@ -67,11 +67,11 @@ object Inventor {
             "Nib's tail glows! Nib keeps looking at it. Nib is very proud.",
             "The tail light blinks in morse code. It's spelling 'HELP'. Probably a coincidence.",
             "It's a night-light Nib carries around. That's... actually great.", "Nib night-light", ItemShape.LED),
-        3 to ProjectDef("helper", "B.O.L.T., the desk helper", listOf("chip", "light", "wire"), 0.5f,
-            "Every inventor needs a helper. A screen that talks. Named B.O.L.T. Big Operations... something.",
-            "B.O.L.T. is alive! It's a screen on my desk with a face. It says 'hello' and 'error'. Mostly 'hello'.",
-            "B.O.L.T. only says 'error'. Then it played a tiny song. Then 'error' again.",
-            "B.O.L.T. is a clock now. A very opinionated clock.", "Opinionated clock", ItemShape.RADIO),
+        2 to ProjectDef("helper", "Desk helper", listOf("chip", "light", "wire"), 0.5f,
+            "Every inventor needs a helper. A screen that talks. Named Bolt. Short for... Bolt.",
+            "Bolt is alive! It's a screen on my desk with a face. It says 'hello' and 'error'. Mostly 'hello'.",
+            "Bolt only says 'error'. Then it played a tiny song. Then 'error' again.",
+            "Bolt is a clock now. A very opinionated clock.", "Opinionated clock", ItemShape.RADIO),
         3 to ProjectDef("scout_drone", "Scout drone", listOf("motor", "prop", "lens", "power"), 0.6f,
             "A drone that flies out the window and takes photos for me. A spy drone. A NICE spy.",
             "The scout drone works! It flew to the garden and came back with a photo. Of a leaf. It's a great leaf.",
@@ -93,8 +93,8 @@ object Inventor {
             "Mk II flew straight into the ceiling. The ceiling won. The ceiling always wins.",
             "Mk II only hovers sideways. It's a very fancy skateboard now.", "Hover-skate", ItemShape.KICKER),
         5 to ProjectDef("armor_mk3", "Armor Mk III", listOf("chip", "light", "magnet", "power", "lens"), 0.9f,
-            "Mark Three. Glowing core. A helmet that flips up. B.O.L.T. inside. This is the one.",
-            "MARK THREE. The core glows. The helmet flips up. B.O.L.T. says 'hello' from inside it. I'm basically complete.",
+            "Mark Three. Glowing core. A helmet that flips up. Bolt inside. This is the one.",
+            "MARK THREE. The core glows. The helmet flips up. Bolt says 'hello' from inside it. I'm basically complete.",
             "Mk III's core glowed, then fizzled. It made a sad sound. I made the same sound.",
             "Mk III is a night-light now. A very heroic night-light.", "Heroic night-light", ItemShape.LED),
         5 to ProjectDef("scope_mk2", "Star Scope Mk II", listOf("lens", "tube", "motor", "chip"), 0.85f,
@@ -113,12 +113,60 @@ object Inventor {
     fun armorMark(s: PipoState) = when { has(s, "armor_mk3") -> 3; has(s, "armor_mk2") -> 2; has(s, "armor") -> 1; else -> 0 }
     fun def(id: String): ProjectDef? = blueprints.firstOrNull { it.second.id == id }?.second
 
+    /** Mk 0: the suit he makes out of his delivery box, the day he can't wait any longer. */
+    fun hasCardboardSuit(s: PipoState) = s.world.objectStates["suit:mk0"] != null
+
+    fun buildCardboardSuit(s: PipoState, now: Long) {
+        s.world.objectStates["suit:mk0"] = "1"
+        Chronicle.journal(s, "Pipo built Armor Mk 0", "Out of his delivery box. Tape, a marker, two eye holes. He says it's 'a prototype'. It is a box.", JournalCategory.PROJECT, now)
+        Chronicle.remember(s, MemoryType.PROJECT, "I built Armor Mark Zero out of my box. It's a prototype", 0.7f, now, "suit:mk0")
+        gain(s, 15, now)
+    }
+
+    /** "Build me X": what X means, by name. */
+    fun blueprintFor(text: String): String? {
+        val t = text.lowercase()
+        return when {
+            Regex("\\b(suit|armor|armour|iron ?man)\\b").containsMatchIn(t) -> "armor"
+            Regex("\\b(bolt|b\\.o\\.l\\.t|jarvis|helper|assistant screen)\\b").containsMatchIn(t) -> "helper"
+            Regex("\\b(drone)\\b").containsMatchIn(t) -> "scout_drone"
+            Regex("\\b(rocket boots|boots)\\b").containsMatchIn(t) -> "rocket_boots"
+            Regex("\\b(telescope|scope)\\b").containsMatchIn(t) -> "scope_mk2"
+            Regex("\\bnib\\b.*\\b(wheel|faster)\\b|\\bturbo\\b").containsMatchIn(t) -> "nib_wheel"
+            Regex("\\bnib\\b.*\\b(tail|light)\\b").containsMatchIn(t) -> "nib_tail"
+            else -> null
+        }
+    }
+
+    /** The next armor he could build, given what he has. */
+    fun nextArmor(s: PipoState) = when { !has(s, "armor") -> "armor"; !has(s, "armor_mk2") -> "armor_mk2"; !has(s, "armor_mk3") -> "armor_mk3"; else -> null }
+
+    /** The level a blueprint needs. */
+    fun levelFor(id: String) = blueprints.firstOrNull { it.second.id == id }?.first ?: 1
+
     /** Did he build it (and it works)? */
     fun has(s: PipoState, id: String) = s.projects.any { it.templateId == id && it.state == ProjectState.DONE }
 
     /** Everything he's made that works, newest first. */
     fun inventions(s: PipoState): List<String> = s.projects.filter { it.state == ProjectState.DONE || it.state == ProjectState.EVOLVED }
         .sortedByDescending { it.finishedAt }.map { p -> if (p.state == ProjectState.EVOLVED) (com.pipo.robot.data.Catalog.project(p.templateId)?.evolvedTitle ?: def(p.templateId)?.evolvedTitle ?: p.title) else p.title }.distinct()
+
+    /**
+     * Bolt's answer: a little status screen with a robot voice. It reports the real state
+     * (weather, projects, level, Nib) — Pipo's own J.A.R.V.I.S.
+     */
+    fun boltSays(s: PipoState, asked: String, now: Long): String {
+        val t = asked.lowercase()
+        val w = WeatherEngine.live
+        return when {
+            Regex("\\b(weather|rain|hot|cold|outside)\\b").containsMatchIn(t) -> if (w != null) "WEATHER: ${w.place.ifBlank { "LOCAL" }.uppercase()}. ${WeatherEngine.describe(w.kind).uppercase()}. ${w.tempC.toInt()}°C." else "WEATHER: ${WeatherEngine.describe(WeatherEngine.at(s.seed, now).kind).uppercase()}. SENSORS: ESTIMATING."
+            Regex("\\b(project|build|building|working)\\b").containsMatchIn(t) -> s.activeProject()?.let { "PROJECT: ${it.title.uppercase()}. PROGRESS ${(it.progress * 100).toInt()}%. CONFIDENCE: OPTIMISTIC." } ?: "NO ACTIVE PROJECT. RECOMMEND: BUILD SOMETHING."
+            Regex("\\b(nib)\\b").containsMatchIn(t) -> "NIB: BOND ${(s.pet.bond * 100).toInt()}%. MOOD ${s.pet.mood.name}. TRICKS ${NibLife.tricks(s).size}. THREAT LEVEL: ADORABLE."
+            Regex("\\b(suit|armor|armour)\\b").containsMatchIn(t) -> "ARMOR: MARK ${armorMark(s).takeIf { it > 0 } ?: if (hasCardboardSuit(s)) 0 else -1}".replace("MARK -1", "NONE. RECOMMEND: CARDBOARD.") + ". READY."
+            Regex("\\b(time|clock)\\b").containsMatchIn(t) -> "TIME: %02d:%02d.".format(hourOf(now), (now / 60_000L % 60).toInt())
+            else -> "BUILDER LEVEL ${level(s)} (${rank(s).title.uppercase()}). XP ${xp(s)}${nextRank(s)?.let { "/${it.xp}" } ?: ""}. INVENTIONS: ${inventions(s).size}. ALL SYSTEMS: MOSTLY NOMINAL."
+        }
+    }
 
     /** A brag (or a confession) about something he built, for conversation. */
     fun brag(s: PipoState, rng: kotlin.random.Random): String? {

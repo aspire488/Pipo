@@ -20,7 +20,7 @@ object Sports {
     }
 
     /** Where each one is played. */
-    fun placeOf(sp: Sport) = when (sp) { Sport.FOOTBALL, Sport.CRICKET -> "field"; Sport.TABLE_TENNIS -> "park"; Sport.BADMINTON -> "garden" }
+    fun placeOf(sp: Sport) = when (sp) { Sport.FOOTBALL -> "field"; Sport.CRICKET -> "cricket"; Sport.TABLE_TENNIS -> "sports_hall"; Sport.BADMINTON -> "court" }
 
     fun fromText(t: String): Sport? = when {
         Regex("\\b(cricket|batting|bowling|bat)\\b").containsMatchIn(t) -> Sport.CRICKET

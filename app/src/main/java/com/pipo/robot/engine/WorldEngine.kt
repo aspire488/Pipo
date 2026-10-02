@@ -30,7 +30,12 @@ object Pranks {
     fun isOn(s: PipoState, key: String) = s.world.objectStates["prank:$key"] == "1"
 }
 
-fun article(word: String) = if (word.first().lowercaseChar() in "aeiou") "an" else "a"
+/** "a"/"an", or "some" for things you can't count ("some milk", "some rice"). */
+fun article(word: String) = when {
+    word.lowercase().substringAfterLast(' ') in setOf("milk", "rice", "flour", "bread", "sugar", "butter", "cheese", "tea", "coffee", "honey", "juice", "pasta", "soup", "chocolate", "popcorn", "water", "glue", "paint", "tape", "string", "noodles", "beans", "oats") -> "some"
+    word.first().lowercaseChar() in "aeiou" -> "an"
+    else -> "a"
+}
 
 object Discovery {
     fun ownedDefs(s: PipoState): List<ItemDef> = s.world.items.mapNotNull { Catalog.item(it.catalogId) }
@@ -100,14 +105,18 @@ object Projects {
      */
     fun maybeStart(s: PipoState, rng: Random, now: Long, chance: Float, prefer: String? = null): PipoProject? {
         if (s.activeProject() != null) return null
-        if (prefer == null && s.world.items.size < 2) return null
+        // something you asked him to build is next in line
+        val queued = s.world.objectStates.remove("queued_build")
+        val pref = prefer ?: queued
+        val odds = if (queued != null) 10f else chance
+        if (pref == null && s.world.items.size < 2) return null
         val t = s.profile.traits
-        if (rng.nextFloat() > chance * (0.5f + t.curiosity * 0.5f + t.confidence * 0.3f)) return null
+        if (rng.nextFloat() > odds * (0.5f + t.curiosity * 0.5f + t.confidence * 0.3f)) return null
         val tagsOwned = s.world.items.filter { it.usedInProjectId == 0L }
             .flatMap { Catalog.item(it.catalogId)?.tags ?: emptySet() }.toSet()
         // settled = worked, or turned into something else: he's done with that one (unless he's done with everything)
         val settledIds = s.projects.filter { it.state == ProjectState.DONE || it.state == ProjectState.EVOLVED }.map { it.templateId }.toSet()
-        prefer?.let { Catalog.project(it) }?.takeIf { it.id !in settledIds && it.needs.all { n -> n in tagsOwned || purchasable(n) } }?.let { def ->
+        pref?.let { Catalog.project(it) }?.takeIf { it.id !in settledIds && it.needs.all { n -> n in tagsOwned || purchasable(n) } }?.let { def ->
             return begin(s, def, now, "${def.title}. \"${def.idea}\"")
         }
         if (s.world.items.size < 2) return null

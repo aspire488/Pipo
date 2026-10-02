@@ -37,6 +37,10 @@ class SceneGeo(val w: Float, val h: Float) {
         const val DOOR_L = 279f
         const val DOOR_R = 293f
         const val DOOR_X = 286f
+        /** The tall hallway mirror between the counter and the door (he checks himself before going out). */
+        const val MIRROR_L = 270.5f
+        const val MIRROR_R = 277.5f
+        const val MIRROR_X = 274f
         const val BOX_L = 267f
         const val BOX_R = 277f
         const val BOX_H = 10f
@@ -68,7 +72,7 @@ class SceneGeo(val w: Float, val h: Float) {
             Obj("toys", 226f, 242f, -8f, 20f), Obj("clock", 56f, 68f, 54f, 66f),
             Obj("console", 106f, 122f, -4f, 16f),
             Obj("box", BOX_L, BOX_R, -4f, BOX_H + 1f),
-            Obj("kitchen", 244f, 272f, -4f, 34f), Obj("door", 276f, 295f, -4f, 58f),
+            Obj("mirror", MIRROR_L, MIRROR_R, 4f, 46f), Obj("kitchen", 244f, 272f, -4f, 34f), Obj("door", 276f, 295f, -4f, 58f),
         )
 
         fun prankX(key: String) = when (key) {
@@ -103,6 +107,8 @@ data class RoomState(
     val arcadeActive: Boolean = false,
     /** Pipo is playing on his console: the TV shows the game. */
     val consoleActive: Boolean = false,
+    /** Movie night: what's on the TV (null = nothing). */
+    val movie: String? = null,
     val ballU: Float = 233f,
     val torch: Boolean = false,
     /** 0..1, leaves shake when Pipo brushes past the plant. */
@@ -138,7 +144,7 @@ data class RoomState(
     val coldWinter: Boolean = false,
     /** His builder level (1..5): the workshop slowly turns into a lab. */
     val builderLevel: Int = 1,
-    /** B.O.L.T., the helper screen on his desk, if he built it. */
+    /** Bolt, the helper screen on his desk, if he built it. */
     val helper: Boolean = false,
     val petInBed: Boolean = false,
     val stolenGlint: Boolean = false,
@@ -154,6 +160,8 @@ data class RoomState(
     /** Ball in the air (kick-ups), u above the floor. */
     val ballLift: Float = 0f,
     val reflectionUneasy: Boolean = false,
+    /** How far into "the other world" things have got (Mystery stage): the hallway mirror shimmers more. */
+    val mirrorStage: Int = 0,
     /** 0..1 lightning brightness this frame. */
     val flash: Float = 0f,
     /** He owns the brass token: it sits at the end of the shelf. [tokenAwake] = it glows at night (the thread has started). */

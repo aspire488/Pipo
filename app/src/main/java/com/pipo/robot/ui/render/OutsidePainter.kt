@@ -283,6 +283,7 @@ fun DrawScope.drawOutside(p: Place, d: OutsideDirector, hour: Float, weather: We
     // ---------------- the place itself (mid layer)
     val grass = shade(when (p.id) { "field" -> Color(0xFF6FAE5C); "hills" -> Color(0xFF8DAE6A); "lake" -> Color(0xFF79A86A); else -> Color(0xFF79AE68) }, night)
     when {
+        p.id == "sports_hall" || p.id == "cricket" || p.id == "court" -> Unit // painted with the ground, below
         p.kind == PlaceKind.SHOP || p.kind == PlaceKind.INDOOR || p.id == "repair" -> drawShopfront(p, gy, night, t)
         p.id == "field" && d.purpose == TripPurpose.CRICKET -> drawStumps(gy, night)
         p.id == "field" -> drawGoal(gy, night)
@@ -305,7 +306,12 @@ fun DrawScope.drawOutside(p: Place, d: OutsideDirector, hour: Float, weather: We
             drawRect(c, Offset(w * 0.6f, gy * 0.48f + w * 0.15f), Size(w * 0.3f, gy * 0.32f))
             drawSymbol(Offset(w * 0.75f, gy * 0.48f + w * 0.24f), w * 0.03f, Color(0xFF2B3342))
         }
-    } else drawRect(Brush.verticalGradient(listOf(grass, shade(lerp(grass, Color(0xFF3E5E3A), 0.4f), night)), gy, h), Offset(0f, gy), Size(w, h - gy))
+    } else if (p.id != "sports_hall") drawRect(Brush.verticalGradient(listOf(grass, shade(lerp(grass, Color(0xFF3E5E3A), 0.4f), night)), gy, h), Offset(0f, gy), Size(w, h - gy))
+    when (p.id) {
+        "sports_hall" -> drawHall(gy, night, t)
+        "cricket" -> { drawCricketGround(gy, night); drawStumps(gy, night) }
+        "court" -> drawCourtBack(gy, night)
+    }
     when (p.id) {
         "lake" -> {
             val water = shade(Color(0xFF5E9CC4), night)
@@ -339,6 +345,17 @@ fun DrawScope.drawOutside(p: Place, d: OutsideDirector, hour: Float, weather: We
             drawOval(wing, Offset(cx, cy - h * 0.018f), Size(w * 0.022f * flap, h * 0.03f))
             drawLine(Color(0xFF3A2A20), Offset(cx, cy - h * 0.02f), Offset(cx, cy + h * 0.012f), 2f)
         }
+    }
+    // the neighbour who lives/works here
+    if (p.npc.isNotBlank()) {
+        val (nx, face) = when (p.id) {
+            "field" -> 0.1f to 1f; "cricket" -> 0.9f to -1f; "sports_hall" -> 0.09f to 1f; "court" -> 0.08f to 1f
+            else -> if (p.kind == PlaceKind.SHOP || p.kind == PlaceKind.INDOOR) 0.08f to 1f else 0.85f to -1f
+        }
+        val cycle = (t + nx * 7f) % 9f
+        val wave = if (cycle < 1.4f) sin(cycle / 1.4f * Math.PI.toFloat()) else 0f
+        val cheer = d.rig.anim == AnimState.CELEBRATE
+        drawNpc(p.npc, nx * w, footY - (if (p.kind == PlaceKind.SHOP) h * 0.02f else 0f), h * 0.3f, t, face, wave, cheer)
     }
     if (d.purpose == TripPurpose.TABLE_TENNIS) drawPingPongTable(footY, night)
     if (d.purpose == TripPurpose.BADMINTON) drawBadmintonNet(footY, night)
@@ -433,6 +450,37 @@ private fun DrawScope.drawFence(gy: Float, night: Float) {
     for (i in 0 until 14) drawRoundRect(c, Offset(i * w / 13f, gy - size.height * 0.11f), Size(w * 0.025f, size.height * 0.11f), CornerRadius(4f))
     drawRect(c, Offset(0f, gy - size.height * 0.085f), Size(w, size.height * 0.015f))
     drawRect(c, Offset(0f, gy - size.height * 0.04f), Size(w, size.height * 0.015f))
+}
+
+/** Inside the sports hall: wooden floor lines, high windows, a banner, bright lights. */
+private fun DrawScope.drawHall(gy: Float, night: Float, t: Float) {
+    val w = size.width; val h = size.height
+    drawRect(Brush.verticalGradient(listOf(Color(0xFFDCD2C0), Color(0xFFC9BCA4)), 0f, gy), Offset.Zero, Size(w, gy))
+    for (i in 0 until 4) drawRoundRect(Color(0xFFA9D2EE).copy(alpha = 0.8f - night * 0.5f), Offset(w * (0.08f + i * 0.24f), h * 0.12f), Size(w * 0.16f, h * 0.12f), CornerRadius(4f))
+    drawRect(Color(0xFFE0453A), Offset(w * 0.25f, h * 0.3f), Size(w * 0.5f, h * 0.06f))
+    for (i in 0 until 8) drawRect(Color.White.copy(alpha = 0.85f), Offset(w * (0.28f + i * 0.055f), h * 0.32f), Size(w * 0.035f, h * 0.02f))
+    for (i in 0 until 3) { val lc = Offset(w * (0.2f + i * 0.3f), h * 0.04f); drawCircle(Brush.radialGradient(listOf(Color(0xFFFFF6D8).copy(alpha = 0.6f), Color.Transparent), lc, w * 0.15f), w * 0.15f, lc) }
+    drawRect(Brush.verticalGradient(listOf(Color(0xFFC98E55), Color(0xFFA06A3A)), gy, h), Offset(0f, gy), Size(w, h - gy))
+    for (i in 0 until 9) drawLine(Color.Black.copy(alpha = 0.08f), Offset(i * w / 8f, gy), Offset(i * w / 8f + (i - 4) * w * 0.05f, h), 1.5f)
+    drawLine(Color(0xFFFFD34A), Offset(0f, gy + h * 0.12f), Offset(w, gy + h * 0.12f), 3f)
+}
+
+/** The cricket ground: a big oval with a boundary rope, a sight-screen, the pitch strip. */
+private fun DrawScope.drawCricketGround(gy: Float, night: Float) {
+    val w = size.width; val h = size.height
+    drawRect(shade(Color(0xFFF2F2EE), night), Offset(w * 0.02f, gy - h * 0.22f), Size(w * 0.14f, h * 0.22f)) // sight-screen
+    drawOval(Color.White.copy(alpha = 0.7f - night * 0.3f), Offset(-w * 0.2f, gy + h * 0.02f), Size(w * 1.4f, h * 0.3f), style = Stroke(3f)) // boundary rope
+    drawRect(shade(Color(0xFFD9C79A), night), Offset(w * 0.2f, gy + h * 0.085f), Size(w * 0.64f, h * 0.03f))
+}
+
+/** The badminton court: green court with white lines (the net is drawn with the players). */
+private fun DrawScope.drawCourtBack(gy: Float, night: Float) {
+    val w = size.width; val h = size.height
+    drawRect(shade(Color(0xFF4F8A5A), night), Offset(w * 0.12f, gy + h * 0.04f), Size(w * 0.76f, h * 0.1f))
+    drawRect(Color.White.copy(alpha = 0.8f), Offset(w * 0.12f, gy + h * 0.04f), Size(w * 0.76f, h * 0.1f), style = Stroke(2f))
+    drawLine(Color.White.copy(alpha = 0.8f), Offset(w * 0.5f, gy + h * 0.04f), Offset(w * 0.5f, gy + h * 0.14f), 2f)
+    // a bench, with Bea's chalkboard
+    drawRect(shade(Color(0xFFA9774E), night), Offset(w * 0.01f, gy + h * 0.02f), Size(w * 0.14f, h * 0.015f))
 }
 
 private fun DrawScope.drawStumps(gy: Float, night: Float) {

@@ -95,6 +95,114 @@ object NibLife {
     /** Hours since they last did anything together. */
     fun hoursApart(s: PipoState, now: Long) = (now - s.memories.filter { it.type == MemoryType.PET }.maxOfOrNull { it.timestamp }.let { it ?: now }) / HOUR.toFloat()
 
+    /** Nib's own little words for the moments of its life (it talks like a very small someone). */
+    val words = mapOf(
+        "hi" to listOf("Hi!", "Hiii!", "Nib here!", "Oh! Hi!"),
+        "ball" to listOf("Ball!", "Ball? Ball!", "Mine!"),
+        "bird" to listOf("Bird!", "Bird! Bird!", "Ooh. Bird."),
+        "sleepy" to listOf("Nib sleepy.", "Nap...", "Zzz... five more."),
+        "food" to listOf("Snack?", "Smells good!", "Nib wants bite."),
+        "steal" to listOf("Mine.", "Nib found it. Nib keeps it.", "Shh."),
+        "scared" to listOf("Uh oh.", "Loud!", "Nib hides."),
+        "happy" to listOf("Yay!", "Wheee!", "Again!", "Nib happy!"),
+        "pipo" to listOf("Pipo!", "Pipo, play?", "Pipo, look!"),
+        "grumpy" to listOf("No.", "Hmph.", "Nib busy."),
+        "love" to listOf("Love!", "You good.", "Best!"),
+        "proud" to listOf("Nib did it!", "Ta-da!"),
+        "curious" to listOf("What's that?", "Hmm?", "Ooh?"),
+        "bye" to listOf("Bye bye!", "Come back soon!"),
+    )
+    fun say(key: String, rng: Random) = words[key]?.random(rng) ?: "Beep!"
+
+    /** Which kind of thing Nib just said (so Pipo can answer the right way). */
+    fun keyOf(line: String): String {
+        words.entries.firstOrNull { line in it.value }?.let { return it.key }
+        val l = line.lowercase()
+        return when {
+            line in mirrorWords || line in mirrorTellsPipo || "mirror" in l || "glass" in l -> "mirror"
+            Regex("\\b(ball|play|fetch|wins)\\b").containsMatchIn(l) -> "ball"
+            Regex("\\b(snack|food|bite|eat)\\b").containsMatchIn(l) -> "food"
+            Regex("\\b(nap|sleep|zzz|night)\\b").containsMatchIn(l) -> "sleepy"
+            Regex("\\b(love|best|blush)\\b").containsMatchIn(l) -> "love"
+            Regex("\\b(scared|uh oh|hides)\\b").containsMatchIn(l) -> "scared"
+            Regex("\\b(grump|go away|hmph)\\b").containsMatchIn(l) -> "grumpy"
+            "pipo" in l -> "pipo"
+            l.endsWith("?") -> "curious"
+            else -> "other"
+        }
+    }
+
+    /** Pipo answering Nib: he hears Nib, and Nib's words matter to him. */
+    val pipoAnswers = mapOf(
+        "hi" to listOf("Hi, Nib!", "Hey buddy.", "Hi Nib. You're very bouncy today."),
+        "ball" to listOf("Ball? Okay. One throw. ONE.", "You and that ball, Nib.", "Later, Nib. ...okay, now."),
+        "bird" to listOf("Where? Oh! A bird! Good spotting, Nib.", "Nib, you can't catch birds. You're a robot. ...a small one."),
+        "sleepy" to listOf("Nap time? Same, Nib. Same.", "Sleep, little buddy. I'll keep watch.", "Already? You napped an hour ago."),
+        "food" to listOf("You don't even eat, Nib.", "Nib, that's MY snack.", "We can share. You can't eat it, but we can share."),
+        "steal" to listOf("Nib. What did you take.", "Nib, I saw that.", "...that's mine, isn't it."),
+        "scared" to listOf("Hey, hey. It's okay. I'm here.", "Come here, Nib. Nothing's going to get you.", "What scared you? Show me."),
+        "happy" to listOf("Ha! Go Nib!", "Someone's happy.", "Wheee indeed."),
+        "pipo" to listOf("Yes, Nib? I'm here.", "What is it, Nib?", "I'm looking! I'm looking."),
+        "grumpy" to listOf("Okay, okay. Grumpy face. I'll leave you alone.", "Who upset you, Nib?", "Fine. Hmph back."),
+        "love" to listOf("Love you too, buddy.", "Aww. Nib.", "You're the best, Nib."),
+        "proud" to listOf("You did! Look at you!", "Ta-da! Good job, Nib!"),
+        "curious" to listOf("What did you find?", "Ooh. What is it, Nib?", "Show me."),
+        "bye" to listOf("Bye, Nib! Be good.", "See you soon, buddy."),
+        "other" to listOf("Mm-hm, Nib.", "Is that right, Nib?", "Nib says things. I listen. Mostly."),
+    )
+
+    /** You texted Nib: Nib answers you itself, in its own words and its own mood. */
+    data class NibReply(val beeps: String, val feeling: String, val thought: String?, val translation: String)
+
+    /** Nib does NOT trust the hallway mirror. Nib has seen things. */
+    val mirrorWords = listOf("Mirror WRONG. Other Pipo in there!", "Glass Pipo waved. Real Pipo no wave. Nib SAW.", "Nib no like mirror. Mirror looks back.",
+        "Mirror-Pipo blinks late. Nib counts. Nib knows.", "Glass is a door. Nib not going in.")
+    /** What Nib runs over to tell Pipo, in Nib's words. */
+    val mirrorTellsPipo = listOf("Pipo! Pipo! Mirror-Pipo moved. By ITSELF!", "Pipo! The glass one waved at Nib. Not you. HIM.",
+        "Pipo, listen! Other Pipo in mirror. Same face. Different.", "Pipo! Mirror has a room in it. Not OUR room!")
+
+    fun reply(s: PipoState, text: String, rng: Random): NibReply {
+        val t0 = text.lowercase()
+        val mood = s.pet.mood
+        fun r(feel: String, thought: String?, vararg lines: String) = NibReply("", feel, thought, lines.random(rng))
+        return when {
+            Regex("\\b(mirror|reflection|glass|other pipo|other world|mirror world)\\b").containsMatchIn(t0) -> r("GRUMPY", "EXCLAIM",
+                *mirrorWords.toTypedArray())
+            Regex("\\b(love|cute|good|best|sweet|awesome)\\b").containsMatchIn(t0) -> r("LOVE", "HEART", "Love you too!", "Nib blushing. Robots blush.", "You best!")
+            Regex("\\b(hungry|food|eat|snack|treat|popcorn)\\b").containsMatchIn(t0) -> r("CURIOUS", "FOOD", "Snack?! Where?", "Nib no eat. Nib wants anyway.")
+            Regex("\\b(play|ball|game|football|cricket|fetch)\\b").containsMatchIn(t0) -> r("HAPPY", "BALL", "BALL! Yes yes yes!", "Play! Nib fast!", "Nib wins. Always.")
+            Regex("\\b(bad|naughty|stole|steal)\\b").containsMatchIn(t0) -> if (s.pet.stolenItemId != 0L) r("SMUG", null, "Nib did nothing.", "What sock? No sock.") else r("SAD", null, "Nib good! Nib SO good.")
+            Regex("\\b(sleep|tired|nap|night)\\b").containsMatchIn(t0) -> r("SAD", "BATTERY", "Nap time... night night.", "Zzz. Nib already sleeping.")
+            Regex("\\b(pipo)\\b").containsMatchIn(t0) -> r("HAPPY", "PIPO", "Pipo is Nib's friend. Best friend.", "Pipo silly. Nib likes.")
+            Regex("\\b(how are you|how r u|you ok|hows it going)\\b").containsMatchIn(t0) -> r(if (mood == com.pipo.robot.data.PetMood.GRUMPY) "GRUMPY" else "HAPPY", null,
+                when (mood) { com.pipo.robot.data.PetMood.PLAYFUL -> "Bouncy! Play?"; com.pipo.robot.data.PetMood.SLEEPY -> "Sleepy. Very."; com.pipo.robot.data.PetMood.GRUMPY -> "Grumpy. Go away. ...Come back."
+                    com.pipo.robot.data.PetMood.SCARED -> "Scared. Little bit."; com.pipo.robot.data.PetMood.CURIOUS -> "Curious! What's that?"; else -> "Good! Nib good!" })
+            Regex("\\b(bye|good night|goodnight|see you)\\b").containsMatchIn(t0) -> r("SAD", "HEART", "Bye bye! Come back!", "Night night!")
+            Regex("\\b(hi|hello|hey|yo)\\b").containsMatchIn(t0) -> r("HAPPY", "HEART", "Hi! Hiii!", "Oh! Hi you!", "Nib here! Hi!")
+            t0.trim().endsWith("?") -> r("CURIOUS", "QUESTION", "Hmm? Nib not know.", "Ask Pipo. Pipo knows. Sometimes.")
+            else -> r("HAPPY", null, "Beep! Nib listening.", "Ooh. Okay!", "Nib likes you.")
+        }
+    }
+
+    /** (Old: Pipo translated. Nib speaks for itself now.) */
+    fun replyTranslated(s: PipoState, text: String, rng: Random): NibReply {
+        val t = text.lowercase()
+        fun beeps(n: Int) = List(n) { listOf("beep", "boop", "bip", "brrp", "meep").random(rng) }.joinToString(" ")
+        val st = stage(s)
+        return when {
+            Regex("\\b(love|cute|good|best|sweet|awesome)\\b").containsMatchIn(t) -> NibReply(beeps(3) + " ♥", "LOVE", "HEART",
+                if (st.level >= 2) "Nib says it loves you too. Nib is spinning. That's Nib for 'a lot'." else "Nib's a bit shy. But its tail is going. That's a yes.")
+            Regex("\\b(hungry|food|eat|snack|treat|popcorn)\\b").containsMatchIn(t) -> NibReply(beeps(2) + "?!", "CURIOUS", "FOOD", "Nib says 'food?' Nib doesn't eat. Nib asks anyway.")
+            Regex("\\b(play|ball|game|football|cricket|fetch)\\b").containsMatchIn(t) -> NibReply(beeps(4) + "!!", "HAPPY", "BALL", "Nib says YES. Nib is already doing zoomies.")
+            Regex("\\b(bad|naughty|stole|steal|no)\\b").containsMatchIn(t) -> NibReply("…" + beeps(1), "SAD", null, if (s.pet.stolenItemId != 0L) "Nib is pretending it didn't steal anything. It definitely did." else "Nib looks very innocent. Suspiciously innocent.")
+            Regex("\\b(sleep|tired|nap|night)\\b").containsMatchIn(t) -> NibReply("bip… zzz", "SAD", "BATTERY", "Nib says it's sleepy. Nib is always sleepy after being a menace.")
+            Regex("\\b(how are you|how r u|you ok|hows it going)\\b").containsMatchIn(t) -> NibReply(beeps(2), "HAPPY", null, "Nib says it's ${when (s.pet.mood) { com.pipo.robot.data.PetMood.PLAYFUL -> "bouncy"; com.pipo.robot.data.PetMood.SLEEPY -> "sleepy"; com.pipo.robot.data.PetMood.GRUMPY -> "grumpy. Don't take it personally"; com.pipo.robot.data.PetMood.SCARED -> "a bit scared"; com.pipo.robot.data.PetMood.CURIOUS -> "curious about EVERYTHING"; else -> "happy" }}.")
+            t.trim().endsWith("?") -> NibReply(beeps(1) + "?", "CURIOUS", "QUESTION", "Nib tilted its whole body. That means 'what?'. Nib doesn't do questions.")
+            else -> NibReply(beeps(2 + rng.nextInt(2)), "HAPPY", if (rng.nextBoolean()) "PIPO" else null,
+                listOf("Nib says hi. Nib says hi to everyone. Even the plant.", "Nib beeped at you. That's a good beep. I know the beeps.", "Nib says… something about the sunbeam. Nib loves the sunbeam.").random(rng))
+        }
+    }
+
     /** How Nib is, in Pipo's words. */
     fun describe(s: PipoState): String {
         val st = stage(s)

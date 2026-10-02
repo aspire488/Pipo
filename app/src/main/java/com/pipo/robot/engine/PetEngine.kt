@@ -53,14 +53,16 @@ object PetEngine {
         val quietPipo = pipoActivity in setOf(ActivityType.THINK, ActivityType.REST, ActivityType.NOTHING, ActivityType.READ, ActivityType.SCROLL_PHONE, ActivityType.DRAW)
         val w = linkedMapOf(
             PetActivity.NAP to (1f - p.energy) * 2f + (if (night) 1.2f else 0f) + (if (pipoActivity == ActivityType.SLEEP) 0.8f else 0f),
-            PetActivity.FOLLOW to (if (pipoActivity != null) p.bond * 0.9f + t.cuddly * 0.3f else 0f),
-            PetActivity.SIT_WITH_PIPO to (if (quietPipo) p.bond * 1.4f + t.cuddly * 0.6f else 0f),
-            PetActivity.PLAY_BALL to t.playfulness * p.boredom * 2.2f,
-            PetActivity.WANDER to t.curiosity * 0.7f + (if (pipoActivity == null) 0.4f else 0f),
+            // Nib is its own creature: it spends time with Pipo because it likes him, not because it's his
+            PetActivity.FOLLOW to (if (pipoActivity != null) p.bond * 0.3f + t.cuddly * 0.15f else 0f),
+            PetActivity.SIT_WITH_PIPO to (if (quietPipo) p.bond * 0.6f + t.cuddly * 0.3f else 0f),
+            PetActivity.PLAY_BALL to t.playfulness * (0.3f + p.boredom * 1.8f),
+            PetActivity.WANDER to t.curiosity * 1.1f + 0.3f,
             PetActivity.ZOOMIES to (if (p.energy > 0.7f) t.playfulness * 0.45f else 0f),
             PetActivity.STEAL to (if (p.stolenItemId == 0L && s.world.items.isNotEmpty() && now >= (s.cooldowns["pet:steal"] ?: 0L)) t.mischief * 0.12f else 0f),
             PetActivity.HIDE to (if (env.weather.kind == Weather.STORM) 1.5f * (1f - t.bravery) else 0f) + p.fear * 2f,
-            PetActivity.STARE to (if (Mystery.petSenses(s, env, now)) 2.5f else 0f),
+            // its own hobby: the birds at the window (daytime), the strange things there (at night)
+            PetActivity.STARE to (if (Mystery.petSenses(s, env, now)) 2.5f else if (!night) t.curiosity * 0.6f else 0f),
         )
         var r = rng.nextFloat() * w.values.sum()
         for ((k, v) in w) { r -= v; if (r <= 0f) return k }

@@ -195,6 +195,7 @@ object PoseLibrary {
                 p.antenna = s(9f) * 6f + (if (s(0.9f) > 0.93f) 12f else 0f)
             }
             AnimState.READING -> { p.sit = 1f; p.hold = 1f; p.headTilt = 8f; p.headBob = 1f; p.antenna = s(0.5f) * 4f }
+            AnimState.WATCHING -> { p.sit = 1f; p.hold = 1f; p.yaw = 0.75f; p.headTilt = -3f; p.bob = s(0.6f) * 0.4f; p.antenna = s(0.8f) * 6f }
             AnimState.CHARGING -> { p.armL = 20f; p.armR = 20f; p.lean = 0f; p.squash = 1f + s(2.5f) * 0.02f; p.antenna = 15f + s(3f) * 3f; p.headTilt = s(0.4f) * 3f }
             AnimState.PRESENTING -> { p.hold = 1f; p.lean = -2f; p.bob = abs(s(4f)) * 1.2f; p.antenna = 15f + s(5f) * 8f }
             AnimState.YAWN -> {
@@ -306,6 +307,8 @@ class PipoRig(seed: Int = 1) {
     /** Wearing the armor (0 = no, 1..3 = Mk I..III) and whether the Mk III helmet is flipped up. */
     var suit = 0
     var visorUp = false
+    /** Mk 0: the suit is his delivery box, with tape and eye holes. */
+    var cardboard = false
     /** Which app is on his little phone right now (null = his feed). */
     var phoneApp: com.pipo.robot.engine.PhoneApp? = null
     var torch = false
@@ -579,7 +582,7 @@ class PipoRig(seed: Int = 1) {
         val lying = pose.lie > 0.5f
         // Walking reads best three-quarter (face visible); only a deliberate pose turns him further away.
         // Most poses turn to whichever side feels natural; gaming faces the TV (to his right) every time.
-        val side = if (anim == AnimState.GAMING) 1f else awaySide
+        val side = if (anim == AnimState.GAMING || anim == AnimState.WATCHING) 1f else awaySide
         val yawTarget = if (lying) 0f else (tp.yaw * side + moveDir * 0.62f + lookX * 0.1f).coerceIn(-2.9f, 2.9f)
         yawVel += ((yawTarget - yaw) * 42f - yawVel * 8.5f) * dt
         yaw += yawVel * dt

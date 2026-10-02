@@ -375,6 +375,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         private set
 
     init {
+        // old saves: the helper project used to be titled "Bolt, the desk helper" (reads badly after "the")
+        repo.mutate(notify = false) { s -> s.projects.replaceAll { if (it.title == "Bolt, the desk helper") it.copy(title = "Desk helper") else it } }
         viewModelScope.launch {
             // Opt-in notification noticing: only (app, kind) arrives here, only while he's on screen.
             PipoNotificationListener.bus.collect { e ->
@@ -607,6 +609,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         engineAcc += dt
         if (engineAcc >= 1f) { engineAcc -= 1f; engineTick() }
         stepBeats(dt)
+        if (nibLine != null && (clock > nibLineUntil || !petHome)) nibLine = null
         stepVoiceConvo()
         stepMovement(dt)
         stepAttention(dt)
@@ -713,16 +716,54 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * The hallway mirror. Mostly he just checks his antenna. But once the strange things have
+     * started (Mystery stage 1+), now and then the reflection stays a beat after he moves, and waves;
+     * the other world is right there, the thickness of a piece of glass away.
+     */
+    private fun mirrorCheck(outing: Boolean): List<Beat> {
+        val stage = repo.read { it.mystery.stage }
+        val odd = stage >= 1 && rng.nextFloat() < (if (stage >= 3) 0.45f else 0.22f)
+        val vain = listOf("Antenna: straight. Screen: shiny. Good.", "Looking good. Looking VERY good.", "Hello, handsome.", "Smudge on my screen. ...fixed.",
+            if (outing) "Okay. Ready for the world." else "Just checking I'm still me. I am.")
+        // he stands just beside it and turns to it, so you see him AND the him in the glass
+        val out = mutableListOf<Beat>(Beat.Move(SceneGeo.MIRROR_X - 11f), Beat.Do { rig.lookAt(0.85f, 0.15f, 4f) },
+            Beat.Act(AnimState.LOOK_AROUND, 0.8f, Expr.CURIOUS), Beat.Do { rig.lookAt(0.85f, 0.15f, 6f) }, Beat.Say(Dialogue.pick(vain, rng), Sfx.BOOP),
+            Beat.Act(AnimState.HAPPY, 1.6f, Expr.HAPPY), Beat.Do { rig.lookAt(0.85f, 0.1f, 2f) }, Beat.Wait(1.2f))
+        if (odd) out += listOf(
+            Beat.Do { mirrorHeldX = SceneGeo.MIRROR_X; mirrorOddUntil = clock + 3.2f },
+            Beat.Move(SceneGeo.MIRROR_X - 20f), Beat.Wait(0.6f),
+            Beat.Act(AnimState.SURPRISED, 0.6f, Expr.SURPRISED), Beat.Do { rig.lookAt(0.6f, 0.4f, 2f) },
+            Beat.Say(Dialogue.pick(listOf("...did my reflection just wave? I didn't wave.", "It was a beat behind me. Mirrors aren't a beat behind.",
+                "That wasn't me. That was ME, but... not me.", "The other me. In there. Hi?"), rng), Sfx.SURPRISED),
+            Beat.Do {
+                val now = System.currentTimeMillis()
+                repo.mutate { s ->
+                    if (now - (s.cooldowns["mirror:odd"] ?: 0L) > DAY_MS) {
+                        s.cooldowns["mirror:odd"] = now
+                        Chronicle.journal(s, "The mirror", "His reflection in the hall mirror didn't keep up. It waved. He didn't. He checked twice. It behaved after that.", com.pipo.robot.data.JournalCategory.STRANGE, now)
+                        Chronicle.remember(s, com.pipo.robot.data.MemoryType.STRANGE, "my reflection in the hall mirror waved before I did", 0.7f, now, "mirror:odd")
+                    }
+                }
+            },
+            Beat.Act(AnimState.NERVOUS, 1f, Expr.WORRIED),
+            Beat.Do { if (petHome) { pet.feel(PetFace.GRUMPY, 3f); pet.think(PetThought.EXCLAIM, 3f); nibSays(listOf("TOLD you! Nib TOLD you!", "Nib saw! Nib SAW it!", "See?! Glass Pipo!").random(rng), 2.6f) } },
+        )
+        return out
+    }
+
     /** At night his reflection shows in the window glass. Usually it behaves. */
     private fun stepReflection(dt: Float) {
-        if (!reflectionVisible()) return
-        val uneasy = room.reflectionUneasy && (clock % 97f) in 40f..43.5f
+        if (!reflectionVisible() && !mirrorVisible()) return
+        val uneasy = (room.reflectionUneasy && (clock % 97f) in 40f..43.5f) || clock < mirrorOddUntil
         reflection.anim = if (uneasy) AnimState.WAVE else rig.anim
         reflection.expr = if (uneasy) Expr.HAPPY else rig.expr
         reflection.mood = rig.mood
         reflection.energy = rig.energy
         reflection.glow = rig.glow
-        reflection.lookAt(if (uneasy) 0f else rig.lookX, if (uneasy) 0.35f else rig.lookY, 0.2f)
+        // in the mirror he looks back at himself (left-right flipped); in the window, the same way he looks
+        val lx = if (mirrorVisible()) -rig.lookX else rig.lookX
+        reflection.lookAt(if (uneasy) 0f else lx, if (uneasy) 0.35f else rig.lookY, 0.2f)
         reflection.update(dt)
     }
 
@@ -739,6 +780,14 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     )
 
     fun reflectionVisible(): Boolean = !away && !inBed && hideSpot == null && dayFactor(room.hour) < 0.35f && abs(pipoX - 104f) < 20f
+
+    /** He's near the hallway mirror. */
+    fun mirrorVisible(): Boolean = !away && !inBed && hideSpot == null && abs(pipoX - SceneGeo.MIRROR_X) < 24f
+    /** Where his reflection stands: with him, except when it lingers a moment after he's moved on. */
+    fun mirrorPipoX(): Float = if (clock < mirrorOddUntil) mirrorHeldX else (SceneGeo.MIRROR_X + (SceneGeo.MIRROR_X - pipoX) * 0.15f).coerceIn(SceneGeo.MIRROR_X - 1.5f, SceneGeo.MIRROR_X + 1.5f)
+    /** The mirror is being odd (the reflection lingers, and waves on its own) until then. */
+    private var mirrorOddUntil = -1f
+    private var mirrorHeldX = SceneGeo.MIRROR_X
 
     private fun engineTick() {
         val now = System.currentTimeMillis()
@@ -761,6 +810,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         }
         mood = m
         maybeNibPesters()
+        if (!away && !asleep && petHome && cur == null && beats.isEmpty() && activity == null && hourOf(now) in 19..21 && rng.nextFloat() < 0.004f &&
+            repo.read { it.cooldowns["movie:day"] != com.pipo.robot.engine.WeatherEngine.localDay(now) })
+            enqueue(Beat.Say("It's movie night. I decided. Nib agrees.", Sfx.HAPPY), Beat.Do { movieNight("") })
         if (petHome && !away && !asleep && cur == null && beats.isEmpty() && (clock % 30f) < 1f) repo.mutate(notify = false) { NibLife.checkStage(it, now) }?.let { st ->
             enqueue(Beat.Do { rig.lookAt(((petX - pipoX) / 25f).coerceIn(-1f, 1f), 0.6f, 2f); nib(PetFace.LOVE, Sfx.PET_HAPPY, PetThought.HEART, 4f) },
                 Beat.Act(AnimState.CELEBRATE, 1.2f, Expr.LOVE),
@@ -819,6 +871,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 pennants = s.places.entries.sortedBy { it.value.firstVisit }.mapNotNull { (id, _) -> Places.byId(id)?.takeIf { it.kind != com.pipo.robot.data.PlaceKind.HIDDEN }?.color },
                 calDay = Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
                 festival = festivalNow,
+                movie = movieOn,
                 builderLevel = com.pipo.robot.engine.Inventor.level(s),
                 helper = com.pipo.robot.engine.Inventor.has(s, "helper"),
                 season = com.pipo.robot.engine.Seasons.at(System.currentTimeMillis(), WeatherEngine.liveLat),
@@ -833,6 +886,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 book = o["book"] != null,
                 coins = s.coins,
                 reflectionUneasy = Mystery.reflectionUneasy(s),
+                mirrorStage = s.mystery.stage,
                 token = s.world.items.any { it.catalogId == "brass_token" },
                 mirrorScrew = s.world.items.any { it.catalogId == "mirror_screw" },
                 benchParts = s.activeProject()?.let { p -> s.world.items.filter { it.usedInProjectId == p.id }.mapNotNull { Catalog.item(it.catalogId)?.shape } } ?: emptyList(),
@@ -858,6 +912,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun interrupt() {
         readHoldUntil = 0f
+        if (movieOn != null) { movieOn = null; rig.holdItem = null; buildRoom() }
         if (activity == ActivityType.HIDE && hideSpot != null) exitHide()
         if (!away) {
             // stopped on the way out: he never left, so he isn't "out" anywhere (and nobody leaves the door open)
@@ -1040,8 +1095,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 val trip = repo.read { it.trip } ?: run { activity = null; return }
                 val mischievous = mood == Mood.MISCHIEVOUS
                 if (trip.withPet && petHome) { petAct = PetActivity.FOLLOW; petTarget = SceneGeo.DOOR_X - 6f; petDecideAt = 30f }
-                enqueue(Beat.Do { rig.lookAt(0f, 0.35f, 2f) }, say(Trips.leavingLine(trip, rng), Sfx.BEEP),
-                    Beat.Move(SceneGeo.DOOR_X - 2f), Beat.Do { rig.lookAt(0f, 0.35f, 1f) },
+                enqueue(Beat.Do { rig.lookAt(0f, 0.35f, 2f) }, say(Trips.leavingLine(trip, rng), Sfx.BEEP))
+                if (rng.nextFloat() < 0.6f) enqueue(*mirrorCheck(outing = true).toTypedArray())
+                enqueue(Beat.Move(SceneGeo.DOOR_X - 2f), Beat.Do { rig.lookAt(0f, 0.35f, 1f) },
                     Beat.Act(if (mischievous) AnimState.MISCHIEVOUS else AnimState.WAVE, 0.9f, if (mischievous) Expr.MISCHIEF else Expr.HAPPY),
                     Beat.Do { doorTarget = 1f; if (sounds) voice.synth.sfx(Sfx.DOOR) }, Beat.Wait(0.45f), Beat.Move(SceneGeo.DOOR_X + 3f),
                     Beat.Do { leave((trip.endsAt - System.currentTimeMillis()) / 1000f) })
@@ -1290,7 +1346,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 Beat.Say("My scout drone's back! It went to ${Places.byId(photo.placeId)?.name?.lowercase() ?: "outside"} and took this.", Sfx.HAPPY), Beat.Do { reveal = Reveal.Snap(photo) })
         }
         if (a == ActivityType.WORK_COMPUTER && rng.nextFloat() < 0.3f && repo.read { com.pipo.robot.engine.Inventor.has(it, "helper") })
-            enqueue(Beat.Say(Dialogue.pick(listOf("B.O.L.T. says I'm doing great. B.O.L.T. says that about everything.", "B.O.L.T., run diagnostics. ...B.O.L.T. says 'error'. Classic B.O.L.T.", "B.O.L.T. and I solved it. B.O.L.T. mostly blinked."), rng), Sfx.BEEP))
+            enqueue(Beat.Say(Dialogue.pick(listOf("Bolt says I'm doing great. Bolt says that about everything.", "Bolt, run diagnostics. ...Bolt says 'error'. Classic Bolt.", "Bolt and I solved it. Bolt mostly blinked."), rng), Sfx.BEEP))
         buildRoom()
     }
 
@@ -1409,6 +1465,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             repo.mutate { it.world.objectStates.remove("bag"); it.lastTrip?.told = true }
             buildRoom()
         }
+        // groceries home + something he can make = he cooks it now
+        if (food && repo.read { FoodLife.feasible(it).isNotEmpty() }) out += listOf(Beat.Say(Dialogue.pick(listOf("Now I can cook! Chef Pipo, back in business.", "Ingredients! Okay. Cooking time."), rng), Sfx.HAPPY), Beat.Do { forceActivity(ActivityType.COOK) })
         r.story.getOrNull(1)?.let { out += say(it, Sfx.BEEP) }
         if (bought.isNotEmpty() || photo != null || r.foundItemIds.isNotEmpty()) {
             out += listOf(Beat.Move(null), Beat.Do { rig.lookAt(0f, 0.35f, 4f) }, Beat.Act(AnimState.PRESENTING, 0.5f, Expr.EXCITED), Beat.Do { reveal = Reveal.Trip(r, photo) }, Beat.Act(AnimState.PRESENTING, 1.8f, Expr.HAPPY))
@@ -1898,6 +1956,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private fun stepPet(dt: Float) {
         if (!petHome) return
         nibQuirks()
+        stepNibMirror()
         if (clock < nibSpinUntil) { pet.facing = if (((nibSpinUntil - clock) * 4f).toInt() % 2 == 0) 1f else -1f; pet.anim = PetAnim.HOP; pet.update(dt); return }
         pet.update(dt)
         val tx = petTarget
@@ -1983,15 +2042,134 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         if (f == com.pipo.robot.engine.Festival.HALLOWEEN && armorMark > 0) rig.suit = armorMark
     }
     private var armorMark = 0
+
+    /** "Build me a suit / Bolt / a drone": the real project starts (or waits its turn). */
+    private fun buildOnRequest(id: String) {
+        val now = System.currentTimeMillis()
+        val (started, current) = repo.mutate { s ->
+            val cur = s.activeProject()
+            if (cur != null && cur.templateId != id) { s.world.objectStates["queued_build"] = id; null to cur.title }
+            else (cur ?: com.pipo.robot.engine.Projects.maybeStart(s, rng, now, 10f, prefer = id)) to null
+        }
+        when {
+            current != null -> enqueue(Beat.Say("I'll finish the ${current.lowercase()} first. Then it's next. I wrote it down. On my hand.", Sfx.BEEP))
+            started == null -> enqueue(Beat.Say("I don't have the parts for that yet. I need to find some. Or buy some.", Sfx.HMM))
+            started.state == ProjectState.BUILDING -> enqueue(Beat.Do { forceActivity(ActivityType.BUILD) })
+            else -> {
+                val need = repo.read { Trips.materialsNeeded(it).firstOrNull()?.let { m -> com.pipo.robot.engine.Economy.nameOf(m) } }
+                // he really goes for the part (a trip to the shop that has it), unless he can't go out right now
+                val why = repo.read { Trips.whyNot(it, currentEnv(), now) }
+                val part = need?.let { if (it.endsWith("s") || it.startsWith("some ")) it else "${com.pipo.robot.engine.article(it)} $it" }
+                val line = when {
+                    part == null -> "Now I need parts. Hunting time."
+                    why != null -> "I need $part first. I'll get it when I can go out. $why"
+                    else -> "I need $part first. I'll go get it."
+                }
+                enqueue(Beat.Act(AnimState.THINKING, 1f, Expr.FOCUSED), Beat.Say("Blueprint's ready. $line", Sfx.BEEP),
+                    Beat.Do { if (need == null) forceActivity(ActivityType.EXPLORE) else if (why == null) forceTrip("") })
+            }
+        }
+        buildRoom()
+    }
+
+    /** Bolt talks (from its screen on the desk), if he's built it. */
+    private fun boltAnswers(asked: String) {
+        val has = repo.read { com.pipo.robot.engine.Inventor.has(it, "helper") }
+        if (!has) {
+            enqueue(Beat.Say("Bolt? I haven't built Bolt yet. It's going to be my J.A.R.V.I.S. Want me to build it?", Sfx.HMM, listOf(
+                Choice("Build it!") { buildOnRequest("helper") }, Choice("Later") { enqueue(Beat.Say("Okay. Bolt will wait. Bolt doesn't exist. It's good at waiting.", Sfx.BOOP)) })))
+            return
+        }
+        val line = repo.read { com.pipo.robot.engine.Inventor.boltSays(it, asked, System.currentTimeMillis()) }
+        enqueue(Beat.Do { focusCam(153.5f, 3f); if (sounds) voice.synth.sfx(Sfx.SERVO) }, Beat.Wait(0.5f),
+            Beat.Say("Bolt: $line", Sfx.BEEP), Beat.Do { rig.lookAt(0.5f, 0.2f, 2f) },
+            Beat.Say(Dialogue.pick(listOf("Thanks, Bolt.", "Bolt is very smart. I made Bolt.", "Good job, Bolt. ...it beeped. That's Bolt for 'you're welcome'."), rng), Sfx.HAPPY))
+    }
+
+    /** You texted Nib. Nib answers you itself, in its own words and voice. Pipo stays out of it. */
+    private fun nibAnswers(text: String) {
+        if (!petHome) { showText(if (away) "(Nib is out with Pipo. Nib beeped at the phone.)" else "(Nib isn't here.)"); return }
+        val r = repo.mutate(notify = false) { s -> com.pipo.robot.engine.NibLife.reply(s, text, rng).also { s.pet.bond = (s.pet.bond + 0.003f).coerceAtMost(1f) } }
+        val face = runCatching { PetFace.valueOf(r.feeling) }.getOrDefault(PetFace.HAPPY)
+        val thought = r.thought?.let { runCatching { PetThought.valueOf(it) }.getOrNull() }
+        focusCam(petX, 3f); pet.look(0f, 0.9f); pet.anim = PetAnim.HOP
+        pet.feel(face, 3.5f); thought?.let { pet.think(it, 3.5f) }
+        if (face == PetFace.HAPPY && thought == PetThought.BALL) { petAct = PetActivity.ZOOMIES; petDecideAt = 3f }
+        nibSays(r.translation, 3.5f)
+        if (!away && !inBed && rng.nextFloat() < 0.6f) enqueue(Beat.Wait(2.6f), Beat.Do { rig.lookAt(0f, 0.35f, 2f) },
+            Beat.Say(Dialogue.pick(listOf("Nib likes talking to you. I can tell.", "Nib's answering for itself now. Look at that.", "Did you understand that? I did. Mostly.", "Nib's got opinions."), rng), Sfx.HAPPY))
+        if (Regex("\\b(mirror|reflection|glass|other world|mirror world)\\b").containsMatchIn(text.lowercase())) {
+            viewModelScope.launch { kotlinx.coroutines.delay(3200); startNibMirror() }
+        }
+    }
+
+    /** Movie night: popcorn, the rug, Nib, a film on the TV, and a review. */
+    private var movieOn: String? = null
+    private fun movieNight(asked: String) {
+        if (away) return
+        val genre = when {
+            Regex("space|robot|rocket|star").containsMatchIn(asked) -> "space"
+            Regex("dino|dinosaur").containsMatchIn(asked) -> "dino"
+            Regex("scary|horror|ghost").containsMatchIn(asked) -> "scary"
+            Regex("nature|animal|frog|documentary").containsMatchIn(asked) -> "nature"
+            Regex("cartoon|funny|comedy|kids").containsMatchIn(asked) -> "cartoon"
+            else -> listOf("space", "dino", "cartoon", "nature", "scary").random(rng)
+        }
+        val title = when (genre) {
+            "space" -> listOf("Robots in Space 3", "The Moon Is Made of Bolts", "Captain Antenna").random(rng)
+            "dino" -> listOf("The Dinosaur Who Was Late", "T-Rex Learns to Clap").random(rng)
+            "scary" -> listOf("The Thing Under the Bed (It's Nib)", "Night of the Squeaky Door").random(rng)
+            "nature" -> listOf("Frogs: The Musical", "Secret Life of Sparrows").random(rng)
+            else -> listOf("Beep Beep Boom", "Captain Toaster", "The Great Sock Adventure").random(rng)
+        }
+        interrupt(); leaveBed(); activity = null
+        if (petHome) { petAct = PetActivity.SIT_WITH_PIPO; petTarget = 84f; petRunning = true; petDecideAt = 90f }
+        val mid = when (genre) {
+            "scary" -> listOf(Beat.Do { nib(PetFace.SURPRISED, Sfx.PET_SAD, PetThought.EXCLAIM, 3f); petTarget = 92f }, Beat.Act(AnimState.NERVOUS, 1.5f, Expr.NERVOUS), Beat.Say("Nib is hiding behind me. I'm hiding behind Nib. It's a system.", Sfx.SURPRISED))
+            "cartoon" -> listOf(Beat.Act(AnimState.LAUGH, 1.4f, Expr.LAUGH), Beat.Say("HAHA. He fell in the soup again!", Sfx.LAUGH), Beat.Do { nib(PetFace.HAPPY, Sfx.PET_HAPPY) })
+            "space" -> listOf(Beat.Act(AnimState.EXCITED, 1.2f, Expr.EXCITED), Beat.Say("That rocket is SO fast. I'm going to build one. After the movie.", Sfx.HAPPY))
+            "dino" -> listOf(Beat.Act(AnimState.SURPRISED, 1f, Expr.SURPRISED), Beat.Say("Nib, it's so BIG. Nib, look. Nib's looking.", Sfx.SURPRISED), Beat.Do { nib(PetFace.SURPRISED, Sfx.PET_CURIOUS) })
+            else -> listOf(Beat.Act(AnimState.CURIOUS, 1.2f, Expr.CURIOUS), Beat.Say("Frogs can sing?! I knew it.", Sfx.HMM))
+        }
+        enqueue(Beat.Say("Tonight's movie: $title!", Sfx.HAPPY), Beat.Move(93f), Beat.Do { if (petHome) { petAct = PetActivity.SIT_WITH_PIPO; petTarget = 81f; petRunning = false; petDecideAt = 90f }; rig.holdItem = ItemShape.BOWL; movieOn = genre; rig.lookAt(1f, -0.05f, 60f); focusCam(104f, 60f); buildRoom() })
+        enqueue(Beat.Act(AnimState.WATCHING, 6f, Expr.CONTENT), Beat.Do { if (sounds) voice.synth.sfx(Sfx.CHEW) }, Beat.Act(AnimState.WATCHING, 4f, Expr.CONTENT))
+        enqueueAll(mid)
+        enqueue(Beat.Act(AnimState.WATCHING, 7f, Expr.FOCUSED), Beat.Do { if (sounds) voice.synth.sfx(Sfx.CHEW) }, Beat.Act(AnimState.WATCHING, 5f, Expr.CONTENT))
+        enqueue(Beat.Do { movieOn = null; rig.holdItem = null; buildRoom(); rig.lookAt(0f, 0.35f, 3f) }, Beat.Act(AnimState.GET_UP, 0.8f, Expr.HAPPY),
+            Beat.Say(Dialogue.pick(listOf("$title: five stars. Nib gives it three beeps. That's also five stars.", "Best movie ever. Until the next one.", "I liked the part where everything exploded. Nib liked the part with the snacks."), rng), Sfx.HAPPY))
+        val now = System.currentTimeMillis()
+        repo.mutate(notify = false) { s ->
+            s.cooldowns["movie:day"] = com.pipo.robot.engine.WeatherEngine.localDay(now)
+            PetEngine.together(s, "movie", "Nib and I watched $title with popcorn", now, 0.5f)
+            Chronicle.journal(s, "Movie night: $title", "Popcorn on the rug. Nib got the good spot. ${if (genre == "scary") "Nobody was scared. Everybody was scared." else "Five stars, he says."}", JournalCategory.MOMENT, now)
+        }
+    }
     private var suitUntil = 0f
     private var flyUntil = 0f
 
     /** "Suit up": the armor goes on, piece by piece, with a lot of noise. */
     private fun suitUp(fly: Boolean) {
         val mk = armorMark
-        if (mk == 0) { enqueue(Beat.Say("I don't have armor yet. I'm working on it. It's going to be red. And gold.", Sfx.HMM)); return }
+        if (mk == 0) {
+            val hasMk0 = repo.read { com.pipo.robot.engine.Inventor.hasCardboardSuit(it) }
+            if (!hasMk0) {
+                // no armor yet... but he has a box. Mark Zero, built right now, while you watch.
+                enqueue(Beat.Say("Real armor needs more levels. BUT. I have a box.", Sfx.HMM),
+                    Beat.Move(SceneGeo.BOX_L - 4f, run = true), Beat.Act(AnimState.BUILDING, 1.8f, Expr.FOCUSED), Beat.Do { if (sounds) voice.synth.sfx(Sfx.SCRIBBLE); nib(PetFace.CURIOUS, Sfx.PET_CURIOUS, PetThought.QUESTION) },
+                    Beat.Act(AnimState.BUILDING, 1.8f, Expr.FOCUSED), Beat.Say("Tape. Scissors. Two eye holes. Science.", Sfx.EFFORT),
+                    Beat.Act(AnimState.BUILDING, 1.4f, Expr.FOCUSED),
+                    Beat.Do { repo.mutate { com.pipo.robot.engine.Inventor.buildCardboardSuit(it, System.currentTimeMillis()) } })
+            }
+            enqueue(Beat.Act(AnimState.SPIN, 1f, Expr.FOCUSED),
+                Beat.Do { rig.suit = 1; rig.cardboard = true; suitUntil = clock + 120f; if (sounds) voice.synth.sfx(Sfx.SERVO); nib(PetFace.SURPRISED, Sfx.PET_HAPPY, PetThought.EXCLAIM) },
+                Beat.Act(AnimState.PROUD, 1.4f, Expr.PROUD),
+                Beat.Say(Dialogue.pick(listOf("Armor Mark Zero. Online. Mostly cardboard. Fully heroic.", "Mark Zero! It's a prototype. Don't poke it. Nib, don't poke it."), rng), Sfx.WIN))
+            if (fly) enqueue(Beat.Act(AnimState.HOP, 0.6f, Expr.EXCITED), Beat.Say("Mark Zero doesn't fly. That was a jump. A heroic jump.", Sfx.GIGGLE))
+            return
+        }
+        rig.cardboard = false
         if (rig.suit == 0) enqueue(
-            Beat.Say(if (repo.read { com.pipo.robot.engine.Inventor.has(it, "helper") }) "B.O.L.T., suit up." else "Suit up!", Sfx.BEEP),
+            Beat.Say(if (repo.read { com.pipo.robot.engine.Inventor.has(it, "helper") }) "Bolt, suit up." else "Suit up!", Sfx.BEEP),
             Beat.Act(AnimState.SPIN, 1.1f, Expr.FOCUSED), Beat.Emote(EmoteKind.SPARKLE),
             Beat.Do { rig.suit = mk; rig.rocketBoots = rig.rocketBoots || mk >= 2; suitUntil = clock + 120f; if (sounds) voice.synth.sfx(Sfx.SERVO); nib(PetFace.SURPRISED, Sfx.PET_CURIOUS, PetThought.EXCLAIM) },
             Beat.Act(AnimState.PROUD, 1.2f, Expr.PROUD),
@@ -2054,7 +2232,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             ActivityType.BUILD -> {
                 // his helper screen chimes in
                 if (repo.read { com.pipo.robot.engine.Inventor.has(it, "helper") } && rng.nextFloat() < 0.4f)
-                    enqueue(Beat.Wait(2f), Beat.Say(Dialogue.pick(listOf("B.O.L.T., run the numbers. ...B.O.L.T. says 'maybe'. Good enough.", "B.O.L.T., scan for problems. ...it found one. It's me. Rude.", "B.O.L.T., play some music. ...that's the 'error' song. My favourite."), rng), Sfx.BEEP))
+                    enqueue(Beat.Wait(2f), Beat.Say(Dialogue.pick(listOf("Bolt, run the numbers. ...Bolt says 'maybe'. Good enough.", "Bolt, scan for problems. ...it found one. It's me. Rude.", "Bolt, play some music. ...that's the 'error' song. My favourite."), rng), Sfx.BEEP))
                 // and Nib "helps"
                 if (rng.nextFloat() > 0.35f + bond * 0.3f) return
                 petAct = PetActivity.SIT_WITH_PIPO; petTarget = pipoX + 7f; petRunning = true; petDecideAt = 40f
@@ -2080,12 +2258,67 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
     private var nibPesterAt = 40f
 
+    /** He's out playing a sport: the home screen offers to watch. */
+    val outPlaying: String? get() = if (!away) null else repo.read { s -> s.trip?.takeIf { it.purpose in setOf(com.pipo.robot.data.TripPurpose.FOOTBALL, com.pipo.robot.data.TripPurpose.CRICKET, com.pipo.robot.data.TripPurpose.TABLE_TENNIS, com.pipo.robot.data.TripPurpose.BADMINTON) }?.purpose?.name }
+
+    /** What Nib is saying right now (its own bubble, over its head), and until when. */
+    var nibLine by mutableStateOf<String?>(null)
+    private var nibLineUntil = 0f
+    private var nibTalkAt = 0f
+
+    /** Nib says something, in its own small voice. */
+    fun nibSays(line: String, secs: Float = 2.6f) {
+        if (!petHome) return
+        nibLine = line; nibLineUntil = clock + secs + line.length * 0.05f; nibTalkAt = clock
+        if (sounds) voice.synth.nibSpeak(line)
+        pipoHearsNib(line)
+    }
+
+    /**
+     * Pipo hears Nib. He doesn't ignore it: he turns to Nib and answers (unless he's asleep, out,
+     * talking already, or deep in something; even then he might glance over). The mirror has its
+     * own scene, so that's left to it.
+     */
+    private var pipoAnsweredNibAt = -100f
+    private fun pipoHearsNib(line: String) {
+        if (away || inBed || asleep || hideSpot != null || !petHome) return
+        if (abs(petX - pipoX) > 90f || clock - pipoAnsweredNibAt < 5f) return
+        val key = com.pipo.robot.engine.NibLife.keyOf(line)
+        if (key == "mirror" && nibMirror != 0) return
+        val look = { rig.lookAt(((petX - pipoX) / 35f).coerceIn(-1f, 1f), 0.75f, 2.5f) }
+        if (cur is Beat.Say || beats.any { it is Beat.Say } || absorbed) { look(); return } // busy talking/working: a glance
+        if (rng.nextFloat() > 0.8f) { look(); return }
+        pipoAnsweredNibAt = clock
+        val answer = com.pipo.robot.engine.NibLife.pipoAnswers[key]?.random(rng)
+            ?: if (key == "mirror") Dialogue.pick(listOf("The mirror again, Nib?", "Nib really doesn't like that mirror."), rng) else "Mm-hm, Nib."
+        val (anim, expr) = when (key) {
+            "scared" -> AnimState.NERVOUS to Expr.WORRIED; "love", "happy", "proud", "hi" -> AnimState.HAPPY to Expr.HAPPY
+            "steal" -> AnimState.ANNOYED to Expr.ANNOYED; "grumpy" -> AnimState.SULK to Expr.SAD; else -> AnimState.LOOK_AROUND to Expr.CURIOUS
+        }
+        enqueue(Beat.Wait(0.9f + line.length * 0.03f), Beat.Do(look), Beat.Act(anim, 0.6f, expr), Beat.Say(answer, Sfx.BOOP))
+        // and Nib's words sometimes move him: a ball means a game, scared means he goes to Nib
+        when (key) {
+            "scared" -> enqueue(Beat.Move(petX + (if (pipoX < petX) -8f else 8f)), Beat.Act(AnimState.HAPPY, 0.8f, Expr.HAPPY))
+            "pipo", "curious" -> if (rng.nextFloat() < 0.5f) enqueue(Beat.Move(petX + (if (pipoX < petX) -10f else 10f)))
+        }
+    }
+
+    /** Where Nib's head is on screen (for its bubble). */
+    fun nibHeadView(): Offset { val f = toView(petFootScreen()); val g = geo ?: return f; return Offset(f.x, f.y - 14f * g.u * camZoom) }
+
     /** Nib reacts: a face, a sound in Nib, and maybe a picture of what it's thinking. */
     private fun nib(face: PetFace, sfx: Sfx? = null, thought: PetThought? = null, secs: Float = 2.5f) {
         if (!petHome) return
         pet.feel(face, secs)
         thought?.let { pet.think(it, secs + 0.3f) }
-        if (sounds && sfx != null) voice.synth.sfx(sfx)
+        // now and then Nib says it out loud, in its own words (not every time: Nib is a pet, not a chatterbox)
+        val key = when {
+            thought == PetThought.BALL -> "ball"; thought == PetThought.FOOD -> "food"; thought == PetThought.BATTERY -> "sleepy"
+            thought == PetThought.PIPO -> "pipo"; face == PetFace.GRUMPY -> "grumpy"; face == PetFace.LOVE -> "love"; face == PetFace.SMUG -> "steal"
+            face == PetFace.SURPRISED -> "scared"; face == PetFace.CURIOUS -> "curious"; face == PetFace.HAPPY -> "happy"; else -> null
+        }
+        if (key != null && clock - nibTalkAt > 7f && nibLine == null && rng.nextFloat() < 0.45f) nibSays(com.pipo.robot.engine.NibLife.say(key, rng))
+        else if (sounds && sfx != null) voice.synth.sfx(sfx)
     }
 
     /**
@@ -2150,7 +2383,91 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             Beat.Do { petAct = PetActivity.ZOOMIES; petDecideAt = 3f; nib(PetFace.HAPPY, Sfx.PET_HAPPY, PetThought.HEART) })
     }
 
+    /**
+     * Nib and the hallway mirror. Nib doesn't trust it. Now and then Nib goes and glares at it,
+     * growls, and then runs to Pipo to tell him what it saw (in Nib's words). Pipo listens. Pipo
+     * goes to look. Sometimes there's nothing. Sometimes the reflection is a beat behind.
+     * Stages: 0 none, 1 going to the mirror, 2 glaring, 3 running to Pipo, 4 telling him.
+     */
+    private var nibMirror = 0
+    private var nibMirrorT = 0f
+    private var nibMirrorNextAt = 90f
+
+    fun startNibMirror(): Boolean {
+        if (!petHome || away || nibMirror != 0) return false
+        nibMirror = 1; nibMirrorT = clock
+        petAct = PetActivity.WANDER; petDecideAt = 60f; petRunning = false
+        petTarget = SceneGeo.MIRROR_X - 4f
+        pet.feel(PetFace.CURIOUS, 3f); pet.think(PetThought.QUESTION, 3f)
+        return true
+    }
+
+    private fun stepNibMirror() {
+        // on its own, every so often (more often once the strange things have started)
+        if (nibMirror == 0) {
+            if (clock < nibMirrorNextAt || away || asleep || inBed || petAct == PetActivity.NAP || petAct == PetActivity.STEAL) return
+            // only when Pipo isn't in the middle of something (cooking, a homecoming, a story)
+            if (cur != null || beats.isNotEmpty() || (activity != null && activity !in setOf(ActivityType.NOTHING, ActivityType.REST, ActivityType.THINK, ActivityType.READ, ActivityType.INSPECT_PLANT))) { nibMirrorNextAt = clock + 30f; return }
+            val stage = room.mirrorStage
+            nibMirrorNextAt = clock + (if (stage >= 1) 240f else 420f) + rng.nextFloat() * 240f
+            if (rng.nextFloat() < (if (stage >= 1) 0.8f else 0.5f)) startNibMirror()
+            return
+        }
+        val since = clock - nibMirrorT
+        when (nibMirror) {
+            1 -> if (abs(petX - (SceneGeo.MIRROR_X - 4f)) < 2.5f || since > 14f) {
+                // there. Nib looks into the glass. Nib does not like it.
+                nibMirror = 2; nibMirrorT = clock
+                pet.facing = 1f; pet.look(1f, -0.4f)
+                pet.feel(PetFace.GRUMPY, 4f); pet.think(PetThought.EXCLAIM, 4f)
+                if (sounds) voice.synth.sfx(Sfx.PET_GRUMP)
+                nibSays(listOf("Grrrr. Mirror.", "...you. In the glass. Nib sees you.", "Not Pipo. NOT Pipo.").random(rng), 2.4f)
+                if (!away && cur == null && beats.isEmpty() && abs(pipoX - petX) < 60f)
+                    enqueue(Beat.Do { rig.lookAt(((petX - pipoX) / 35f).coerceIn(-1f, 1f), 0.3f, 2f) }, Beat.Say("Nib? Why are you growling at the mirror?", Sfx.HMM))
+            }
+            2 -> if (since > 4.5f) {
+                // and runs to tell Pipo
+                nibMirror = 3; nibMirrorT = clock
+                petRunning = true; petTarget = pipoX + (if (petX < pipoX) -9f else 9f)
+                pet.feel(PetFace.SURPRISED, 2f)
+            }
+            3 -> {
+                petTarget = pipoX + (if (petX < pipoX) -9f else 9f)
+                if (abs(petX - petTarget!!) < 3f || since > 10f) {
+                    nibMirror = 4; nibMirrorT = clock; petRunning = false
+                    pet.facing = if (pipoX > petX) 1f else -1f; pet.anim = PetAnim.HOP
+                    pet.feel(PetFace.SURPRISED, 4f); pet.think(PetThought.EXCLAIM, 4f)
+                    nibSays(com.pipo.robot.engine.NibLife.mirrorTellsPipo.random(rng), 3.4f)
+                    val now = System.currentTimeMillis()
+                    val stage = repo.mutate { s ->
+                        if (now - (s.cooldowns["nib:mirror"] ?: 0L) > DAY_MS) {
+                            s.cooldowns["nib:mirror"] = now
+                            Chronicle.journal(s, "Nib and the mirror", "Nib growled at the hall mirror, then ran over and told him the reflection moved by itself. He went to check.", com.pipo.robot.data.JournalCategory.STRANGE, now)
+                            s.pet.memories.add("mirror:told")
+                        }
+                        s.mystery.stage
+                    }
+                    // Pipo listens, believes Nib a little, and goes to look
+                    if (!away && !inBed && !asleep && hideSpot == null && cur == null && beats.isEmpty()) {
+                        interrupt(); activity = null; restPose = null
+                        enqueue(Beat.Wait(1.2f), Beat.Do { rig.lookAt(((petX - pipoX) / 35f).coerceIn(-1f, 1f), 0.6f, 2.5f) },
+                            Beat.Act(AnimState.CURIOUS, 0.8f, Expr.CURIOUS),
+                            Beat.Say(Dialogue.pick(listOf("Nib says my reflection moved on its own. ...Mirrors don't do that, Nib.",
+                                "Nib says there's another me in the mirror. Another me. That's... let's go look.",
+                                "Nib's never wrong about this stuff. Nib was right about the hills. Okay. Show me."), rng), Sfx.HMM))
+                        if (stage >= 1) enqueue(*mirrorCheck(outing = false).toTypedArray())
+                        else enqueue(Beat.Move(SceneGeo.MIRROR_X - 11f), Beat.Do { rig.lookAt(0.85f, 0.15f, 3f) }, Beat.Act(AnimState.LOOK_AROUND, 1.2f, Expr.CURIOUS),
+                            Beat.Say(Dialogue.pick(listOf("It's just me. See, Nib? Just me.", "Nothing. Just a very handsome robot.", "...it's copying me perfectly. Which is what mirrors do. Right?"), rng), Sfx.BOOP),
+                            Beat.Do { nibSays(listOf("Hmph. Nib watching.", "It KNOWS you looking.", "Nib keep eye on it.").random(rng), 2.4f) })
+                    }
+                }
+            }
+            4 -> if (since > 5f) { nibMirror = 0; petDecideAt = 2f }
+        }
+    }
+
     private fun decidePet() {
+        if (nibMirror != 0) { petDecideAt = 3f; return }
         val now = System.currentTimeMillis()
         val env = currentEnv()
         val pipoAct = if (away) null else activity
@@ -2770,6 +3087,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 enqueue(Beat.Say(if (petInBox) "Shh. Nib's asleep in there." else Dialogue.pick(listOf("It's my box. It's a fort. Or a boat. Depends on the day.", "I kept the box. Obviously. It's the best part."), rng), Sfx.BEEP))
                 return
             }
+            "mirror" -> { enqueue(*mirrorCheck(outing = false).toTypedArray()); return }
             "door" -> {
                 // you're suggesting he goes out: he does, unless there's a real reason not to
                 val now = System.currentTimeMillis()
@@ -2882,7 +3200,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         if (res.action == ChatAction.PHONE && phone != null) { handlePhone(phone); return }
         if (res.action == ChatAction.COME_HOME) {
             repo.mutate { s -> Trips.hurryHome(s, now) }
-            activityEnd = minOf(activityEnd, clock + 25f)
+            activityEnd = minOf(activityEnd, clock + 4f)
         }
         val b = brain
         if (b !== NoBrain && !res.locked && phoneState.online) {
@@ -2936,8 +3254,12 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun respond(text: String, res: ChatResult) {
-        enqueue(Beat.Say(text, res.sfx))
+        if (text.isNotBlank()) enqueue(Beat.Say(text, res.sfx))
         when (res.action) {
+            ChatAction.BUILD_THIS -> enqueue(Beat.Do { buildOnRequest(res.payload) })
+            ChatAction.BOLT -> enqueue(Beat.Do { boltAnswers(res.payload) })
+            ChatAction.NIB_TEXT -> enqueue(Beat.Do { nibAnswers(res.payload) })
+            ChatAction.MOVIE -> enqueue(Beat.Do { movieNight(res.payload) })
             ChatAction.DANCE -> enqueue(Beat.Do { forceActivity(ActivityType.DANCE) })
             ChatAction.SLEEP -> enqueue(Beat.Do { forceActivity(ActivityType.SLEEP) })
             ChatAction.PLAY -> enqueue(Beat.Act(AnimState.HOP, 0.5f, Expr.EXCITED), Beat.Do { navRequest = "game:${res.payload}" })

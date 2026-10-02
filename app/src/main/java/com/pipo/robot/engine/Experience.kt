@@ -107,7 +107,7 @@ object Rituals {
         Personality.nudge(s, Trait.AFFECTION, 0.002f)
         if (n != 3 && n % 10 != 0) return null
         val name = names[kind] ?: kind
-        Experience.remember(s, MemoryType.JOKE, "$name is our thing", 0.6f + minOf(n, 30) / 100f, now, "ritual:$kind", with = listOf("you"), feeling = 0.6f)
+        Experience.remember(s, MemoryType.JOKE, "${name.replaceFirstChar { it.uppercase() }} ${if (name.endsWith("s") && !name.endsWith("ss")) "are" else "is"} our thing", 0.6f + minOf(n, 30) / 100f, now, "ritual:$kind", with = listOf("you"), feeling = 0.6f)
         if (n == 3) Chronicle.journal(s, "Our thing", "${name.replaceFirstChar { it.uppercase() }}. Three times now. He says that makes it a tradition.", JournalCategory.MOMENT, now)
         return name
     }
