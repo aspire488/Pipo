@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#10131d">
+  <title>Pipo — little robot, big life</title>
+  <meta name="description" content="Pipo, a tiny robot who lives in his own little world.">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand"><span class="brand-dot"></span><strong>Pipo</strong><span class="status" id="status">somewhere...</span></div>
+      <div class="top-actions">
+        <button class="icon-btn" id="soundBtn" aria-label="Toggle sound">♪</button>
+        <button class="icon-btn" id="resetBtn" aria-label="Reset web Pipo">↻</button>
+      </div>
+    </header>
+
+    <section class="scene-wrap">
+      <canvas id="scene" aria-label="Pipo's room"></canvas>
+      <div class="scene-vignette"></div>
+      <div class="thought" id="thought"></div>
+      <div class="toast" id="toast"></div>
+      <button class="find-btn" id="findBtn">Where is he? 👀</button>
+    </section>
+
+    <section class="character-card">
+      <div class="avatar" id="avatar">🤖</div>
+      <div class="char-copy">
+        <div class="char-line"><strong id="mood">Curious</strong><span id="activity">looking around</span></div>
+        <div class="speech" id="speech">...</div>
+      </div>
+    </section>
+
+    <nav class="tabs" aria-label="Pipo">
+      <button class="tab active" data-panel="home">Room</button>
+      <button class="tab" data-panel="things">Things</button>
+      <button class="tab" data-panel="journal">Journal</button>
+      <button class="tab" data-panel="map">World</button>
+    </nav>
+
+    <section class="panel active" id="panel-home">
+      <div class="quick-grid">
+        <button class="action" data-action="talk"><span>💬</span><b>Talk</b><small>say something</small></button>
+        <button class="action" data-action="play"><span>⚽</span><b>Play</b><small>Pipo picks</small></button>
+        <button class="action" data-action="cook"><span>🍜</span><b>Cook</b><small>raid the kitchen</small></button>
+        <button class="action" data-action="explore"><span>🗺️</span><b>Explore</b><small>he may disappear</small></button>
+      </div>
+      <div class="hint">Don't worry if he isn't here. That's kind of the point.</div>
+    </section>
+
+    <section class="panel" id="panel-things">
+      <div class="section-title"><h2>His things</h2><span id="itemCount"></span></div>
+      <div class="things" id="things"></div>
+    </section>
+
+    <section class="panel" id="panel-journal">
+      <div class="section-title"><h2>Pipo's journal</h2><button class="mini" id="newNote">new thought</button></div>
+      <div class="journal" id="journal"></div>
+    </section>
+
+    <section class="panel" id="panel-map">
+      <div class="section-title"><h2>Places</h2><span>the world is bigger than the room</span></div>
+      <div class="map" id="map"></div>
+    </section>
+
+    <div class="chat-sheet" id="chatSheet" aria-hidden="true">
+      <div class="sheet-head"><strong>Talk to Pipo</strong><button class="icon-btn" id="closeChat">×</button></div>
+      <div class="chat-log" id="chatLog"></div>
+      <form id="chatForm"><input id="chatInput" autocomplete="off" placeholder="say something to the little idiot…"><button>Send</button></form>
+    </div>
+  </main>
+  <script src="./app.js"></script>
+</body>
+</html>
