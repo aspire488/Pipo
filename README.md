@@ -24,6 +24,15 @@
 
 > A tiny robot who lives inside your phone.
 
+<p align="center">
+  <img src="./Screenshot_20261003_225733_Pipo.jpg" alt="Pipo running on an Android phone" width="360"/>
+</p>
+
+<p align="center">
+  <strong>🎬 See Pipo in motion</strong><br/>
+  <a href="./Pipo-Intro.mp4">▶️ Watch the intro video</a> · <a href="./Pipo-Intro-Vertical.mp4">📱 Watch the vertical demo</a>
+</p>
+
 Pipo is a character-first Android app about a small, curious, slightly mischievous robot. He has his own moods, memories, habits, projects and opinions, and he lives in a little room inside your phone.
 
 The whole product fits in one sentence:
@@ -40,11 +49,11 @@ His life runs on your device. There's no account and no analytics: it's a robot 
 
 ## 📲 Install Pipo on your Android phone
 
-Want to try Pipo without building the project? The easiest route is the **release APK**.
+Want to try Pipo without building the project? **A signed release APK will be published here once the release build is ready.**
 
 ### Option 1 — Install a release APK
 
-1. Open the project's **GitHub Releases** page and download the latest `Pipo-*.apk` when a release is published.
+1. Open the project's **GitHub Releases** page and download the latest `Pipo-*.apk`.
 2. On your Android phone, open the downloaded APK.
 3. If Android asks, enable **Install unknown apps** for the app you used to open the APK (Chrome, Files, etc.).
 4. Return to the APK and tap **Install**.
