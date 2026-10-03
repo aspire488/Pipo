@@ -34,6 +34,20 @@ android {
         buildConfigField("String", "PIPO_PROXY_TOKEN", "\"${prop("PIPO_PROXY_TOKEN")}\"")
     }
 
+    // Release signing: your own key, from keystore.properties (git-ignored; the key itself lives
+    // outside the repo). Without that file (e.g. CI) release falls back to the debug key.
+    val releaseKey = rootProject.file("keystore.properties").takeIf { it.exists() }?.let { f ->
+        Properties().apply { f.inputStream().use { load(it) } }
+    }
+    signingConfigs {
+        if (releaseKey != null) create("release") {
+            storeFile = file(releaseKey.getProperty("storeFile"))
+            storePassword = releaseKey.getProperty("storePassword")
+            keyAlias = releaseKey.getProperty("keyAlias")
+            keyPassword = releaseKey.getProperty("keyPassword")
+        }
+    }
+
     buildTypes {
         release {
             // Provider keys are NEVER compiled into a release APK: anything in an APK can be pulled
@@ -45,8 +59,7 @@ android {
             // is for emulators (debug builds keep it for emulator tests).
             ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
             isMinifyEnabled = false
-            // Debug signing so `assembleRelease` produces an installable APK out of the box.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
     compileOptions {

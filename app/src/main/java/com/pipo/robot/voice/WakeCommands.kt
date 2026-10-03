@@ -68,10 +68,27 @@ object WakeCommands {
     private val SPOTTER_NAMES = listOf("people", "pippa", "hippo", "pepper", "peep", "pupil", "keeper", "pippin")
     /** Lock rides in the name listener: a handful of phrases, so a short "lock" can't be drowned out. */
     private val SPOTTER_LOCK = listOf("lock", "lock my phone", "lock the phone", "lock it", "lock phone")
+    /**
+     * How "lock" comes out in other accents ("lok" -> "luck", "log"...). Never "look": "Pipo, look!"
+     * is his camera.
+     */
+    private val LOCK_SOUNDS = setOf("lock", "luck", "log", "lack", "locked", "block")
+    private val SPOTTER_LOCK_ALIKE = listOf("luck", "log", "lack", "locked", "block")
     /** "Pipo, on screen" / "Pipo, come": in the name listener too, the same way as lock. */
     private val SPOTTER_SUMMON = listOf("on screen", "onscreen", "come", "come here")
-    val SPOTTER_GRAMMAR = (SPOTTER_NAMES + SPOTTER_NAMES.flatMap { n -> (SPOTTER_LOCK + SPOTTER_SUMMON).map { "$n $it" } })
+    val SPOTTER_GRAMMAR = (SPOTTER_NAMES + SPOTTER_NAMES.flatMap { n -> (SPOTTER_LOCK + SPOTTER_LOCK_ALIKE + SPOTTER_SUMMON).map { "$n $it" } })
         .flatMap { listOf(it, "hey $it") } + "[unk]"
+
+    /**
+     * The best reading across the name listener's guesses (best first): if ANY guess was "Pipo,
+     * lock", it's a lock — that call matters most and is the one that used to need repeating.
+     */
+    fun bestWake(guesses: List<String>): Wake {
+        val all = guesses.map { wake(it) }
+        val top = all.firstOrNull() ?: return Wake.NONE
+        // a lock further down only counts when the best guess heard his name too
+        return if (top != Wake.NONE && Wake.LOCK in all) Wake.LOCK else top
+    }
 
     /** How the spotter heard the name: alone ("Pipo!"), leading other words, or not at all. */
     enum class Wake { NONE, ALONE, LEADING, LOCK, SUMMON }
@@ -81,7 +98,7 @@ object WakeCommands {
         while (w.isNotEmpty() && w.first() in LEAD) w = w.drop(1)
         if (w.firstOrNull() !in SPOTTER_NAMES) return Wake.NONE
         if (w.size == 1) return Wake.ALONE
-        if (w[1] == "lock") return Wake.LOCK
+        if (w[1] in LOCK_SOUNDS) return Wake.LOCK
         return if (w.drop(1).joinToString(" ") in SPOTTER_SUMMON) Wake.SUMMON else Wake.LEADING
     }
 

@@ -222,11 +222,18 @@ class PipoVoiceService : Service() {
             val apps = launcherLabels()
             val appKeys = apps.map { WakeCommands.squash(it) }.toSet()
             val name = Recognizer(model, RATE.toFloat(), JSONArray(WakeCommands.SPOTTER_GRAMMAR).toString())
+                .apply { setMaxAlternatives(3) } // its top guesses, so a "Pipo, lock" ranked second still counts
             val commands = Recognizer(model, RATE.toFloat(), JSONArray(WakeCommands.commandGrammar(apps)).toString())
             val words = Recognizer(model, RATE.toFloat())
             val call = CallAssembler(isInstalledApp = { heard -> WakeCommands.matchApp(heard, apps) != null || WakeCommands.squash(heard) in appKeys })
             val buf = ByteArray(3200) // 100 ms
             fun text(json: String) = JSONObject(json).optString("text")
+            /** All guesses in a result, best first (results carry "alternatives" once those are on). */
+            fun guesses(json: String): List<String> {
+                val o = JSONObject(json)
+                val alts = o.optJSONArray("alternatives") ?: return listOf(o.optString("text"))
+                return (0 until alts.length()).map { alts.getJSONObject(it).optString("text") }
+            }
             try {
                 rec.startRecording()
                 while (running) {
@@ -235,10 +242,11 @@ class PipoVoiceService : Service() {
                     val now = System.currentTimeMillis()
                     if (now < quietUntil) { name.reset(); commands.reset(); words.reset(); call.reset(); continue }
                     if (name.acceptWaveForm(buf, n)) {
-                        val h = text(name.result)
-                        val wake = WakeCommands.wake(h)
+                        val guesses = guesses(name.result)
+                        val h = guesses.firstOrNull().orEmpty()
+                        val wake = WakeCommands.bestWake(guesses)
                         if (wake != WakeCommands.Wake.NONE) {
-                            if (BuildConfig.DEBUG) Log.d(TAG, "name: \"$h\" ($wake)")
+                            if (BuildConfig.DEBUG) Log.d(TAG, "name: $guesses ($wake)")
                             call.onName(wake, now)
                         }
                     }

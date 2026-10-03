@@ -129,4 +129,16 @@ class CallAssemblerTest {
         a.onName(WakeCommands.Wake.SUMMON, 0)
         assertEquals(WakeAction.Summon, a.poll(0))
     }
+
+    @Test
+    fun lockInOtherAccentsAndSecondGuesses() {
+        assertEquals(WakeCommands.Wake.LOCK, WakeCommands.wake("hippo luck"))
+        assertEquals(WakeCommands.Wake.LOCK, WakeCommands.wake("people log"))
+        assertEquals(WakeCommands.Wake.LEADING, WakeCommands.wake("hippo look [unk]")) // "Pipo, look!" is the camera, not lock
+        // the device's top guess was just the name; the second was the lock
+        assertEquals(WakeCommands.Wake.LOCK, WakeCommands.bestWake(listOf("people", "people lock", "[unk]")))
+        assertEquals(WakeCommands.Wake.ALONE, WakeCommands.bestWake(listOf("people", "[unk]")))
+        assertEquals(WakeCommands.Wake.NONE, WakeCommands.bestWake(listOf("[unk]")))
+        assertEquals("chatter whose 2nd guess is a lock never locks", WakeCommands.Wake.NONE, WakeCommands.bestWake(listOf("[unk]", "people lock")))
+    }
 }

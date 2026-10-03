@@ -532,6 +532,35 @@ app/build/outputs/apk/debug/app-debug.apk
 
 On macOS or Linux: `./gradlew test` and `./gradlew assembleDebug`.
 
+## 📦 Share Pipo
+
+**Signing.** Release builds are signed with your own key when a git-ignored `keystore.properties` sits next to `settings.gradle.kts`:
+
+```properties
+storeFile=C:/path/outside/the/repo/pipo-release.jks
+storePassword=...
+keyAlias=pipo
+keyPassword=...
+```
+
+Keep the `.jks` file and its password backed up: every future update must be signed with the same key, or phones refuse to install it over the old one. Without `keystore.properties` (for example in CI) release falls back to the debug key.
+
+**Build the APK to share:**
+
+```powershell
+.\gradlew.bat assembleRelease
+# -> app\build\outputs\apk\release\app-release.apk  (~26 MB, ARM phones)
+```
+
+**Give it to friends:**
+
+- **Directly** (WhatsApp, Telegram, Drive): send `app-release.apk` as a *document*. On their phone they open it, allow **Install unknown apps** when Android asks, and tap **Install anyway** if Play Protect warns (it does for any app that isn't from the Play Store).
+- **As a link**: on GitHub, **Releases → Draft a new release**, attach the APK, publish, and share the release link. Each update is a new release.
+
+**Online AI for friends.** Release builds never contain your Gemini/Groq keys (anything inside an APK can be extracted), so a shared copy uses Pipo's offline brain. To give friends AI chat safely, deploy the small proxy in [`server/`](server/README.md) as a free Cloudflare Worker that holds the keys, set `PIPO_PROXY_URL` (and `PIPO_PROXY_TOKEN`) in `local.properties`, and rebuild.
+
+**Google Play** (later): a developer account, the release key above, and the privacy policy in `docs/`. Expect extra review for the device-admin lock helper, the always-on *Pipo Voice* microphone and *Display over other apps*.
+
 ---
 
 ## 📊 Current Status
@@ -589,7 +618,7 @@ CI passes for the final development phase. The public repository contains **sour
 
 ### 🔒 Security / distribution closeout
 
-The final public-repo audit is clean: **no API keys, tokens, private keys, APKs, MP4s, keystores or .env files** exist in tracked source or Git history. The friend APK intentionally contains the configured Gemini/Groq keys for private distribution and is **not** published here.
+The final public-repo audit is clean: **no API keys, tokens, private keys, APKs, MP4s, keystores or .env files** exist in tracked source or Git history. Release APKs no longer contain the Gemini/Groq keys at all (online AI in shared copies goes through the proxy); earlier friend APKs did, so those keys were rotated out of use.
 
 The repository's ignore rules keep dist/, APKs, videos and local credential material out of Git. See the device report for the final security/device evidence.
 
