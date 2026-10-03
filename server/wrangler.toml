@@ -13,4 +13,3 @@ compatibility_date = "2025-09-01"
 # Secrets (never in this file): set them with
 #   npx wrangler secret put GEMINI_API_KEY
 #   npx wrangler secret put GROQ_API_KEY
-#   npx wrangler secret put APP_TOKEN
