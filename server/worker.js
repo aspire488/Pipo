@@ -14,8 +14,9 @@ const MAX_BODY = 1_500_000;          // a downscaled photo is ~100 KB; chats are
 const PER_MINUTE = 20;               // requests per install per minute
 const PER_DAY = 400;                 // requests per install per day (best effort, per Worker isolate)
 
-// Best-effort in-memory counters (per isolate). For hard limits, also bind a Cloudflare
-// Rate Limiting rule (see README) - the Worker uses it automatically when RATE_LIMITER exists.
+// Best-effort in-memory counters (per isolate). The primary identity is the server-observed
+// Cloudflare client IP; install IDs are only an additional signal because client headers are spoofable.
+// For stronger protection, bind Cloudflare Rate Limiting and use provider-side quota/billing alerts.
 const minute = new Map();
 const day = new Map();
 
@@ -36,15 +37,16 @@ const json = (status, obj) => new Response(JSON.stringify(obj), { status, header
 export default {
   async fetch(req, env) {
     if (req.method !== "POST") return json(405, { error: "POST only" });
-    // a shared app token: not a real secret (it ships in the app), but it keeps casual scrapers out
-    if (env.APP_TOKEN && req.headers.get("x-pipo-app") !== env.APP_TOKEN) return json(401, { error: "unknown app" });
+    // Never trust client-supplied tokens or install IDs as authentication. They can be extracted/spoofed.
+    // Cloudflare provides the client IP at the edge; use it as the primary abuse-control key.
+    const ip = req.headers.get("CF-Connecting-IP") || "unknown";
     const install = (req.headers.get("x-pipo-install") || "").slice(0, 64);
-    if (!/^[0-9a-f-]{20,64}$/.test(install)) return json(400, { error: "missing install id" });
+    const identity = /^[0-9a-f-]{20,64}$/.test(install) ? `${ip}:${install}` : ip;
     if (env.RATE_LIMITER) {
-      const { success } = await env.RATE_LIMITER.limit({ key: install });
-      if (!success) return json(429, { error: "slow down" });
+      const ipLimit = await env.RATE_LIMITER.limit({ key: ip });
+      if (!ipLimit.success) return json(429, { error: "slow down" });
     }
-    if (tooMany(install)) return json(429, { error: "slow down" });
+    if (tooMany(ip) || tooMany(identity)) return json(429, { error: "slow down" });
 
     const len = Number(req.headers.get("content-length") || 0);
     if (len > MAX_BODY) return json(413, { error: "too big" });
