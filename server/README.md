@@ -2,8 +2,6 @@
 
 **Security boundary:** Gemini and Groq provider keys stay out of the app. The proxy adds the provider credentials and forwards Pipo's requests.
 
-The client-side `APP_TOKEN` / `PIPO_PROXY_TOKEN` is **not a secret**. Anything shipped in an APK can be extracted. Treat it only as a routing/compatibility token, never as authentication or quota protection.
-
 ## Deploy (Cloudflare Workers, free tier)
 
 ```sh
@@ -11,7 +9,6 @@ cd server
 npx wrangler login
 npx wrangler secret put GEMINI_API_KEY     # paste your Gemini key
 npx wrangler secret put GROQ_API_KEY       # paste your Groq key
-npx wrangler secret put APP_TOKEN          # any long random string
 npx wrangler deploy                        # prints https://pipo-ai-proxy.<you>.workers.dev
 ```
 
@@ -21,7 +18,6 @@ In `local.properties`:
 
 ```
 PIPO_PROXY_URL=https://pipo-ai-proxy.<you>.workers.dev
-PIPO_PROXY_TOKEN=<the same APP_TOKEN>  # public/client-visible; NOT a secret
 ```
 
 Then build the release. With `PIPO_PROXY_URL` set, **the release APK contains no provider
