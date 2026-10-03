@@ -500,7 +500,6 @@ GROQ_API_KEY=...
 GROQ_MODEL=openai/gpt-oss-120b
 # release builds: talk to your proxy instead, and ship no keys at all
 PIPO_PROXY_URL=https://pipo-ai-proxy.<you>.workers.dev
-PIPO_PROXY_TOKEN=...
 ```
 
 ```powershell
@@ -554,7 +553,7 @@ Keep the `.jks` file and its password backed up: every future update must be sig
 - **Directly** (WhatsApp, Telegram, Drive): send `app-release.apk` as a *document*. On their phone they open it, allow **Install unknown apps** when Android asks, and tap **Install anyway** if Play Protect warns (it does for any app that isn't from the Play Store).
 - **As a link**: on GitHub, **Releases → Draft a new release**, attach the APK, publish, and share the release link. Each update is a new release.
 
-**Online AI for friends.** Release builds never contain your Gemini/Groq keys (anything inside an APK can be extracted), so a shared copy uses Pipo's offline brain. To give friends AI chat safely, deploy the small proxy in [`server/`](server/README.md) as a free Cloudflare Worker that holds the keys, set `PIPO_PROXY_URL` (and `PIPO_PROXY_TOKEN`) in `local.properties`, and rebuild.
+**Online AI for friends.** Release builds never contain your Gemini/Groq keys (anything inside an APK can be extracted), so a shared copy uses Pipo's offline brain. To give friends AI chat safely, deploy the small proxy in [`server/`](server/README.md) as a free Cloudflare Worker that holds the keys, set `PIPO_PROXY_URL` in `local.properties`, and rebuild.
 
 **Google Play** (later): a developer account, the release key above, and the privacy policy in `docs/`. Expect extra review for the device-admin lock helper, the always-on *Pipo Voice* microphone and *Display over other apps*.
 
