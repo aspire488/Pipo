@@ -34,6 +34,60 @@ His life runs on your device. There's no account and no analytics: it's a robot 
 
 ---
 
+## 📲 Install Pipo on your Android phone
+
+Want to try Pipo without building the project? The easiest route is the **release APK**.
+
+### Option 1 — Install a release APK
+
+1. Download the latest `Pipo-*.apk` from the project's **GitHub Releases**.
+2. On your Android phone, open the downloaded APK.
+3. If Android asks, enable **Install unknown apps** for the app you used to open the APK (Chrome, Files, etc.).
+4. Return to the APK and tap **Install**.
+5. Open **Pipo** from your app drawer.
+
+> **Android requirement:** Android 8.0 (API 26) or newer.
+
+On first use, Android may ask for permissions or special access. **You choose which features to enable**; Pipo does not require every optional permission for the core experience.
+
+### Option 2 — Build it yourself
+
+If you want to run the source version:
+
+```powershell
+git clone https://github.com/aspire488/Pipo.git
+cd Pipo
+.\\gradlew.bat assembleDebug
+```
+
+The APK will be generated at:
+
+```text
+app\\build\\outputs\\apk\\debug\\app-debug.apk
+```
+
+Install it with ADB:
+
+```powershell
+adb install -r app\\build\\outputs\\apk\\debug\\app-debug.apk
+```
+
+See [Build](#-build) for the full development setup, optional AI configuration and device-testing commands.
+
+### What you get
+
+- 🤖 The full Pipo character and autonomous life simulation
+- 🏠 His room, world, trips, projects, games and Nib
+- 💾 Local-first persistent save data
+- 🌦️ Optional real weather
+- 💬 Optional online AI chat
+- 🎙️ Optional voice features
+- 🔔 Optional notifications and phone integrations
+
+**For the simplest install, use the latest release APK.** You do not need Android Studio, a Git clone, or an API key just to install and use the released app.
+
+---
+
 ## What is Pipo?
 
 **Pipo is not an assistant.** He isn't a productivity app, a chatbot in a robot costume, or a dashboard. Nobody asks Pipo for a to-do list. He's the one with things to do.
