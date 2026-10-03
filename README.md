@@ -10,8 +10,12 @@
 </p>
 
 <p align="center">
+  <a href="https://meetpipo.com"><strong>🌐 Try the Pipo web demo →</strong></a>
+</p>
+
+<p align="center">
   <a href="DEVICE_TEST_REPORT.md"><img src="https://img.shields.io/badge/Device%20Validation-Galaxy%20S23%20%E2%9C%93-70a5fd?style=for-the-badge"/></a>
-  <img src="https://img.shields.io/badge/Tests-172%20%E2%9C%93-2ea44f?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/Tests-175%20%E2%9C%93-2ea44f?style=for-the-badge"/>
   <img src="https://img.shields.io/badge/Rendering-Procedural%202.5D-8b5cf6?style=for-the-badge"/>
   <img src="https://img.shields.io/badge/Android%2015-Verified-3ddc84?style=for-the-badge&logo=android&logoColor=white"/>
 </p>
@@ -40,7 +44,7 @@ Want to try Pipo without building the project? The easiest route is the **releas
 
 ### Option 1 — Install a release APK
 
-1. Download the latest `Pipo-*.apk` from the project's **GitHub Releases**.
+1. Open the project's **GitHub Releases** page and download the latest `Pipo-*.apk` when a release is published.
 2. On your Android phone, open the downloaded APK.
 3. If Android asks, enable **Install unknown apps** for the app you used to open the APK (Chrome, Files, etc.).
 4. Return to the APK and tap **Install**.
@@ -84,7 +88,7 @@ See [Build](#-build) for the full development setup, optional AI configuration a
 - 🎙️ Optional voice features
 - 🔔 Optional notifications and phone integrations
 
-**For the simplest install, use the latest release APK.** You do not need Android Studio, a Git clone, or an API key just to install and use the released app.
+**For the simplest install, use the latest release APK when one is published.** Until then, use the [web demo](https://meetpipo.com) or build the Android app from source. You do not need Android Studio, a Git clone, or an API key just to use the web demo.
 
 ---
 
@@ -625,7 +629,7 @@ This section is deliberately literal.
 Everything described above: the procedural 2.5D renderer and lighting, parallax and camera, the animation rig (springs, fidgets, speech-driven mouth, poses and expressions), attention and gaze, absorption and distraction, rest variants, memory-driven habits, project stages and retries, the away recap, mischief, game personality, the toddler voice, the Gemini/Groq chat brain, his phone and console with screen-time limits, opt-in notification noticing, and notification safeguards.
 
 ### 🧪 Automated-tested
-**169 JVM unit tests pass.** The living-world update added 27: `GroundedLifeTest`, `WorldFeaturesTest`, `NibAndInventorTest`, `PhoneSearchAiTest` and `ActivityMixTest`. They cover answering from the journal, not refusing reasonable requests, closed shops, festivals from the calendar, seasons, real weather vs fallback, sports with Nib (Nib can win), the cricket and table-tennis sims, Nib learning tricks by practice, friendship stages, the armor chain, builder levels, "look"/search/ask-AI parsing, and real activity variety over simulated days. Before that: the original 68, plus 74 added by earlier upgrades (`CohesionTest` guards the places where systems used to disagree (a cancelled departure, the phone screen vs the app used, dangling references in saves, the other-side meeting); the newest cover his phone apps, likes and rituals, cross-system links, Flappy Pipo and Pixel Shooter, and the animation polish):
+**175 tests are covered: 169 JVM unit tests + 6 on-device rendering tests.** The living-world update added 27: `GroundedLifeTest`, `WorldFeaturesTest`, `NibAndInventorTest`, `PhoneSearchAiTest` and `ActivityMixTest`. They cover answering from the journal, not refusing reasonable requests, closed shops, festivals from the calendar, seasons, real weather vs fallback, sports with Nib (Nib can win), the cricket and table-tennis sims, Nib learning tricks by practice, friendship stages, the armor chain, builder levels, "look"/search/ask-AI parsing, and real activity variety over simulated days. Before that: the original 68, plus 74 added by earlier upgrades (`CohesionTest` guards the places where systems used to disagree (a cancelled departure, the phone screen vs the app used, dangling references in saves, the other-side meeting); the newest cover his phone apps, likes and rituals, cross-system links, Flappy Pipo and Pixel Shooter, and the animation polish):
 - **RPS state machine** (`RpsMatchTest`): exactly one throw, one Pipo choice, one resolution and one score update per round; out-of-order calls ignored; the result recorded once; a 300-seed random call storm never double-scores.
 - **Save migration** (`MigrationTest`): a real schema-1 save loads with name, memories, items, games and pranks intact; the drawings counter becomes real drawings; Nib arrives in-story; migrating twice is a no-op; JSON round-trips; broken values are repaired without deleting history.
 - **Life** (`LifeTest`): deterministic, varied weather; no trips at night, in storms or while already out; rain keeps him in without an umbrella; a project needing a motor sends him to the electronics shop, or to work if he's broke; shopping spends exactly the prices, only buys what that shop sells, and never goes negative; "come home" shortens the trip; cravings from rain; cooking uses the ingredients; eating never invents food; bought parts go onto the workbench and the project finishes; shop-only items never turn up by exploring.
@@ -647,7 +651,7 @@ The original 68:: `EngineTest` 15, `EvolutionTest` 21, `PhoneCommandTest` 5, `Ph
 - **projects:** retries only when the *latest* attempt failed (never after it worked or evolved), and a **two-week life simulation** across 6 personalities where he finds things, starts projects, fails, retries and succeeds (for example "IT FLEW. For two seconds. Attempt 2.")
 - **greetings:** tapping his message wakes him to explain it, and the recap never says "nothing happened" next to real events
 
-**On-device instrumentation:** `PoseGalleryTest` (6 tests) renders turntable angles, 24 poses, the get-up sequence, all expressions, lighting positions and 7 full rooms with the real painter on the phone's Canvas. It passes on the Galaxy S23, and the images were reviewed.
+**On-device instrumentation:** `PoseGalleryTest` (6 tests) renders turntable angles, 24 poses, the get-up sequence, all expressions, lighting positions and 7 full rooms with the real painter on the phone's Canvas. It passes on the Galaxy S23, and the images were reviewed. Together with the 169 JVM tests above, that is **175 tests covered**.
 
 **Lint:** 0 errors, 12 warnings. Nine are newer library versions (not upgraded during a polish phase), two are the intentional portrait lock, and one is the `mipmap-anydpi-v26` folder, which `aapt2` needs for adaptive icons.
 
