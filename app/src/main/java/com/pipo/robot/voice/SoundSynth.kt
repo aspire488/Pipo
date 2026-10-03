@@ -19,6 +19,10 @@ class SoundSynth {
     private val rate = 22050
     private val exec = Executors.newSingleThreadExecutor()
     @Volatile var enabled = true
+    /** Set while another app is playing: he makes no sound at all until it stops. */
+    @Volatile var quiet = false
+    /** Set while the microphone is listening to you: his sounds would drown your words out. */
+    @Volatile var hushed = false
     /** Wall-clock ms when the last chirp finished (or is still playing: Long.MAX_VALUE). */
     @Volatile var audibleUntil = 0L
         private set
@@ -98,7 +102,7 @@ class SoundSynth {
     }
 
     private fun play(notes: List<Note>, onDone: (() -> Unit)? = null) {
-        if (!enabled || exec.isShutdown) { onDone?.invoke(); return }
+        if (!enabled || quiet || hushed || exec.isShutdown) { onDone?.invoke(); return }
         runCatching {
             exec.execute {
                 var track: AudioTrack? = null

@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Pipo</string>
+    <string name="lock_helper_description">Lets Pipo lock your phone when you say “Pipo lock” (like pressing the power button). It uses only Android\'s lock-screen action: it doesn\'t read your screen, your apps or what you type. Unlock as usual with your fingerprint, face or PIN.</string>
 </resources>

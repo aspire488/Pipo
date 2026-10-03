@@ -411,7 +411,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun onResume(action: String?, game: String?, recordId: Long) {
+    fun onResume(action: String?, game: String?, recordId: Long, voiceCmd: String? = null) {
         onScreen = true
         // his weather is your weather: refresh it in the background (his own climate if offline)
         val useReal = repo.read { it.settings.realWeather }
@@ -526,6 +526,13 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         if (petHome && petAct != PetActivity.NAP && !away) { pet.look(0f, 0.9f); nib(PetFace.HAPPY, Sfx.PET_HAPPY, if (rng.nextBoolean()) PetThought.HEART else null, 2f) }
         maybeFestivalGreeting()
         buildRoom()
+        // "Pipo, <command>": the listener heard you and handed over the words. They go through the
+        // exact same parser as typing them in chat (LocalBrain -> PhoneCommands -> validated action).
+        // sendChat() clears the greeting beats first, so he answers you, not the welcome.
+        if (!voiceCmd.isNullOrBlank()) {
+            com.pipo.robot.voice.PipoVoiceListener.setState(com.pipo.robot.voice.VoiceState.RESPONDING)
+            sendChat(voiceCmd)
+        }
     }
 
     fun onPause() {
@@ -608,6 +615,9 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         clock += dt
         engineAcc += dt
         if (engineAcc >= 1f) { engineAcc -= 1f; engineTick() }
+        // While the mic is open he keeps his chirps, hums and Nib noises to himself: anything out of
+        // the speaker lands in the microphone on top of your words and the recogniser hears nothing.
+        voice.synth.hushed = listening
         stepBeats(dt)
         if (nibLine != null && (clock > nibLineUntil || !petHome)) nibLine = null
         stepVoiceConvo()
@@ -937,6 +947,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             // Cold start: the phone's TTS can take a few seconds to wake. Don't start a spoken
             // line (bubble + mouth) until his voice can say it, so nothing gets mouthed silently.
             if (beats.firstOrNull() is Beat.Say && !voice.ready && clock < 8f) return
+            // You're talking: his next line waits until the mic has closed (never said over you).
+            if (listening && beats.firstOrNull() is Beat.Say) return
             b = beats.removeFirstOrNull()
             if (b == null) { idle(); return }
             cur = b; curT = 0f
@@ -3156,6 +3168,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     fun sendChat(text: String) {
         val t = text.trim()
         if (t.isEmpty()) return
+        // you asked for this: he may answer even if another app has the sound
+        com.pipo.robot.voice.PipoVoiceListener.allowSpeech()
         registerInteraction()
         userLine = t
         userLineUntil = clock + 4f
@@ -3254,9 +3268,17 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun respond(text: String, res: ChatResult) {
+        // "Locking!" only when he actually can; otherwise he'd promise it and then say he can't
+        if (res.action == ChatAction.LOCK_PHONE && !com.pipo.robot.lock.PipoLock.canLock(getApplication())) {
+            enqueue(Beat.Say("I can't lock it yet. In Settings, under Pipo Voice, tap Lock helper and switch it on. Then I can, any time.", Sfx.HMM))
+            return
+        }
         if (text.isNotBlank()) enqueue(Beat.Say(text, res.sfx))
         when (res.action) {
             ChatAction.BUILD_THIS -> enqueue(Beat.Do { buildOnRequest(res.payload) })
+            ChatAction.LOCK_PHONE -> enqueue(Beat.Do {
+                if (!com.pipo.robot.lock.PipoLock.lockNow(getApplication())) enqueue(Beat.Say("Hm. Android didn't let me lock it. Check Lock helper in Settings.", Sfx.HMM))
+            })
             ChatAction.BOLT -> enqueue(Beat.Do { boltAnswers(res.payload) })
             ChatAction.NIB_TEXT -> enqueue(Beat.Do { nibAnswers(res.payload) })
             ChatAction.MOVIE -> enqueue(Beat.Do { movieNight(res.payload) })
@@ -3627,7 +3649,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 micLevel = 0f
                 if (r.isNullOrBlank()) {
                     // in the middle of a chat, silence just means you're done; only the first try gets a nudge
-                    if (!followUp) enqueue(Beat.Say(Dialogue.pick(listOf("I didn't catch that.", "Hm? Say it again.", "My ears did a weird thing."), rng), Sfx.BOOP))
+                    // his answer to you comes first, not whatever he was about to say before you spoke
+                    if (!followUp) { interrupt(); enqueue(Beat.Say(Dialogue.pick(listOf("I didn't catch that.", "Hm? Say it again.", "My ears did a weird thing."), rng), Sfx.BOOP)) }
                     voiceConvo = false
                 } else { relistenReadyAt = clock + 0.6f; sendChat(r) }
             },
@@ -3709,6 +3732,10 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         // His own voice/chirps show up as "music active": hold the previous reading while he's audible.
         val ps = if (voice.audibleRecently()) raw.copy(music = old.music) else raw
         phoneState = ps
+        // Media-friendly: while another app is playing, he stays quiet (no chirps, no TTS) and the
+        // "Pipo, ..." listener stays off the microphone — except for answers you explicitly asked for.
+        com.pipo.robot.voice.PipoVoiceListener.mediaQuiet = ps.music
+        voice.synth.quiet = ps.music
         if (!phoneInit) { phoneInit = true; return }
         if (!booted || firstWakePending || dragging || listening || away) return
         if (clock - lastEnvReact < 20f) return

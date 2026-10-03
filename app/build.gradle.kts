@@ -36,12 +36,14 @@ android {
 
     buildTypes {
         release {
-            // With a proxy configured, the provider keys are NOT compiled into the release APK at all.
-            val local = Properties().apply { rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) } }
-            if (!(local.getProperty("PIPO_PROXY_URL") ?: System.getenv("PIPO_PROXY_URL")).isNullOrBlank()) {
-                buildConfigField("String", "GEMINI_API_KEY", "\"\"")
-                buildConfigField("String", "GROQ_API_KEY", "\"\"")
-            }
+            // Provider keys are NEVER compiled into a release APK: anything in an APK can be pulled
+            // out by whoever has the file. Release talks to the proxy (server/, set PIPO_PROXY_URL),
+            // which holds the real keys; without a proxy he uses his own offline words.
+            buildConfigField("String", "GEMINI_API_KEY", "\"\"")
+            buildConfigField("String", "GROQ_API_KEY", "\"\"")
+            // Phones only: the wake-word library ships ~10 MB of native code per CPU type, and x86
+            // is for emulators (debug builds keep it for emulator tests).
+            ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
             isMinifyEnabled = false
             // Debug signing so `assembleRelease` produces an installable APK out of the box.
             signingConfig = signingConfigs.getByName("debug")
@@ -76,6 +78,10 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.9.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    // "Pipo" wake word: offline speech recognition on the phone (Apache 2.0). The model itself is
+    // downloaded once, checksum-pinned, when you switch Pipo Voice on (voice/WakeModel.kt).
+    implementation("com.alphacephei:vosk-android:0.3.75")
+    implementation("net.java.dev.jna:jna:5.18.1@aar")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     testImplementation("junit:junit:4.13.2")

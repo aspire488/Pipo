@@ -20,6 +20,8 @@ enum class ChatAction { NONE, DANCE, SLEEP, WAKE, PLAY, SPIN, HIDE, EMBARRASSED,
     SUIT_UP,
     /** Start building something (payload = blueprint id). */
     BUILD_THIS,
+    /** "Pipo lock": lock the phone now. */
+    LOCK_PHONE,
     /** Bolt answers (payload = what was asked). */
     BOLT,
     /** A message to Nib (payload = what you said). */
@@ -148,6 +150,8 @@ object LocalBrain {
         // talking TO Bolt (his desk helper) or Nib directly
         if (Regex("^(?:hey |ok |okay )?(bolt|b\\.o\\.l\\.t\\.?|jarvis)\\b").containsMatchIn(s)) return ChatResult("", ChatAction.BOLT, payload = s, locked = true)
         if (Regex("^(?:hey |hi |hello |@)?nib\\b[,!:]?").containsMatchIn(s) && NibLife.Trick.entries.none { has(s, it.title) } && !has(s, "trick", "tricks")) return ChatResult("", ChatAction.NIB_TEXT, payload = s, locked = true)
+        // "Pipo lock" / "lock my phone" / a bare "lock" (what's left after the wake phrase is stripped)
+        if (com.pipo.robot.lock.PipoLock.matches(s) || Regex("^(please )?lock( it| (my|the) (phone|screen))?( now)?[.!?]?$").containsMatchIn(s.trim())) return ChatResult("Locking! Nobody's touching your phone.", ChatAction.LOCK_PHONE, locked = true, sfx = Sfx.BEEP)
         // movie night
         if (has(s, "movie", "movies", "film", "watch tv", "watch a show", "cartoon", "movie night")) {
             return ChatResult(pick(rng, "MOVIE NIGHT! Nib, get the popcorn. Nib can't carry popcorn. I'll get the popcorn.", "Yes! I'll make popcorn. Nib, saves us the good spot."), ChatAction.MOVIE, payload = s, sfx = Sfx.HAPPY)

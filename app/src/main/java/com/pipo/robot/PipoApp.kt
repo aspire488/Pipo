@@ -17,7 +17,7 @@ class PipoApp : Application() {
         PipoWorker.schedule(this)
         ProcessLifecycleOwner.get().lifecycle.addObserver(LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_START -> foreground = true
+                Lifecycle.Event.ON_START -> { foreground = true; com.pipo.robot.voice.PipoVoiceListener.resume(this) }
                 Lifecycle.Event.ON_STOP -> {
                     foreground = false
                     PipoRepository.get(this).saveNow()

@@ -6,6 +6,13 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Rare messages from Pipo (Android 13+ asks once, after you've spent some time together). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- "Pipo Voice" (opt-in, off until you switch it on in Settings): listens for "Pipo, ..."
+         while your screen is on, with a persistent notification you can turn it off from. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- "Pop up when called" (opt-in, Android's own switch): lets Pipo come on screen when you say
+         "Pipo, ..." from another app. Used only for that brief face bubble + opening himself. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- Optional AI conversation only. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- "Is the internet there?" Normal permission, auto-granted, no prompt. -->
@@ -52,7 +59,8 @@
 
     <application
         android:name=".PipoApp"
-        android:allowBackup="true"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
@@ -94,5 +102,27 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+
+        <!-- "Pipo Voice": the opt-in listener for "Pipo, ...". Microphone foreground service,
+             notification always visible, off by default. -->
+        <service
+            android:name=".voice.PipoVoiceService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
+        <!-- "Pipo lock": Android's device admin, requesting only the force-lock policy so
+             DevicePolicyManager.lockNow() is allowed. Shown in Android's own activation screen
+             before it can do anything. -->
+        <receiver
+            android:name=".lock.PipoDeviceAdmin"
+            android:exported="true"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/pipo_device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

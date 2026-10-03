@@ -1,6 +1,6 @@
 # Pipo — Privacy Policy
 
-_Last updated: [DATE]. Contact: [YOUR EMAIL]._
+_Last updated: 2 October 2026. Contact: https://github.com/aspire488/Pipo/issues_
 
 Pipo is a small robot who lives on your phone. This policy explains what the app does with
 your information. In short: Pipo's world is stored on your phone, and the only things that leave
@@ -22,14 +22,29 @@ it are the requests needed for features you use, described below.
 | "Find out…" / "ask Gemini…" | Your question | Our AI proxy, then Google or Groq | Not stored by us |
 | "Ask ChatGPT/Claude/… X" | Your question, opened in your browser | The service you named, directly in your browser | Under that service's terms |
 | Real weather | Your network address (to estimate your city), then that city's coordinates | ipwho.is, then Open-Meteo | Not stored by us |
-| Voice input | Your speech | Your phone's speech recognition service (usually Google) | Under that service's terms |
+| Voice input (tap the mic) | Your speech | Your phone's speech recognition service (usually Google), asked to recognise **on the phone** (offline) | Under that service's terms |
+| Pipo Voice (the optional "Pipo, ..." listener) | Nothing. Recognition runs **inside Pipo, on your phone**, with an offline speech model; audio and words never leave the phone and are dropped as soon as they've been checked for a call to Pipo | Nobody | Nothing is kept |
+| Pipo Voice's speech model (one-time download when you switch Pipo Voice on) | Nothing about you: Pipo downloads a public file (Vosk small English model, ~40 MB) and checks its fingerprint before using it | alphacephei.com (the model's publisher) | Not applicable |
 | "Play X" / "search X" | Your search | YouTube / Google / the app you named | Under their terms |
 
 Pipo never sends your contacts, your files, your exact location, or your other apps' content.
 
 ## Permissions
 
-- **Microphone**: only while you tap the mic to talk to Pipo.
+- **Microphone**: only while you tap the mic to talk to Pipo — and, only if you switch it on in
+  Settings → "Pipo Voice", while that feature's foreground service runs. It announces itself with a
+  notification you can turn it off from. It listens only while your screen is on, the phone is
+  unlocked, Pipo is closed and you're not on a call. It never pauses, lowers or interrupts your
+  music or videos (it takes no audio focus and makes no sound). Audio is processed in memory on the
+  phone and never recorded, stored or sent: anything that isn't a call to Pipo is dropped at once.
+  Off by default; having the microphone permission does not turn it on.
+- **Display over other apps (optional, Android's own switch)**: only so that, when you call
+  "Pipo, ..." from another app, he can briefly show his face and come on screen. Without it you get
+  a notification to tap instead. The bubble can't be touched and sees nothing.
+- **Device admin (the "Lock helper")**: only if you switch it on yourself on Android's own
+  activation screen. It requests exactly one thing — lock the screen, like the power button — so
+  "Pipo, lock" works. It cannot read your screen, apps or typing, and Pipo uses no accessibility
+  service. Unlocking works the normal way: fingerprint, face or PIN.
 - **Notifications**: so Pipo can send you an occasional message (you choose how often, or turn it off).
 - **Notification access (optional, you turn it on in Android settings)**: lets Pipo notice that
   you got a message or reel ("Your phone went ding!"). The app sees only **which app** and a **coarse
@@ -49,9 +64,8 @@ him photos of people who wouldn't want that.
 
 ## Children
 
-[Choose one, and remove the other:]
-- Pipo is intended for users aged 13 and over.
-- Pipo is designed for families. [Describe parental controls and compliance with Google Play's Families Policy.]
+Pipo is intended for users aged 13 and over. (If you publish Pipo through Google Play's "Designed
+for Families" program, replace this sentence with your declared Families Policy compliance.)
 
 ## Your choices
 

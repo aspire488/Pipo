@@ -497,6 +497,95 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
         }
         item {
+            Section("Pipo Voice") {
+                // re-checked whenever you come back to the app
+                var on by remember { mutableStateOf(com.pipo.robot.voice.PipoVoiceListener.isEnabled(ctx)) }
+                var popUp by remember { mutableStateOf(com.pipo.robot.voice.PipoPopUp.canPopUp(ctx)) }
+                /** null = not downloading; 0..100 = downloading his ears; -1 = the download failed */
+                val fetching by com.pipo.robot.voice.WakeModel.progress.collectAsState()
+                val state by com.pipo.robot.voice.PipoVoiceListener.state.collectAsState()
+                fun switchOn() {
+                    // the download carries on even if you leave this screen; he starts listening when it's done
+                    com.pipo.robot.voice.WakeModel.installInBackground(ctx) {
+                        com.pipo.robot.voice.PipoVoiceListener.setEnabled(ctx, true); on = true
+                    }
+                }
+                val micPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> if (ok) switchOn() }
+                val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+                DisposableEffect(owner) {
+                    val obs = androidx.lifecycle.LifecycleEventObserver { _, e ->
+                        if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                            on = com.pipo.robot.voice.PipoVoiceListener.isEnabled(ctx)
+                            popUp = com.pipo.robot.voice.PipoPopUp.canPopUp(ctx)
+                        }
+                    }
+                    owner.lifecycle.addObserver(obs)
+                    onDispose { owner.lifecycle.removeObserver(obs) }
+                }
+                Text("Call him from anywhere: “Pipo!” brings him up, and “Pipo, open YouTube”, “Pipo, play lofi music”, " +
+                    "“Pipo, lock” do what they say. He listens for his name on this phone only — nothing is recorded or sent — " +
+                    "while your screen is on and unlocked, and never during calls. He never pauses or lowers your music or videos. " +
+                    "A small notification shows while he's listening. Switching it on downloads his ears once (about 40 MB).",
+                    color = PipoPalette.muted, style = MaterialTheme.typography.bodyMedium)
+                ToggleRow("Listen for “Pipo, …”", on) { want ->
+                    if (!want) { com.pipo.robot.voice.PipoVoiceListener.setEnabled(ctx, false); on = false }
+                    else if (fetching == null || fetching == -1) {
+                        if (Build.VERSION.SDK_INT >= 33 && !Notifier.canPost(ctx)) notifPerm.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) switchOn()
+                        else micPerm.launch(Manifest.permission.RECORD_AUDIO)
+                    }
+                }
+                fetching?.let { p ->
+                    if (p >= 0) {
+                        Text("Getting his ears… $p%", color = PipoPalette.muted, style = MaterialTheme.typography.bodyMedium)
+                        LinearProgressIndicator(progress = { p / 100f }, modifier = Modifier.fillMaxWidth())
+                    } else Text("Couldn't download his ears. Check the internet and tap the switch again.", color = PipoPalette.muted, style = MaterialTheme.typography.bodyMedium)
+                }
+                if (on) {
+                    Text(
+                        if (state == com.pipo.robot.voice.VoiceState.ERROR)
+                            "He can't listen: the microphone permission is off (or his ears are missing). Allow the mic in Android settings, then tap the switch again."
+                        else "Listening for “Pipo, …” while your screen is on and unlocked.",
+                        color = PipoPalette.muted, style = MaterialTheme.typography.bodyMedium
+                    )
+                    ToggleRow(if (popUp) "Pop up when called: on" else "Pop up when called: off (tap, then allow)", popUp) { want ->
+                        // Android's own "Display over other apps" switch; he only uses it to come on screen when you call him
+                        runCatching { ctx.startActivity(com.pipo.robot.voice.PipoPopUp.permissionIntent(ctx)) }
+                    }
+                    if (!popUp) Text("Without it, calling him from another app shows a notification you tap instead.",
+                        color = PipoPalette.muted, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+        item {
+            Section("Pipo lock") {
+                // re-checked whenever you come back from Android's settings
+                var helper by remember { mutableStateOf(com.pipo.robot.lock.PipoLock.canLock(ctx)) }
+                val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+                DisposableEffect(owner) {
+                    val obs = androidx.lifecycle.LifecycleEventObserver { _, e ->
+                        if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) helper = com.pipo.robot.lock.PipoLock.canLock(ctx)
+                    }
+                    owner.lifecycle.addObserver(obs)
+                    onDispose { owner.lifecycle.removeObserver(obs) }
+                }
+                Text("Lets Pipo lock the phone like the power button — when you say “Pipo, lock” or ask in chat. " +
+                    "Android shows its own activation screen and grants exactly one action: lock the screen. " +
+                    "It cannot read your screen, your apps or what you type, and you unlock the normal way.",
+                    color = PipoPalette.muted, style = MaterialTheme.typography.bodyMedium)
+                // Android's activation screen must be opened for a result from this screen: it closes
+                // itself straight away if started as a new task.
+                val activate = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+                    helper = com.pipo.robot.lock.PipoLock.canLock(ctx)
+                }
+                ToggleRow(if (helper) "Lock helper: on" else "Lock helper: off (tap, then Activate)", helper) { want ->
+                    if (want) runCatching { activate.launch(com.pipo.robot.lock.PipoLock.enrollIntent(ctx)) }
+                    else com.pipo.robot.lock.PipoLock.disengage(ctx)
+                    helper = com.pipo.robot.lock.PipoLock.canLock(ctx)
+                }
+            }
+        }
+        item {
             Section("Pipo notices your notifications") {
                 // Re-checked whenever you come back from Android's settings page.
                 var access by remember { mutableStateOf(PipoNotificationListener.hasAccess(ctx)) }

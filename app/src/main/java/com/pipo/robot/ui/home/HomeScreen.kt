@@ -113,7 +113,7 @@ import com.pipo.robot.ui.theme.PipoPalette
 import kotlin.math.min
 import kotlin.math.roundToInt
 
-data class LaunchInfo(val action: String?, val game: String?, val record: Long)
+data class LaunchInfo(val action: String?, val game: String?, val record: Long, val voice: String? = null)
 
 @Composable
 fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: (String) -> Unit) {
@@ -128,7 +128,7 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
     DisposableEffect(lifecycle) {
         val obs = LifecycleEventObserver { _, e ->
             when (e) {
-                Lifecycle.Event.ON_RESUME -> { val li = consumeLaunch(); vm.onResume(li?.action, li?.game, li?.record ?: 0L) }
+                Lifecycle.Event.ON_RESUME -> { val li = consumeLaunch(); vm.onResume(li?.action, li?.game, li?.record ?: 0L, li?.voice) }
                 Lifecycle.Event.ON_PAUSE -> vm.onPause()
                 else -> Unit
             }

@@ -42,8 +42,19 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun launchInfo(i: Intent?): LaunchInfo? {
-        val action = i?.getStringExtra(Notifier.EXTRA_ACTION) ?: return null
-        return LaunchInfo(action, i.getStringExtra(Notifier.EXTRA_GAME), i.getLongExtra(Notifier.EXTRA_RECORD, 0L))
+        if (i == null) return null
+        // Notification taps: only the actions Pipo himself posts are ever real ("open"/"see"/"play");
+        // anything else from outside is dropped here rather than acted on later.
+        val raw = i.getStringExtra(Notifier.EXTRA_ACTION)
+        val action = raw?.takeIf { it == "open" || it == "see" || it == "play" }
+        // "Pipo, <command>": words the listener heard and handed to us (typed to the same parser
+        // you'd type into chat — no audio, just the transcript).
+        // Only from Pipo's own listener: anything without this process's secret is another app
+        // trying to make him run a phone command, and is ignored.
+        val fromListener = i.getStringExtra(com.pipo.robot.voice.PipoVoiceService.EXTRA_VOICE_TOKEN) == com.pipo.robot.voice.PipoVoiceListener.handoffToken
+        val voice = i.getStringExtra(com.pipo.robot.voice.PipoVoiceService.EXTRA_VOICE_COMMAND)?.take(200)?.takeIf { fromListener }
+        if (action == null && voice == null) return null
+        return LaunchInfo(action, i.getStringExtra(Notifier.EXTRA_GAME), i.getLongExtra(Notifier.EXTRA_RECORD, 0L), voice)
     }
 }
 
