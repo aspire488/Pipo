@@ -77,17 +77,17 @@ function randomPlan(){
   ['curious','investigating the desk','Why is this screw doing that?'],
   ['playful','playing with Nib','Nib. Ball. Now.'],
   ['focused','building something','I have a very good idea. Probably.'],
-  ['mischievous','hiding','You can't see me. Obviously.'],
+  ['mischievous','hiding',"You can't see me. Obviously."],
   ['relaxed','watching the window','There was a bird. It knew things.'],
   ['hungry','looking for food','I think noodles are calling me.'],
-  ['proud','admiring his shelf','Look what I made. Don't touch it.']
+  ['proud','admiring his shelf',"Look what I made. Don't touch it."]
  ];
  const p=plans[Math.floor(Math.random()*plans.length)];state.targetX=.18+Math.random()*.68;state.targetY=.52+Math.random()*.27;setState({mood:p[0],activity:p[1],speech:p[2]});
 }
 function action(a){
  if(a==='talk'){$('#chatSheet').classList.add('open');$('#chatSheet').setAttribute('aria-hidden','false');$('#chatInput').focus();return}
  if(a==='play'){state.targetX=.28+Math.random()*.45;state.targetY=.68;setState({mood:'excited',activity:'playing football',speech:'First to ten. And no cheating, Nib.'});toast('Pipo grabbed the ball ⚽');return}
- if(a==='cook'){setState({mood:'focused',activity:'cooking noodles',speech:'If it turns purple, that's still dinner.'});state.items.push(['🍜','Fresh noodles','made with questionable confidence']);state.journal.unshift(['Just now','I cooked noodles. They are purple. This is not a problem.']);save();renderUI();toast('Something is cooking 🍜');return}
+ if(a==='cook'){setState({mood:'focused',activity:'cooking noodles',speech:"If it turns purple, that's still dinner."});state.items.push(['🍜','Fresh noodles','made with questionable confidence']);state.journal.unshift(['Just now','I cooked noodles. They are purple. This is not a problem.']);save();renderUI();toast('Something is cooking 🍜');return}
  if(a==='explore'){const i=[4,5,6,7][Math.floor(Math.random()*4)];state.location=places[i][0];state.visited=[...new Set([...state.visited,i])];state.targetX=.78;state.targetY=.65;setState({mood:'adventurous',activity:'exploring '+places[i][0].toLowerCase(),speech:i===7?'...why does this place say ???':'Nib, stay close.'});toast('Pipo went exploring 🗺️');return}
 }
 function reply(q){
