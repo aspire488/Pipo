@@ -97,7 +97,7 @@ See [Build](#-build) for the full development setup, optional AI configuration a
 - 🎙️ Optional voice features
 - 🔔 Optional notifications and phone integrations
 
-**For the simplest install, use the latest release APK when one is published.** Until then, use the [web demo](https://meetpipo.com) or build the Android app from source. You do not need Android Studio, a Git clone, or an API key just to use the web demo.
+**For the simplest install, use the latest release APK from GitHub Releases.** You can also use the [web demo](https://meetpipo.com) or build the Android app from source. You do not need Android Studio, a Git clone, or an API key just to use the web demo.
 
 ---
 
