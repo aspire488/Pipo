@@ -1,77 +1,96 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#10131d">
-  <title>Pipo — little robot, big life</title>
-  <meta name="description" content="Pipo, a tiny robot who lives in his own little world.">
-  <link rel="stylesheet" href="./styles.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#10131d">
+<title>Pipo's World — a little life, in 3D</title>
+<meta name="description" content="Step inside Pipo's little room. A living, interactive 3D world with Pipo, Nib and a mirror that behaves oddly.">
+<link rel="stylesheet" href="./styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='4' y='9' width='24' height='19' rx='8' fill='%23F4F6F9'/><rect x='8' y='13' width='16' height='11' rx='5' fill='%23141B27'/><circle cx='13' cy='18.5' r='2.2' fill='%238FF5E2'/><circle cx='19' cy='18.5' r='2.2' fill='%238FF5E2'/><line x1='16' y1='9' x2='16' y2='4' stroke='%233B4658' stroke-width='2'/><circle cx='16' cy='3' r='2.4' fill='%238FF5E2'/></svg>">
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
 </head>
 <body>
-  <main class="app">
-    <header class="topbar">
-      <div class="brand"><span class="brand-dot"></span><strong>Pipo</strong><span class="status" id="status">somewhere...</span></div>
-      <div class="top-actions">
-        <button class="icon-btn" id="soundBtn" aria-label="Toggle sound">♪</button>
-        <button class="icon-btn" id="resetBtn" aria-label="Reset web Pipo">↻</button>
-      </div>
-    </header>
 
-    <section class="scene-wrap">
-      <canvas id="scene" aria-label="Pipo's room"></canvas>
-      <div class="scene-vignette"></div>
-      <div class="thought" id="thought"></div>
-      <div class="toast" id="toast"></div>
-      <button class="find-btn" id="findBtn">Where is he? 👀</button>
-    </section>
+<canvas id="world" aria-label="Pipo's room, a living 3D scene"></canvas>
 
-    <section class="character-card">
-      <div class="avatar" id="avatar">🤖</div>
-      <div class="char-copy">
-        <div class="char-line"><strong id="mood">Curious</strong><span id="activity">looking around</span></div>
-        <div class="speech" id="speech">...</div>
-      </div>
-    </section>
+<div id="vignette" aria-hidden="true"></div>
 
-    <nav class="tabs" aria-label="Pipo">
-      <button class="tab active" data-panel="home">Room</button>
-      <button class="tab" data-panel="things">Things</button>
-      <button class="tab" data-panel="journal">Journal</button>
-      <button class="tab" data-panel="map">World</button>
-    </nav>
+<div id="bubbles" aria-live="polite"></div>
 
-    <section class="panel active" id="panel-home">
-      <div class="quick-grid">
-        <button class="action" data-action="talk"><span>💬</span><b>Talk</b><small>say something</small></button>
-        <button class="action" data-action="play"><span>⚽</span><b>Play</b><small>Pipo picks</small></button>
-        <button class="action" data-action="cook"><span>🍜</span><b>Cook</b><small>raid the kitchen</small></button>
-        <button class="action" data-action="explore"><span>🗺️</span><b>Explore</b><small>he may disappear</small></button>
-      </div>
-      <div class="hint">Don't worry if he isn't here. That's kind of the point.</div>
-    </section>
+<div id="hint" class="hint hidden">drag to look · scroll to zoom · tap things</div>
 
-    <section class="panel" id="panel-things">
-      <div class="section-title"><h2>His things</h2><span id="itemCount"></span></div>
-      <div class="things" id="things"></div>
-    </section>
+<div id="hud">
+  <div class="brand"><span class="brand-dot"></span><strong>Pipo</strong></div>
+  <div class="actions">
+    <button id="btnFind" class="pill" title="Find Pipo">🔍 <span>Where is Pipo?</span></button>
+    <button id="btnFollow" class="pill ghost" title="Camera follows Pipo">👁 <span>Follow</span></button>
+    <button id="btnReset" class="pill ghost" title="Reset camera">↺ <span>Reset</span></button>
+  </div>
+</div>
 
-    <section class="panel" id="panel-journal">
-      <div class="section-title"><h2>Pipo's journal</h2><button class="mini" id="newNote">new thought</button></div>
-      <div class="journal" id="journal"></div>
-    </section>
-
-    <section class="panel" id="panel-map">
-      <div class="section-title"><h2>Places</h2><span>the world is bigger than the room</span></div>
-      <div class="map" id="map"></div>
-    </section>
-
-    <div class="chat-sheet" id="chatSheet" aria-hidden="true">
-      <div class="sheet-head"><strong>Talk to Pipo</strong><button class="icon-btn" id="closeChat">×</button></div>
-      <div class="chat-log" id="chatLog"></div>
-      <form id="chatForm"><input id="chatInput" autocomplete="off" placeholder="say something to the little idiot…"><button>Send</button></form>
+<div id="splash" class="splash">
+  <div class="splash-inner">
+    <div class="splash-art" aria-hidden="true">
+      <svg viewBox="0 0 220 150" width="220" height="150">
+        <defs>
+          <linearGradient id="wallg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#2b3550"/><stop offset="1" stop-color="#39456a"/>
+          </linearGradient>
+          <radialGradient id="lampg" cx="50%" cy="40%" r="60%">
+            <stop offset="0" stop-color="#FFC27A" stop-opacity=".55"/><stop offset="1" stop-color="#FFC27A" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <rect x="0" y="0" width="220" height="150" rx="18" fill="url(#wallg)"/>
+        <rect x="0" y="112" width="220" height="38" fill="#7B5A45"/>
+        <rect x="0" y="112" width="220" height="4" fill="#5E4434"/>
+        <rect x="132" y="24" width="62" height="46" rx="6" fill="#8EC5E8"/>
+        <rect x="132" y="24" width="62" height="46" rx="6" fill="none" stroke="#EDE6DA" stroke-width="4"/>
+        <line x1="163" y1="24" x2="163" y2="70" stroke="#EDE6DA" stroke-width="3"/>
+        <line x1="132" y1="47" x2="194" y2="47" stroke="#EDE6DA" stroke-width="3"/>
+        <ellipse cx="86" cy="126" rx="52" ry="12" fill="#6E5A74" opacity=".55"/>
+        <circle cx="180" cy="100" r="42" fill="url(#lampg)"/>
+        <g transform="translate(78 60)">
+          <rect x="-26" y="28" width="52" height="46" rx="16" fill="#F4F6F9"/>
+          <rect x="-22" y="34" width="44" height="30" rx="12" fill="#141B27"/>
+          <rect x="-14" y="42" width="9" height="13" rx="4.5" fill="#8FF5E2"/>
+          <rect x="5" y="42" width="9" height="13" rx="4.5" fill="#8FF5E2"/>
+          <rect x="-34" y="2" width="68" height="52" rx="24" fill="#F4F6F9"/>
+          <rect x="-27" y="10" width="54" height="37" rx="14" fill="#141B27"/>
+          <rect x="-17" y="20" width="10" height="14" rx="5" fill="#8FF5E2"/>
+          <rect x="7" y="20" width="10" height="14" rx="5" fill="#8FF5E2"/>
+          <ellipse cx="-20" cy="37" rx="6" ry="2.6" fill="#FF8FA3" opacity=".8"/>
+          <ellipse cx="20" cy="37" rx="6" ry="2.6" fill="#FF8FA3" opacity=".8"/>
+          <line x1="0" y1="2" x2="0" y2="-12" stroke="#3B4658" stroke-width="4"/>
+          <circle cx="0" cy="-16" r="7" fill="#8FF5E2"/>
+          <circle cx="-42" cy="26" r="8" fill="#C9D2DE"/><circle cx="42" cy="26" r="8" fill="#C9D2DE"/>
+          <rect x="-16" y="74" width="12" height="14" rx="6" fill="#3B4658"/>
+          <rect x="4" y="74" width="12" height="14" rx="6" fill="#3B4658"/>
+        </g>
+        <g transform="translate(138 104)">
+          <path d="M -20 8 A 20 17 0 0 1 20 8 Z" fill="#FFB86B"/>
+          <rect x="-20" y="6" width="40" height="7" rx="3.5" fill="#3B4658"/>
+          <circle cx="6" cy="-2" r="7.5" fill="#141B27"/>
+          <circle cx="6" cy="-2" r="3.6" fill="#8FF5E2"/>
+          <line x1="-20" y1="0" x2="-31" y2="-7" stroke="#3B4658" stroke-width="3"/>
+          <circle cx="-33" cy="-8" r="4" fill="#8FF5E2"/>
+          <rect x="-13" y="12" width="6" height="9" rx="3" fill="#3B4658"/>
+          <rect x="7" y="12" width="6" height="9" rx="3" fill="#3B4658"/>
+        </g>
+      </svg>
     </div>
-  </main>
-  <script src="./app.js"></script>
+    <h1>Pipo <span class="spark">✦</span></h1>
+    <p class="tag">A little life inside your phone.</p>
+    <p class="sub">His room is already moving. He's in there somewhere.</p>
+    <button id="btnEnter" class="enter">Enter Pipo's world →</button>
+    <p class="fine">interactive 3D · works on phone · no account, no keys</p>
+  </div>
+</div>
+
+<div id="loading" class="loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+
+<script type="module" src="./src/main.js"></script>
 </body>
 </html>

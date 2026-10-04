@@ -10,7 +10,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/aspire488/Pipo/releases/tag/v1.0"><strong>📦 Download Pipo v1.0 →</strong></a>
+  <a href="https://aspire488.github.io/Pipo/"><strong>🌍 Enter Pipo's World — an interactive 3D life →</strong></a><br/>
+  <a href="https://aspire488.github.io/Pipo/classic/">🎮 Classic 2D demo</a> ·
+  <a href="https://github.com/aspire488/Pipo/releases/tag/v1.0">📱 Download for Android</a>
 </p>
 
 <p align="center">
@@ -49,9 +51,9 @@ His life runs on your device. There's no account and no analytics: it's a robot 
 
 ## 📲 Install Pipo on your Android phone
 
-Want to try Pipo without building the project? **Pipo v1.0 is now available as a signed release APK.**
+Want to try Pipo without building the project? **The signed release APK is live: [Pipo v1.0](https://github.com/aspire488/Pipo/releases/tag/v1.0).**
 
-### Option 1 — Install a release APK
+### Option 1 — Install the release APK
 
 1. Open the [Pipo v1.0 release](https://github.com/aspire488/Pipo/releases/tag/v1.0) and download `Pipo.apk`.
 2. On your Android phone, open the downloaded APK.
@@ -97,7 +99,21 @@ See [Build](#-build) for the full development setup, optional AI configuration a
 - 🎙️ Optional voice features
 - 🔔 Optional notifications and phone integrations
 
-**For the simplest install, use the latest release APK from GitHub Releases.** You can also build the Android app from source.
+**For the simplest install, use the [release APK](https://github.com/aspire488/Pipo/releases/tag/v1.0).** You can also step into the [living 3D world](https://aspire488.github.io/Pipo/), try the [classic 2D demo](https://aspire488.github.io/Pipo/classic/), or build the Android app from source. You do not need Android Studio, a Git clone, or an API key just to visit.
+
+---
+
+## 🌍 Pipo's World — the living 3D room
+
+**[aspire488.github.io/Pipo](https://aspire488.github.io/Pipo/)** now opens a **Three.js room you can walk into**: Pipo lives there for real, on a clock of his own.
+
+- **He's autonomous.** He picks his own activities — building at the workbench, kicking the ball, drawing, watching TV — then sleeps when his day ends. The day-night cycle, weather and moods all run live in the browser.
+- **Nib** naps in the toy box, steals the spotlight, and sometimes hides in it.
+- **Tap the floor** to call him over, tap Pipo and he answers. **Where is Pipo?** sends the camera on a little hunt until it frames him; **Follow** keeps it locked on him.
+- **The mirror isn't quite right.** Look long enough, on the right night.
+- No account, no keys, no build step — static files on GitHub Pages. The original 2D site lives on at **[/classic](https://aspire488.github.io/Pipo/classic/)**.
+
+The Android app below is a deeper build of the same character.
 
 ---
 
