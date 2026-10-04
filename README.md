@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://meetpipo.com"><strong>🌐 Try the Pipo web demo →</strong></a>
+  <a href="https://meetpipo.com"><strong>🌐 Try the Pipo web demo →</strong></a> · <a href="https://github.com/aspire488/Pipo/releases/tag/v1.0"><strong>📦 Download Pipo v1.0 →</strong></a>
 </p>
 
 <p align="center">
@@ -49,11 +49,11 @@ His life runs on your device. There's no account and no analytics: it's a robot 
 
 ## 📲 Install Pipo on your Android phone
 
-Want to try Pipo without building the project? **A signed release APK will be published here once the release build is ready.**
+Want to try Pipo without building the project? **Pipo v1.0 is now available as a signed release APK.**
 
 ### Option 1 — Install a release APK
 
-1. Open the project's **GitHub Releases** page and download the latest `Pipo-*.apk`.
+1. Open the [Pipo v1.0 release](https://github.com/aspire488/Pipo/releases/tag/v1.0) and download `Pipo.apk`.
 2. On your Android phone, open the downloaded APK.
 3. If Android asks, enable **Install unknown apps** for the app you used to open the APK (Chrome, Files, etc.).
 4. Return to the APK and tap **Install**.
