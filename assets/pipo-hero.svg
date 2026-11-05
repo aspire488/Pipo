@@ -1,48 +1,65 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" role="img" aria-label="Pipo, a small 3D-style robot living in a cozy room">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#111827"/><stop offset="1" stop-color="#26364a"/></linearGradient>
-    <linearGradient id="body" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f5f7fa"/><stop offset=".55" stop-color="#c7d0da"/><stop offset="1" stop-color="#7c8794"/></linearGradient>
-    <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e293b"/><stop offset="1" stop-color="#020617"/></linearGradient>
-    <filter id="shadow"><feGaussianBlur stdDeviation="12"/></filter>
-    <style>
-      .pipo { transform-origin: 450px 330px; animation: bob 2.8s ease-in-out infinite; }
-      .head { transform-origin: 450px 205px; animation: look 5s ease-in-out infinite; }
-      .antenna { transform-origin: 450px 105px; animation: antenna 1.8s ease-in-out infinite; }
-      .eye { animation: blink 4.7s infinite; transform-box: fill-box; transform-origin: center; }
-      @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
-      @keyframes look { 0%,45%,100%{transform:rotateY(0deg)} 55%,75%{transform:rotateY(8deg)} 85%{transform:rotateY(-5deg)} }
-      @keyframes antenna { 0%,100%{transform:rotate(-4deg)} 50%{transform:rotate(7deg)} }
-      @keyframes blink { 0%,92%,100%{transform:scaleY(1)} 94%,96%{transform:scaleY(.08)} }
-    </style>
-  </defs>
-  <rect width="900" height="520" rx="28" fill="url(#bg)"/>
-  <path d="M0 405 Q230 355 450 400 T900 390 V520 H0Z" fill="#172233"/>
-  <path d="M60 390 L840 390 L900 520 H0Z" fill="#202d3e"/>
-  <path d="M80 390 L820 390" stroke="#34465b" stroke-width="3"/>
-  <circle cx="140" cy="105" r="45" fill="#f8d58a" opacity=".18"/>
-  <rect x="675" y="112" width="125" height="175" rx="10" fill="#1c2a3a" stroke="#53677e" stroke-width="4"/>
-  <path d="M690 260 Q738 215 785 260" fill="#0f1724"/>
-  <g class="pipo">
-    <ellipse cx="450" cy="420" rx="120" ry="22" fill="#000" opacity=".3" filter="url(#shadow)"/>
-    <g class="head">
-      <rect x="360" y="125" width="180" height="160" rx="48" fill="url(#body)" stroke="#687584" stroke-width="5"/>
-      <rect x="383" y="155" width="134" height="100" rx="28" fill="url(#screen)" stroke="#475569" stroke-width="5"/>
-      <g class="eye" fill="#b9f3ff"><circle cx="420" cy="202" r="16"/><circle cx="480" cy="202" r="16"/></g>
-      <path d="M425 228 Q450 245 475 228" fill="none" stroke="#b9f3ff" stroke-width="6" stroke-linecap="round"/>
-      <circle cx="348" cy="205" r="14" fill="#aeb9c4"/><circle cx="552" cy="205" r="14" fill="#aeb9c4"/>
-    </g>
-    <g class="antenna">
-      <path d="M450 125 L450 94" stroke="#9aa6b4" stroke-width="9" stroke-linecap="round"/>
-      <circle cx="450" cy="82" r="14" fill="#8fe8ff"/>
-    </g>
-    <path d="M370 292 Q450 270 530 292 L548 378 Q450 410 352 378Z" fill="url(#body)" stroke="#687584" stroke-width="5"/>
-    <path d="M397 320 Q450 300 503 320 L500 350 Q450 365 400 350Z" fill="#7f8b98" opacity=".65"/>
-    <g stroke="#7b8794" stroke-width="18" stroke-linecap="round"><path d="M370 315 L330 365"/><path d="M530 315 L570 365"/></g>
-    <g fill="#aeb9c4" stroke="#687584" stroke-width="4"><ellipse cx="326" cy="371" rx="24" ry="18"/><ellipse cx="574" cy="371" rx="24" ry="18"/></g>
-    <path d="M402 378 L397 420" stroke="#6e7b88" stroke-width="24" stroke-linecap="round"/><path d="M498 378 L503 420" stroke="#6e7b88" stroke-width="24" stroke-linecap="round"/>
-    <ellipse cx="390" cy="427" rx="38" ry="16" fill="#9ba7b3"/><ellipse cx="510" cy="427" rx="38" ry="16" fill="#9ba7b3"/>
-  </g>
-  <text x="52" y="72" fill="#f8fafc" font-family="system-ui, sans-serif" font-size="28" font-weight="700">PIPO</text>
-  <text x="52" y="104" fill="#a9b8c9" font-family="system-ui, sans-serif" font-size="17">a little robot living inside your phone</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 650" role="img" aria-labelledby="title desc">
+<title id="title">Pipo — a little life of his own</title><desc id="desc">A warm, illustrated cutaway of Pipo's cosy room. Pipo stands in the middle, Nib peeks out of a box, and the room is full of small things to discover.</desc>
+<defs>
+ <linearGradient id="wall" x2="0" y2="1"><stop stop-color="#F7E9D2"/><stop offset="1" stop-color="#E8D3B7"/></linearGradient>
+ <linearGradient id="floor" x2="0" y2="1"><stop stop-color="#C88F65"/><stop offset="1" stop-color="#9C644A"/></linearGradient>
+ <linearGradient id="shell" x2="1" y2="1"><stop stop-color="#FFFDF4"/><stop offset=".55" stop-color="#E7E4D8"/><stop offset="1" stop-color="#B7B6A8"/></linearGradient>
+ <linearGradient id="glass" x2="1" y2="1"><stop stop-color="#B9D8D1"/><stop offset="1" stop-color="#E6C99F"/></linearGradient>
+ <filter id="soft"><feGaussianBlur stdDeviation="18"/></filter>
+ <filter id="shadow"><feGaussianBlur stdDeviation="9"/></filter>
+</defs>
+<rect width="1200" height="650" rx="28" fill="#F4E6D2"/>
+<circle cx="1000" cy="110" r="150" fill="#F4B66D" opacity=".24" filter="url(#soft)"/>
+<path d="M0 0H1200V500H0Z" fill="url(#wall)"/>
+<path d="M0 500H1200V650H0Z" fill="url(#floor)"/>
+<path d="M0 500H1200" stroke="#81543F" stroke-width="9"/>
+<!-- wallpaper details -->
+<g fill="#C98B61" opacity=".28"><circle cx="80" cy="90" r="3"/><circle cx="150" cy="150" r="3"/><circle cx="265" cy="70" r="3"/><circle cx="590" cy="80" r="3"/><circle cx="710" cy="140" r="3"/><circle cx="1110" cy="80" r="3"/></g>
+<!-- window -->
+<rect x="75" y="92" width="250" height="260" rx="12" fill="#875D49"/>
+<rect x="88" y="105" width="224" height="234" rx="6" fill="url(#glass)"/>
+<circle cx="263" cy="155" r="35" fill="#F9D18A"/>
+<path d="M90 285Q145 230 195 278T310 265V340H90Z" fill="#7D9C78"/>
+<path d="M90 310Q145 280 190 310T310 295V340H90Z" fill="#5D7C66"/>
+<path d="M199 105V339M88 222H312" stroke="#875D49" stroke-width="10"/>
+<path d="M60 80Q100 55 130 82V355Q100 330 60 354Z" fill="#D98E67"/><path d="M340 80Q300 55 270 82V355Q300 330 340 354Z" fill="#D98E67"/>
+<!-- shelf -->
+<path d="M820 180H1120L1100 200H840Z" fill="#8F5E45"/>
+<rect x="850" y="125" width="55" height="55" rx="5" fill="#D9A56F"/><path d="M860 155l15-18 18 18" fill="none" stroke="#F7E9D2" stroke-width="4"/>
+<rect x="935" y="140" width="65" height="40" rx="4" fill="#6F8A76"/><path d="M944 150h47M944 160h36" stroke="#F7E9D2" stroke-width="3"/>
+<path d="M1050 180V130Q1085 90 1110 130V180Z" fill="#B9A47C"/><path d="M1080 130V105" stroke="#6D8768" stroke-width="5"/>
+<!-- workbench -->
+<rect x="810" y="385" width="300" height="22" rx="7" fill="#986448"/><path d="M835 405V500M1085 405V500" stroke="#81543F" stroke-width="13"/>
+<rect x="870" y="330" width="120" height="54" rx="9" fill="#4F5C59"/><rect x="880" y="340" width="100" height="34" rx="5" fill="#D7E0CE"/>
+<path d="M910 354l18-10 18 12 16-8" stroke="#6C9278" stroke-width="4" fill="none"/>
+<circle cx="1035" cy="365" r="12" fill="#DDA85E"/><path d="M1035 353v24M1023 365h24" stroke="#8B6044" stroke-width="3"/>
+<!-- rug -->
+<ellipse cx="590" cy="540" rx="285" ry="60" fill="#E9B98B" opacity=".7"/><path d="M330 540Q590 585 850 540" stroke="#B97B5D" stroke-width="3" fill="none" opacity=".7"/>
+<!-- Pipo shadow -->
+<ellipse cx="575" cy="535" rx="105" ry="20" fill="#4E3428" opacity=".22" filter="url(#shadow)"/>
+<!-- Pipo legs -->
+<path d="M535 455L525 505M615 455L625 505" stroke="#A6A89E" stroke-width="27" stroke-linecap="round"/>
+<ellipse cx="515" cy="510" rx="34" ry="16" fill="#D7D7C9"/><ellipse cx="635" cy="510" rx="34" ry="16" fill="#D7D7C9"/>
+<!-- arms -->
+<path d="M490 365Q450 405 435 452M660 365Q700 400 715 438" stroke="#BFC1B4" stroke-width="25" stroke-linecap="round"/>
+<circle cx="433" cy="455" r="18" fill="#E8E5D9"/><circle cx="717" cy="440" r="18" fill="#E8E5D9"/>
+<!-- body -->
+<path d="M493 300Q575 270 657 300L670 440Q575 475 480 440Z" fill="url(#shell)" stroke="#A6A89E" stroke-width="5"/>
+<rect x="535" y="350" width="82" height="45" rx="15" fill="#B6BBAA"/><circle cx="576" cy="372" r="8" fill="#F0B66C"/>
+<!-- head -->
+<rect x="480" y="155" width="190" height="170" rx="52" fill="url(#shell)" stroke="#A6A89E" stroke-width="6"/>
+<rect x="505" y="188" width="140" height="100" rx="30" fill="#344441"/>
+<ellipse cx="545" cy="232" rx="13" ry="17" fill="#DDF3D8"/><ellipse cx="605" cy="232" rx="13" ry="17" fill="#DDF3D8"/>
+<path d="M548 260Q575 280 603 260" fill="none" stroke="#DDF3D8" stroke-width="5" stroke-linecap="round"/>
+<circle cx="473" cy="236" r="17" fill="#C4C6B9"/><circle cx="677" cy="236" r="17" fill="#C4C6B9"/>
+<path d="M575 155V115" stroke="#92998C" stroke-width="9" stroke-linecap="round"/><circle cx="575" cy="104" r="15" fill="#EBAF62"/><circle cx="570" cy="99" r="5" fill="#FFF0CE"/>
+<!-- Nib in box -->
+<path d="M120 460Q150 410 220 440L245 520H105Z" fill="#B87B53"/><path d="M110 455L155 485L240 455" fill="none" stroke="#8D5B42" stroke-width="8"/>
+<circle cx="177" cy="453" r="35" fill="#D99B55"/><circle cx="185" cy="448" r="12" fill="#4D5145"/><circle cx="188" cy="444" r="4" fill="#F8E7C6"/><path d="M145 474Q177 490 207 474" stroke="#A86E45" stroke-width="5" fill="none"/>
+<!-- little clutter -->
+<rect x="720" y="490" width="42" height="28" rx="5" fill="#7D9A79" transform="rotate(-12 720 490)"/><circle cx="755" cy="485" r="9" fill="#E9B66E"/><path d="M760 480l30-25" stroke="#A66F4C" stroke-width="6" stroke-linecap="round"/>
+<!-- wall note -->
+<rect x="390" y="70" width="160" height="65" rx="5" fill="#F8D78E" transform="rotate(-4 390 70)"/><path d="M412 93h105M412 108h70" stroke="#A9794F" stroke-width="4" stroke-linecap="round" opacity=".65"/>
+<text x="62" y="590" font-family="Georgia,serif" font-size="24" fill="#F8EAD8" opacity=".92">A little life of his own.</text>
+<text x="1138" y="590" text-anchor="end" font-family="Georgia,serif" font-style="italic" font-size="18" fill="#F8EAD8" opacity=".8">Pipo &amp; Nib</text>
 </svg>
