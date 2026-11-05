@@ -1,79 +1,72 @@
 <div align="center">
 
-<img src="./assets/pipo-hero.svg" alt="Pipo in his little world" width="100%"/>
+# PIPO
 
-# Pipo
+## A little life happening inside your phone.
 
-### He lives here. He has things to do.
+<img src="./Screenshot_20261003_225733_Pipo.jpg" alt="Pipo — actual Android app screenshot" width="760"/>
 
-**A little robot with a whole life of his own.**
+### He has a room. He has plans. He has absolutely no idea what he's doing.
 
-[**Step into Pipo's World ↗**](https://aspire488.github.io/Pipo/) · [Android release](https://github.com/aspire488/Pipo/releases/tag/v1.0) · [Classic 2D demo](https://aspire488.github.io/Pipo/classic/)
-
-<br/>
-
-<img src="https://img.shields.io/badge/175_tests-passing-557A62?style=flat-square" alt="175 tests passing"/>
-<img src="https://img.shields.io/badge/Galaxy_S23-device_tested-557A62?style=flat-square" alt="Galaxy S23 device tested"/>
-<img src="https://img.shields.io/badge/Android_15-verified-557A62?style=flat-square" alt="Android 15 verified"/>
-<img src="https://img.shields.io/badge/local--first-no_account-557A62?style=flat-square" alt="Local first, no account"/>
+[**WALK INTO HIS WORLD ↗**](https://aspire488.github.io/Pipo/) &nbsp; · &nbsp; [**WATCH HIM MOVE ↗**](./Pipo-Intro.mp4) &nbsp; · &nbsp; [**GET THE ANDROID APP ↗**](https://github.com/aspire488/Pipo/releases/tag/v1.0)
 
 </div>
 
 ---
 
-> *You open your phone. Pipo is halfway through building something. Nib has stolen a screw. It is probably going to be a long afternoon.*
-
-Pipo isn't waiting for a command. He's got a room to live in, projects he can't quite finish, places he's curious about, a tiny robot pet called Nib, and a personality that slowly becomes his own.
-
-Some days he's busy. Some days he's sleepy. Sometimes he disappears on an errand and leaves a note on the door. Sometimes the most interesting thing he does is absolutely nothing.
-
-**Pipo is not an assistant wearing a robot costume. He's the little someone you come back to.**
-
 <div align="center">
 
-<img src="./Screenshot_20261003_225733_Pipo.jpg" alt="Pipo living inside the app" width="330"/>
+*You don't open Pipo to get something done.*
 
-<br/>
-
-*Not a dashboard. Not a chatbot. Just Pipo, getting on with his day.*
+*You open Pipo to see what he's been up to.*
 
 </div>
 
-## A life, not a list of features
+Pipo is a tiny, curious, occasionally chaotic robot with a life that keeps taking shape. He gets distracted. He makes things. He goes out for the wrong part and comes back with a magnet. He has a small robot pet called Nib, who is not helping.
+
+He has moods that show up in his body, projects that don't always work, neighbours who remember him, and a room that slowly fills with evidence of a life being lived.
+
+**This isn't a chatbot with a face. It isn't a virtual pet waiting for you to tap a meter. It's a character with his own momentum.**
+
+## A few things you might catch him doing
+
+<div align="center">
 
 | | |
 |:--|:--|
-| **A personality of his own** | Traits, moods, memories and habits shape what he chooses to do. No two Pipos begin quite alike. |
-| **A room that tells stories** | Drawings, half-built inventions, a messy workbench, things left behind and little signs of what happened while you were away. |
-| **A world beyond the window** | Shops, parks, neighbours, animals and places he discovers. He goes out for reasons that make sense to him. |
-| **A tiny companion** | Nib follows him around, steals shiny things, gets into trouble and occasionally notices things Pipo doesn't. |
-| **Projects that can go wrong** | Ideas become shopping trips, experiments, failures, retries and things that eventually earn a place on his shelf. |
-| **Small, unscripted moments** | A head tilt. A suspicious glance. A hum. A nap in the wrong place. The details are the point. |
-
-## Come see what he's doing
-
-<div align="center">
-
-| **The living room** | **The Android app** | **The old-school demo** |
-|:--:|:--:|:--:|
-| Walk into his 3D world. Find him. Watch the day unfold. | The deeper character simulation, right on your phone. | The original 2D version, still here. |
-| [**Enter the world ↗**](https://aspire488.github.io/Pipo/) | [**Get Pipo v1.0 ↗**](https://github.com/aspire488/Pipo/releases/tag/v1.0) | [**Play classic ↗**](https://aspire488.github.io/Pipo/classic/) |
+| **Getting carried away** | A project starts as an idea, turns into a mess, and eventually becomes something on his shelf. |
+| **Going somewhere** | He leaves a note, takes a trip, meets someone, gets distracted, and comes home with a story. |
+| **Being weird with Nib** | Nib steals things, hides them, naps in the wrong place and occasionally spots what Pipo misses. |
+| **Having a day** | Weather, mood, time and memory change what he feels like doing. Sometimes he just lies on the floor. |
 
 </div>
 
-## The feeling we're building
+## There is more than one way to find him
 
-- **Character over utility.** If it makes him feel more like himself, it belongs.
-- **He has agency.** You can invite, encourage and interact. You don't operate him.
-- **No guilt.** He doesn't punish you for leaving. The relationship doesn't decay while you're away.
-- **Failure is part of his story.** The flying machine can crash. The next attempt can be better.
-- **Quiet is allowed.** Pipo doesn't need to perform for you every time you open the app.
-- **A little mystery.** Not everything needs a quest marker or an explanation.
+<div align="center">
 
-<blockquote>
-  <p><strong>“I wonder what Pipo is doing.”</strong></p>
-  <p>That's the whole idea.</p>
-</blockquote>
+[**THE LIVING 3D ROOM**](https://aspire488.github.io/Pipo/)  
+Walk around. Find Pipo. Watch his day unfold.
+
+[**THE ANDROID APP**](https://github.com/aspire488/Pipo/releases/tag/v1.0)  
+The deeper simulation, with his room, memories, trips, projects and Nib.
+
+[**THE CLASSIC 2D WORLD**](https://aspire488.github.io/Pipo/classic/)  
+The original little world is still here.
+
+</div>
+
+## The rules of his little universe
+
+- **He is the character, not the user.** He has his own wants, habits and opinions.
+- **No guilt for being away.** He doesn't punish you for having a life.
+- **Failure belongs in the story.** A failed invention is still a good afternoon.
+- **Silence is allowed.** He doesn't need to ping you constantly to feel alive.
+- **The small details matter.** A glance, a half-finished drawing, a note on the door.
+
+> *“I wonder what Pipo is doing.”*
+
+That's the product. Everything else is there to make that question worth asking.
 
 ---
 
