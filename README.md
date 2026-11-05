@@ -2,11 +2,27 @@
 
 <img src="assets/pipo-universe.svg" alt="Pipo — a small world, full of life" width="100%"/>
 
-<a href="https://aspire488.github.io/Pipo/"><strong>ENTER THE 3D WORLD ↗</strong></a>
-&nbsp;&nbsp; ✳ &nbsp;&nbsp;
-<a href="https://github.com/aspire488/Pipo/releases/tag/v1.0"><strong>GET THE ANDROID APP ↗</strong></a>
-&nbsp;&nbsp; ✳ &nbsp;&nbsp;
+</div>
+
+<div align="center">
+
+<a href="https://github.com/aspire488/Pipo/releases/download/v1.0/Pipo.apk"><img src="https://img.shields.io/badge/⬇%20DOWNLOAD%20PIPO%20APK-INSTALL%20ON%20ANDROID-8FF5E2?style=for-the-badge&labelColor=111827" alt="Download Pipo APK"/></a>
+
+<br/>
+
+<a href="https://github.com/aspire488/Pipo/releases/tag/v1.0"><strong>VIEW RELEASE NOTES ↗</strong></a>
+&nbsp;&nbsp; · &nbsp;&nbsp;
+<a href="https://aspire488.github.io/Pipo/"><strong>ENTER THE LIVE 3D WORLD ↗</strong></a>
+&nbsp;&nbsp; · &nbsp;&nbsp;
 <a href="Pipo-Intro.mp4"><strong>WATCH THE INTRO ↗</strong></a>
+
+<br/><br/>
+
+<img src="https://img.shields.io/github/v/release/aspire488/Pipo?display_name=tag&style=flat-square&color=8FF5E2&label=LATEST%20RELEASE" alt="Latest release"/>
+<img src="https://img.shields.io/github/actions/workflow/status/aspire488/Pipo/build-apk.yml?branch=main&style=flat-square&label=ANDROID%20BUILD" alt="Android build status"/>
+<img src="https://img.shields.io/github/actions/workflow/status/aspire488/Pipo/web-pages.yml?branch=main&style=flat-square&label=WEB%20DEPLOY" alt="Web deploy status"/>
+<img src="https://img.shields.io/github/license/aspire488/Pipo?style=flat-square&color=8FF5E2" alt="MIT license"/>
+<img src="https://img.shields.io/badge/SECURITY-POLICY-8FF5E2?style=flat-square" alt="Security policy"/>
 
 </div>
 
@@ -89,6 +105,71 @@ A round amber robot-pet with moods, habits and a talent for stealing shiny thing
 
 ---
 
+## GET PIPO ON ANDROID
+
+<div align="center">
+
+<a href="https://github.com/aspire488/Pipo/releases/download/v1.0/Pipo.apk"><img src="https://img.shields.io/badge/GET%20PIPO%201.0-DOWNLOAD%20APK%20%E2%86%93-8FF5E2?style=for-the-badge&labelColor=111827" alt="Download Pipo 1.0 APK"/></a>
+
+<br/>
+
+<sub>Android 8.0+ · APK · 26.1 MB · SHA-256 verified release asset</sub>
+
+</div>
+
+1. Download **[Pipo.apk](https://github.com/aspire488/Pipo/releases/download/v1.0/Pipo.apk)**.
+2. Open it on your Android device.
+3. If prompted, allow your browser or file manager to install unknown apps.
+4. Install Pipo and open him.
+
+<details>
+<summary><strong>VERIFY THE APK</strong></summary>
+
+Release asset SHA-256:
+
+```text
+911b61a523da2b0c91c747fdf87fcbfcd318b6bde458385b3bd69c2c121e3526
+```
+
+[Release v1.0 and all release details](https://github.com/aspire488/Pipo/releases/tag/v1.0).
+
+</details>
+
+---
+
+## OPEN SOURCE, BUILT TO BE IMPROVED
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### CONTRIBUTIONS
+
+Issues, focused pull requests, tests, documentation and visual improvements are welcome.
+
+<a href="CONTRIBUTING.md"><strong>READ CONTRIBUTING GUIDELINES ↗</strong></a>
+
+</td>
+<td width="50%" valign="top">
+
+### SECURITY
+
+Found a vulnerability? Report it privately. Do not publish exploit details in a public issue.
+
+<a href="SECURITY.md"><strong>READ SECURITY POLICY ↗</strong></a>
+
+</td>
+</tr>
+</table>
+
+<img src="https://img.shields.io/github/issues/aspire488/Pipo?style=flat-square&label=OPEN%20ISSUES" alt="Open issues"/>
+<img src="https://img.shields.io/github/issues-pr/aspire488/Pipo?style=flat-square&label=OPEN%20PULL%20REQUESTS" alt="Open pull requests"/>
+<img src="https://img.shields.io/github/last-commit/aspire488/Pipo/main?style=flat-square&label=LAST%20UPDATE" alt="Last update"/>
+
+Dependency updates are monitored through **Dependabot** for Gradle and GitHub Actions. Android builds run unit tests and upload the debug APK and test reports as workflow artifacts.
+
+---
+
 <details>
 <summary><strong>THE ENGINE UNDER THE PERSONALITY</strong></summary>
 
@@ -107,21 +188,14 @@ Pipo's life is driven by a deterministic simulation, not a scripted sequence.
 <details>
 <summary><strong>RUN IT LOCALLY</strong></summary>
 
-```powershell
+```bash
 git clone https://github.com/aspire488/Pipo.git
 cd Pipo
-.\gradlew.bat assembleDebug
+./gradlew testDebugUnitTest
+./gradlew assembleDebug
 ```
 
 Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
-
-Install with ADB:
-
-```powershell
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-```
-
-Android 8.0 (API 26) or newer.
 
 </details>
 
@@ -131,6 +205,8 @@ Android 8.0 (API 26) or newer.
 - [Feature history](docs/FEATURE_HISTORY.md)
 - [Source code](https://github.com/aspire488/Pipo)
 - [Releases](https://github.com/aspire488/Pipo/releases)
+- [Contributing](CONTRIBUTING.md)
+- [Security](SECURITY.md)
 
 </details>
 
