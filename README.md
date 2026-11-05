@@ -1,51 +1,79 @@
-# Pipo 🤖
+<div align="center">
 
-<p align="center">
-  <img src="./assets/pipo-hero.svg" alt="Pipo — a little robot living inside your phone" width="900"/>
-</p>
+<img src="./assets/pipo-hero.svg" alt="Pipo in his little world" width="100%"/>
 
-<p align="center">
-  <strong>A little robot living inside your phone.</strong><br/>
-  Character-first Android simulation · procedural 2.5D · autonomous life · local-first
-</p>
+# Pipo
 
-<p align="center">
-  <a href="https://aspire488.github.io/Pipo/"><strong>🌍 Enter Pipo's World — an interactive 3D life →</strong></a><br/>
-  <a href="https://aspire488.github.io/Pipo/classic/">🎮 Classic 2D demo</a> ·
-  <a href="https://github.com/aspire488/Pipo/releases/tag/v1.0">📱 Download for Android</a>
-</p>
+### He lives here. He has things to do.
 
-<p align="center">
-  <a href="DEVICE_TEST_REPORT.md"><img src="https://img.shields.io/badge/Device%20Validation-Galaxy%20S23%20%E2%9C%93-70a5fd?style=for-the-badge"/></a>
-  <img src="https://img.shields.io/badge/Tests-175%20%E2%9C%93-2ea44f?style=for-the-badge"/>
-  <img src="https://img.shields.io/badge/Rendering-Procedural%202.5D-8b5cf6?style=for-the-badge"/>
-  <img src="https://img.shields.io/badge/Android%2015-Verified-3ddc84?style=for-the-badge&logo=android&logoColor=white"/>
-</p>
+**A little robot with a whole life of his own.**
 
-> **“I wonder what Pipo is doing.”**
+[**Step into Pipo's World ↗**](https://aspire488.github.io/Pipo/) · [Android release](https://github.com/aspire488/Pipo/releases/tag/v1.0) · [Classic 2D demo](https://aspire488.github.io/Pipo/classic/)
 
-> A tiny robot who lives inside your phone.
+<br/>
 
-<p align="center">
-  <img src="./Screenshot_20261003_225733_Pipo.jpg" alt="Pipo running on an Android phone" width="360"/>
-</p>
+<img src="https://img.shields.io/badge/175_tests-passing-557A62?style=flat-square" alt="175 tests passing"/>
+<img src="https://img.shields.io/badge/Galaxy_S23-device_tested-557A62?style=flat-square" alt="Galaxy S23 device tested"/>
+<img src="https://img.shields.io/badge/Android_15-verified-557A62?style=flat-square" alt="Android 15 verified"/>
+<img src="https://img.shields.io/badge/local--first-no_account-557A62?style=flat-square" alt="Local first, no account"/>
 
-<p align="center">
-  <strong>🎬 See Pipo in motion</strong><br/>
-  <a href="./Pipo-Intro.mp4">▶️ Watch the intro video</a> · <a href="./Pipo-Intro-Vertical.mp4">📱 Watch the vertical demo</a>
-</p>
+</div>
 
-Pipo is a character-first Android app about a small, curious, slightly mischievous robot. He has his own moods, memories, habits, projects and opinions, and he lives in a little room inside your phone.
+---
 
-The whole product fits in one sentence:
+> *You open your phone. Pipo is halfway through building something. Nib has stolen a screw. It is probably going to be a long afternoon.*
 
-> "I wonder what Pipo is doing."
+Pipo isn't waiting for a command. He's got a room to live in, projects he can't quite finish, places he's curious about, a tiny robot pet called Nib, and a personality that slowly becomes his own.
 
-Open the app and you find out. He might be asleep with one eye open (pretending), lying on the floor staring at the ceiling, halfway through a project that keeps catching fire, chasing a moth around the desk lamp, or peeking in from the edge of the screen because he heard you come back.
+Some days he's busy. Some days he's sleepy. Sometimes he disappears on an errand and leaves a note on the door. Sometimes the most interesting thing he does is absolutely nothing.
 
-Or he might not be there at all. There's a note on the door: he went to the hardware shop because the flying machine needs a motor. Nib, his small beeping robot pet, stayed home and is asleep in the cardboard box. Twenty minutes later the door opens and he walks in with a bag, and a magnet he bought instead of the wire he went for.
+**Pipo is not an assistant wearing a robot costume. He's the little someone you come back to.**
 
-His life runs on your device. There's no account and no analytics: it's a robot and a JSON file. What does go online is listed plainly under [Privacy](#-privacy): his AI voice (chat, "look", "find out"), your city's weather, and the searches you ask for. All of it can be switched off in Settings.
+<div align="center">
+
+<img src="./Screenshot_20261003_225733_Pipo.jpg" alt="Pipo living inside the app" width="330"/>
+
+<br/>
+
+*Not a dashboard. Not a chatbot. Just Pipo, getting on with his day.*
+
+</div>
+
+## A life, not a list of features
+
+| | |
+|:--|:--|
+| **A personality of his own** | Traits, moods, memories and habits shape what he chooses to do. No two Pipos begin quite alike. |
+| **A room that tells stories** | Drawings, half-built inventions, a messy workbench, things left behind and little signs of what happened while you were away. |
+| **A world beyond the window** | Shops, parks, neighbours, animals and places he discovers. He goes out for reasons that make sense to him. |
+| **A tiny companion** | Nib follows him around, steals shiny things, gets into trouble and occasionally notices things Pipo doesn't. |
+| **Projects that can go wrong** | Ideas become shopping trips, experiments, failures, retries and things that eventually earn a place on his shelf. |
+| **Small, unscripted moments** | A head tilt. A suspicious glance. A hum. A nap in the wrong place. The details are the point. |
+
+## Come see what he's doing
+
+<div align="center">
+
+| **The living room** | **The Android app** | **The old-school demo** |
+|:--:|:--:|:--:|
+| Walk into his 3D world. Find him. Watch the day unfold. | The deeper character simulation, right on your phone. | The original 2D version, still here. |
+| [**Enter the world ↗**](https://aspire488.github.io/Pipo/) | [**Get Pipo v1.0 ↗**](https://github.com/aspire488/Pipo/releases/tag/v1.0) | [**Play classic ↗**](https://aspire488.github.io/Pipo/classic/) |
+
+</div>
+
+## The feeling we're building
+
+- **Character over utility.** If it makes him feel more like himself, it belongs.
+- **He has agency.** You can invite, encourage and interact. You don't operate him.
+- **No guilt.** He doesn't punish you for leaving. The relationship doesn't decay while you're away.
+- **Failure is part of his story.** The flying machine can crash. The next attempt can be better.
+- **Quiet is allowed.** Pipo doesn't need to perform for you every time you open the app.
+- **A little mystery.** Not everything needs a quest marker or an explanation.
+
+<blockquote>
+  <p><strong>“I wonder what Pipo is doing.”</strong></p>
+  <p>That's the whole idea.</p>
+</blockquote>
 
 ---
 
