@@ -14,7 +14,8 @@ import kotlin.random.Random
 
 /** Regressions from live-device testing: he knows his own life, and does reasonable things you ask. */
 class GroundedLifeTest {
-    private val noon = 20_000L * DAY + 12 * HOUR
+    // the engine reads the hour in the device (JVM default) timezone, so "noon" must be local noon or the shop-hour checks depend on where the tests run
+    private val noon = java.util.Calendar.getInstance().apply { timeInMillis = 20_000L * DAY; set(java.util.Calendar.HOUR_OF_DAY, 12); set(java.util.Calendar.MINUTE, 0); set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0) }.timeInMillis
     private fun fresh() = PipoState(seed = 11L).apply { profile.firstRunDone = true; profile.createdAt = noon - 60 * DAY; lastSimulatedAt = noon; mood.energy = 0.8f }
 
     @Test
@@ -58,7 +59,7 @@ class GroundedLifeTest {
         else assertNotNull(Trips.closedLine("groceries", late))
         // asking for a closed shop by name gets an honest answer (the chat stops there, no trip)
         assertTrue(Trips.closedLine("go to the bakery", late)!!.contains("closed"))
-        val r = LocalBrain.respond(s, "go to the bakery", noon, kotlin.random.Random(1), false)
+        val r = LocalBrain.respond(s, "go to the bakery", noon + 9 * HOUR, kotlin.random.Random(1), false) // 21:00 local: every shop is shut
         assertTrue(r.text, r.action != ChatAction.GO_OUT && r.text.contains("closed"))
     }
 
