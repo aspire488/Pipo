@@ -58,7 +58,9 @@ class GroundedLifeTest {
         else assertNotNull(Trips.closedLine("groceries", late))
         // asking for a closed shop by name gets an honest answer (the chat stops there, no trip)
         assertTrue(Trips.closedLine("go to the bakery", late)!!.contains("closed"))
-        val r = LocalBrain.respond(s, "go to the bakery", noon, kotlin.random.Random(1), false)
+        // respond() reads the hour from the clock in the JVM's default timezone, so pin it to 21:00 there
+        val nine = java.util.Calendar.getInstance().apply { timeInMillis = noon; set(java.util.Calendar.HOUR_OF_DAY, 21) }.timeInMillis
+        val r = LocalBrain.respond(s, "go to the bakery", nine, kotlin.random.Random(1), false)
         assertTrue(r.text, r.action != ChatAction.GO_OUT && r.text.contains("closed"))
     }
 
