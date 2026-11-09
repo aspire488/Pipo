@@ -17,7 +17,8 @@ class ActivityMixTest {
         val counts = mutableMapOf<ActivityType, Int>()
         repeat(5) { day ->
             val s = PipoState(seed = day.toLong()).apply { profile.firstRunDone = true; mood.energy = 0.75f; mood.boredom = 0.35f }
-            var now = 20_000L * DAY + 9 * HOUR
+            // local 09:00, so the day (hours, daily screen caps) is the same wherever the tests run
+            var now = java.util.Calendar.getInstance().apply { timeInMillis = 20_000L * DAY; set(java.util.Calendar.HOUR_OF_DAY, 9); set(java.util.Calendar.MINUTE, 0); set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0) }.timeInMillis
             var last: ActivityType? = null
             repeat(60) { i ->
                 val env = Env(hour = hourOf(now), userPresent = true)

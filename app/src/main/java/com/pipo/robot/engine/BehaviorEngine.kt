@@ -616,7 +616,7 @@ object ScreenTime {
     /** Minimum break after ANY screen session before the next one. */
     const val BREAK_MS = 5 * MINUTE
 
-    private fun dayKey(now: Long) = now / DAY
+    private fun dayKey(now: Long) = WeatherEngine.localDay(now)
     fun sessionsToday(s: PipoState, type: ActivityType, now: Long): Int =
         if (s.cooldowns["screen:day"] == dayKey(now)) (s.cooldowns["screen:n:${type.name}"] ?: 0L).toInt() else 0
 
