@@ -36,6 +36,8 @@
 
 </div>
 
+**Pipo is an Android app.** A little robot lives in his own room on your phone and gets on with his day: his own traits, moods and memories, a pet called Nib, and a world that keeps moving while you are away. Free, offline-first, no ads, no analytics, MIT-licensed. **Install it in one tap: [download the APK](https://github.com/aspire488/Pipo/releases/download/v1.0/Pipo.apk).**
+
 Pipo is an autonomous little robot with a persistent inner life. He makes plans, gets distracted, builds questionable inventions, goes exploring, remembers people, and occasionally just lies on the floor.
 
 You don't manage him. You drop in and discover what happened.
@@ -137,6 +139,41 @@ Release asset SHA-256:
 
 ---
 
+<details>
+<summary><strong>TROUBLESHOOTING &amp; THE PLAY PROTECT PROMPT</strong></summary>
+
+**"Play Protect says this app is unsafe / unverified."**
+Expected. Pipo comes from GitHub, not the Play Store, so Google has no reputation for it. Play Protect
+blocks or warns about *unverified* apps installed from a browser when they request sensitive
+permissions — Pipo can ask for notification access (optional, off by default) for his "did you get a
+message?" moments. It is a verification warning, not a malware detection. The full audit, with the APK
+hash and signing certificate, is in
+[`security/play-protect-investigation/`](security/play-protect-investigation/EXECUTIVE_SUMMARY.md).
+
+If Android offers **"Install anyway"** (sometimes under *More details*), use that. **Do not turn Play
+Protect off** — you do not need to, and it protects everything else on your phone.
+
+**"App not installed" / "package appears to be invalid."**
+Usually a truncated download. Check the SHA-256 above, re-download, try again.
+
+**"Can't install over an existing Pipo."**
+A copy signed with a different key must be uninstalled first. That **deletes his save** — the save
+lives only on your phone.
+
+**Nothing happens when I open the APK.**
+Allow installs for the app you downloaded it with: Settings → Apps → *(your browser or Files)* →
+Install unknown apps.
+
+**He is silent.**
+Pipo's voice uses your phone's text-to-speech engine. Check Settings → Accessibility → Text-to-speech
+output, and update your TTS engine if it is disabled.
+
+**No weather in the window.**
+He needs a network connection once to estimate your city from your IP address. There is no account and
+no location permission. You can turn it off in his Settings.
+
+</details>
+
 ## OPEN SOURCE, BUILT TO BE IMPROVED
 
 <table>
@@ -207,6 +244,7 @@ Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
 - [Releases](https://github.com/aspire488/Pipo/releases)
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
+- [Discussions](https://github.com/aspire488/Pipo/discussions)
 - [Privacy policy](https://aspire488.github.io/Pipo/privacy/)
 
 </details>

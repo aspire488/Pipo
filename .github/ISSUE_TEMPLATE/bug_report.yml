@@ -1,0 +1,89 @@
+name: Bug report
+description: Something in Pipo is broken, crashes, or looks wrong.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing Pipo. He is a side project, so the more specific you are, the faster this gets fixed.
+
+        **Do not report security problems here** — see [SECURITY.md](https://github.com/aspire488/Pipo/blob/main/SECURITY.md).
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you expect, and what did Pipo do instead?
+      placeholder: I tapped the workbench and the app closed.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps. If it only happens after some time away, say roughly how long.
+      placeholder: |
+        1. Open Pipo
+        2. Tap the desk lamp
+        3. ...
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Pipo version
+      description: Shown in Pipo's Settings. The current public release is 1.0.
+      placeholder: "1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device and Android version
+      placeholder: "Pixel 7, Android 15"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: How did you install it
+      options:
+        - Browser download from GitHub Releases
+        - ADB (adb install)
+        - Obtainium
+        - Built it myself from source
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: play-protect
+    attributes:
+      label: Play Protect / install warning (if any)
+      description: |
+        If Play Protect or your manufacturer's security app showed anything during install, paste the
+        **exact wording** and the button labels. This is genuinely useful — it is the evidence needed
+        to appeal a false block. Screenshots are welcome.
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logcat (optional)
+      description: "If you can: `adb logcat -d > pipo.log` and attach it."
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I am on the latest release (1.0) or have said which build I am on.
+          required: true
+        - label: This is not a security issue (those go through SECURITY.md).
+          required: true

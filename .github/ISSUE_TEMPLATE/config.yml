@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions, feedback and ideas
+    url: https://github.com/aspire488/Pipo/discussions
+    about: Ask a question or share feedback in Discussions instead of opening an issue.
+  - name: Security vulnerability
+    url: https://github.com/aspire488/Pipo/blob/main/SECURITY.md
+    about: Please report vulnerabilities privately, never in a public issue.

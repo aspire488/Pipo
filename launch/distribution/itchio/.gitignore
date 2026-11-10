@@ -1,0 +1,3 @@
+# The APK is a 27 MB binary and must not enter git history.
+# It is copied from dist/ and verified by hash — see README.md.
+Pipo.apk

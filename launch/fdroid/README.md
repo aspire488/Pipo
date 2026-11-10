@@ -64,6 +64,16 @@ The merge request should state: the app is MIT, the maintainer is the upstream a
 
 ## 4. Outstanding reviewer requirements to expect
 
+- **BLOCKER — the release-signing guard would fail an F-Droid build.** `app/build.gradle.kts` throws
+  `GradleException("Release signing is not configured…")` whenever a release artifact task
+  (`assembleRelease`, `bundleRelease`, `installRelease`, `package*Release`) is in the task graph and
+  `keystore.properties` is absent. F-Droid's build server has no keystore and does build a release
+  APK, so the build would abort before producing anything. **Minimum legitimate fix:** let the guard
+  be skipped explicitly, e.g. `if (!buildingReleaseArtifact || releaseSigningConfigured ||
+  System.getenv("PIPO_UNSIGNED_RELEASE") == "1") { … }`, and have the F-Droid recipe set
+  `PIPO_UNSIGNED_RELEASE=1`. This changes release security configuration, so it was deliberately
+  **not** applied in this sprint — it needs the owner's decision.
+
 - A build-server run of `v1.0` — the `prebuild`/`gradle` lines in the YAML assume the standard
   Android build with no NDK work beyond what Gradle pulls.
 - A decision on the `NonFreeNet` anti-feature for the weather and Vosk-model hosts.

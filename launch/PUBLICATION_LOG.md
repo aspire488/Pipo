@@ -17,6 +17,7 @@ as published. No URL appears here that was not fetched or returned by an API.
 | Classic 2D world | <https://aspire488.github.io/Pipo/classic/> | linked from README | 2026-11-10 |
 | **Privacy policy** | <https://aspire488.github.io/Pipo/privacy/> | HTTP 200, `<title>Pipo — Privacy Policy</title>` | 2026-11-10 |
 | **GitHub Discussions announcement** | <https://github.com/aspire488/Pipo/discussions/14> | created via GraphQL, category `Announcements`, discussion #14 | 2026-11-10 |
+| **GitHub Discussions install reference** | <https://github.com/aspire488/Pipo/discussions/15> | category `General`, discussion #15 — requirements, Play Protect, known limitations | 2026-11-10 |
 | Instagram reel (pre-existing) | <https://www.instagram.com/reel/DeEN_MExPP8/> | recorded from the earlier session; not re-fetched | — |
 
 GitHub Pages status: `built`, `public: true`, `build_type: workflow`, served from `web/`.
@@ -43,7 +44,7 @@ store in this session.
 
 | Community | Status | Published URL |
 |---|---|---|
-| **GitHub Discussions** | **PUBLISHED** | <https://github.com/aspire488/Pipo/discussions/14> |
+| **GitHub Discussions** | **PUBLISHED** (2 posts) | [#14 Announcements](https://github.com/aspire488/Pipo/discussions/14) · [#15 General](https://github.com/aspire488/Pipo/discussions/15) |
 | r/SideProject | **NOT POSTED** — draft ready (`REDDIT_POSTS.md` §1) | — |
 | r/droidappshowcase | **NOT POSTED** — draft ready (§2) | — |
 | r/developersIndia | **NOT POSTED** — draft ready (§3) | — |

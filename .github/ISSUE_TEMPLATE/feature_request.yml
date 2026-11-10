@@ -1,0 +1,33 @@
+name: Feature request
+description: Something Pipo should be able to do.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Pipo already has a lot of surface area, so the most useful requests describe a *behaviour*, not a
+        widget. Ideas that make him feel more like a character tend to land; ideas that turn him into a
+        productivity tool usually do not.
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What should Pipo do
+      placeholder: He should react when Nib steals something he was using.
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it fits him
+      description: Does it come from his traits, moods or existing activities?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+    validations:
+      required: false
