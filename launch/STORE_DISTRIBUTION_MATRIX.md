@@ -8,7 +8,7 @@
 | **GitHub Releases** | **Published** | Free | — | `v1.0`, `Pipo.apk`, SHA-256 `911b61a5…3526`, 4 downloads |
 | **GitHub Pages** (site + privacy + classic) | **Published** | Free | — | `/`, `/classic/`, `/privacy/` all 200 |
 | **Obtainium** | **Published** (no submission exists) | Free | — | Reads the `v1.0` release asset directly |
-| **GitHub Discussions** | **Ready — needs owner action** | Free | Paste the announcement (authorised, but terminal tooling was down) | Discussions enabled; `Announcements` + `Show and tell` categories exist |
+| **GitHub Discussions** | **Published** | Free | — | [#14](https://github.com/aspire488/Pipo/discussions/14) in `Announcements` |
 | **Reddit — r/SideProject** | **Ready — needs owner action** | Free | Log in, post draft §1, attach `dist\Pipo-Intro.mp4` | Draft final; account trust matters |
 | **Reddit — r/droidappshowcase** | **Ready — needs owner action** | Free | Log in, flair **Promo**, template §2, attach `Pipo-Intro-Vertical.mp4` | Needs account >24 h and 2+ karma; 1 app post / 7 days |
 | **Reddit — r/developersIndia** | **Ready — needs owner action** | Free | Flair **I Made This**, engineering text §3 | No install CTA — traffic-driving posts are removed |
@@ -25,9 +25,10 @@
 
 ## Summary
 
-- **Published: 3** (GitHub Releases, GitHub Pages, Obtainium) — these already serve the APK to anyone.
+- **Published: 4** (GitHub Releases, GitHub Pages, Obtainium, GitHub Discussions) — these already
+  serve the APK to anyone and now announce it.
 - **Submitted / awaiting approval: 0.** No store review is pending anywhere.
-- **Ready for an owner click: 11.**
+- **Ready for an owner click: 10.**
 - **Ineligible: 1.** **Not worth pursuing: 1.**
 
 ## Hard rules still in force

@@ -16,6 +16,7 @@ as published. No URL appears here that was not fetched or returned by an API.
 | Live 3D world | <https://aspire488.github.io/Pipo/> | HTTP 200 | 2026-11-10 |
 | Classic 2D world | <https://aspire488.github.io/Pipo/classic/> | linked from README | 2026-11-10 |
 | **Privacy policy** | <https://aspire488.github.io/Pipo/privacy/> | HTTP 200, `<title>Pipo — Privacy Policy</title>` | 2026-11-10 |
+| **GitHub Discussions announcement** | <https://github.com/aspire488/Pipo/discussions/14> | created via GraphQL, category `Announcements`, discussion #14 | 2026-11-10 |
 | Instagram reel (pre-existing) | <https://www.instagram.com/reel/DeEN_MExPP8/> | recorded from the earlier session; not re-fetched | — |
 
 GitHub Pages status: `built`, `public: true`, `build_type: workflow`, served from `web/`.
@@ -42,6 +43,7 @@ store in this session.
 
 | Community | Status | Published URL |
 |---|---|---|
+| **GitHub Discussions** | **PUBLISHED** | <https://github.com/aspire488/Pipo/discussions/14> |
 | r/SideProject | **NOT POSTED** — draft ready (`REDDIT_POSTS.md` §1) | — |
 | r/droidappshowcase | **NOT POSTED** — draft ready (§2) | — |
 | r/developersIndia | **NOT POSTED** — draft ready (§3) | — |
@@ -50,10 +52,12 @@ store in this session.
 | Product Hunt | **NOT POSTED** | — |
 | Indie Hackers | **NOT POSTED** | — |
 
-Why: `reddit.com/r/*/about/rules.json` returns **HTTP 403** from this machine (re-confirmed
-2026-11-10), and no authenticated Reddit, HN, Product Hunt or Indie Hackers session exists here.
-Posting requires the account owner's session. The drafts are written and the video files are local
-and hash-verified; nothing else is missing except a logged-in human.
+Why so few: GitHub is the **only** platform authenticated in this environment (`gh`, account
+`aspire488`, scopes `repo` + `write:org`), and it is where the one announcement was published. For
+every other platform, `reddit.com/r/*/about/rules.json` returns **HTTP 403** from this machine
+(re-confirmed 2026-11-10) and no Reddit, HN, Product Hunt, Indie Hackers, itch.io or GitLab session or
+API credential exists. Those need the owner's own session or an API token. The drafts are written and
+the video files are local and hash-verified; nothing else is missing except an authenticated human.
 
 **No engagement was fabricated. No post was upvoted, boosted or cross-promoted.**
 
