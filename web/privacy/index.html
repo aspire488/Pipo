@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#10131d">
+<title>Pipo — Privacy Policy</title>
+<meta name="description" content="What Pipo, a little robot living on your Android phone, does with your information.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='4' y='9' width='24' height='19' rx='8' fill='%23F4F6F9'/><rect x='8' y='13' width='16' height='11' rx='5' fill='%23141B27'/><circle cx='13' cy='18.5' r='2.2' fill='%238FF5E2'/><circle cx='19' cy='18.5' r='2.2' fill='%238FF5E2'/><line x1='16' y1='9' x2='16' y2='4' stroke='%233B4658' stroke-width='2'/><circle cx='16' cy='3' r='2.4' fill='%238FF5E2'/></svg>">
+<style>
+:root{
+  --ink:#10131d; --paper:#FFF8F0; --mint:#8FF5E2; --amber:#FFC27A;
+  --night:#1B2233; --muted:#9AA7B8; --line:rgba(255,255,255,.10);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--ink); color:var(--paper);
+  font-family:ui-rounded,"SF Pro Rounded","Nunito","Segoe UI",system-ui,-apple-system,sans-serif;
+  line-height:1.65; font-size:16px;
+  padding:0 20px calc(64px + env(safe-area-inset-bottom,0px));
+}
+.wrap{max-width:760px;margin:0 auto}
+header{padding:44px 0 8px}
+.brand{display:inline-flex;align-items:center;gap:9px;text-decoration:none;color:var(--paper);
+  border:1px solid var(--line);border-radius:999px;padding:7px 15px;font-weight:700;font-size:14px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--mint);box-shadow:0 0 12px var(--mint)}
+h1{font-size:clamp(28px,5vw,40px);line-height:1.15;margin:26px 0 6px;letter-spacing:-.02em}
+.meta{color:var(--muted);font-size:14px;margin:0 0 6px}
+.lede{font-size:17px;color:#E6EDF5;margin:18px 0 0}
+h2{font-size:clamp(19px,3vw,24px);margin:44px 0 10px;letter-spacing:-.01em;
+  padding-top:18px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:26px 0 8px;color:var(--mint)}
+p,li{color:#DCE5EF}
+a{color:var(--mint)}
+strong{color:var(--paper)}
+ul{padding-left:22px}
+li{margin:6px 0}
+code{background:rgba(255,255,255,.07);padding:1px 5px;border-radius:5px;font-size:.9em}
+.tablewrap{overflow-x:auto;margin:16px 0;border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:rgba(255,255,255,.05);font-size:12.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+tr:last-child td{border-bottom:none}
+.callout{background:var(--night);border:1px solid var(--line);border-left:3px solid var(--amber);
+  border-radius:10px;padding:16px 18px;margin:20px 0}
+.callout p{margin:0}
+footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:14px}
+footer a{color:var(--muted);text-decoration:underline}
+nav.toc{background:var(--night);border:1px solid var(--line);border-radius:12px;padding:14px 20px;margin:26px 0}
+nav.toc ol{margin:6px 0 0;padding-left:20px;columns:2;column-gap:28px}
+nav.toc li{margin:4px 0;font-size:14px}
+nav.toc a{text-decoration:none}
+@media (max-width:520px){nav.toc ol{columns:1}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <a class="brand" href="../"><span class="dot"></span>Pipo</a>
+  <h1>Privacy Policy</h1>
+  <p class="meta">Effective 10 November 2026 · Previous version 2 October 2026</p>
+  <p class="lede">Pipo is a small robot who lives on your phone. This policy explains, feature by feature,
+  what the app does with your information. It is written against the actual code and the actual APK
+  published on GitHub Releases — not against intentions.</p>
+</header>
+
+<div class="callout">
+  <p><strong>The short version.</strong> Pipo's world is stored on your phone. There is no account, no
+  analytics SDK and no advertising SDK. The only things that leave the phone are the requests listed
+  below, and each happens only when you use the feature that needs it. <strong>In the build distributed
+  on GitHub Releases, online AI is not enabled at all</strong>, so Pipo talks with his own built-in
+  words.</p>
+</div>
+
+<nav class="toc" aria-label="Contents">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#local">What stays on your phone</a></li>
+    <li><a href="#leaves">What leaves your phone</a></li>
+    <li><a href="#third-parties">Third-party services</a></li>
+    <li><a href="#permissions">Permissions</a></li>
+    <li><a href="#voice">Voice and microphone</a></li>
+    <li><a href="#photos">Photos of people</a></li>
+    <li><a href="#children">Children</a></li>
+    <li><a href="#retention">Retention and deletion</a></li>
+    <li><a href="#security">Security</a></li>
+    <li><a href="#choices">Your choices</a></li>
+    <li><a href="#changes">Changes</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ol>
+</nav>
+
+<h2 id="local">1. What stays on your phone</h2>
+<p>Stored in the app's private storage, never uploaded:</p>
+<ul>
+  <li><strong>Pipo's whole life</strong> — his traits, moods, memories, journal, the things he owns, his
+  projects, the drawings he "took" (drawn pictures, not your photos), Nib, his trips, games and your
+  settings.</li>
+  <li><strong>A random install ID</strong> — a UUID created on first launch. Used only as a rate-limiting
+  key if online AI is enabled. Not linked to you, your Google account or your device identifiers, and not
+  used for analytics.</li>
+  <li><strong>Cached weather</strong> — the last reading, so the window doesn't flicker on reopen.</li>
+  <li><strong>The one photo you show Pipo</strong> — written to a temporary file inside the app's own
+  storage, read once, then deleted. Never added to your gallery.</li>
+</ul>
+<p>This data is deleted when you uninstall Pipo, or when you use <strong>Settings → Reset Pipo</strong>.
+There is no server-side copy to delete, because there is no server-side copy.</p>
+
+<h2 id="leaves">2. What leaves your phone, and why</h2>
+<div class="tablewrap">
+<table>
+<thead><tr><th>Feature</th><th>What is sent</th><th>To whom</th><th>Stored?</th></tr></thead>
+<tbody>
+<tr>
+  <td><strong>Online AI chat</strong><br><em>only in builds configured with a proxy — not the GitHub release build</em></td>
+  <td>Your message, the last few lines of the conversation, and a short summary of Pipo's state (mood, recent activity, possessions)</td>
+  <td>The AI proxy you configured, which forwards to Google (Gemini) or Groq</td>
+  <td>Not stored by Pipo. The provider processes it under its own terms.</td>
+</tr>
+<tr>
+  <td><strong>"Pipo, look!"</strong> (same condition)</td>
+  <td>One photo <strong>you</strong> take or choose, downscaled</td>
+  <td>Same path as above</td>
+  <td>Pipo deletes the local copy immediately after reading it.</td>
+</tr>
+<tr>
+  <td><strong>"Find out…" / "ask Gemini…"</strong> (same condition)</td>
+  <td>Your question</td>
+  <td>Same path as above</td>
+  <td>Not stored by Pipo.</td>
+</tr>
+<tr>
+  <td><strong>"Ask ChatGPT / Claude / Perplexity…"</strong></td>
+  <td>Your question, opened in <strong>your browser</strong></td>
+  <td>The service you named, directly</td>
+  <td>Under that service's terms. Pipo sends nothing itself.</td>
+</tr>
+<tr>
+  <td><strong>Real weather</strong> (optional, on by default)</td>
+  <td>Your IP address, to estimate your city; then that city's latitude/longitude</td>
+  <td><code>ipwho.is</code>, then <code>api.open-meteo.com</code></td>
+  <td>Not stored by Pipo beyond a local cache.</td>
+</tr>
+<tr>
+  <td><strong>Voice input</strong> (tap the mic)</td>
+  <td>Your speech</td>
+  <td>Your phone's speech-recognition service (usually Google). Pipo <em>requests</em> on-device recognition, but whether audio is processed locally is decided by that service — it may send audio to its provider.</td>
+  <td>Under that service's terms.</td>
+</tr>
+<tr>
+  <td><strong>Pipo Voice</strong> — the optional "Pipo, …" wake word</td>
+  <td><strong>Nothing.</strong> Recognition runs inside Pipo with an offline model; audio is processed in memory and dropped</td>
+  <td>Nobody</td>
+  <td>Nothing is kept.</td>
+</tr>
+<tr>
+  <td><strong>Pipo Voice model download</strong> (one time, when you enable the feature)</td>
+  <td>A plain file request, no personal data</td>
+  <td><code>alphacephei.com</code> (the model's publisher, Vosk)</td>
+  <td>Not applicable.</td>
+</tr>
+<tr>
+  <td><strong>"Play X" / "search X" / "open X"</strong></td>
+  <td>Your search text, or an app launch intent</td>
+  <td>YouTube, Google, or the app you named</td>
+  <td>Under their terms.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Pipo does <strong>not</strong> send your contacts, your files, your photo library, your exact location,
+your notification text, or the content of other apps. There is no crash-reporting SDK and no analytics SDK
+in the APK.</p>
+
+<h3>About the GitHub release build specifically</h3>
+<p>The APK published at
+<a href="https://github.com/aspire488/Pipo/releases/download/v1.0/Pipo.apk">github.com/aspire488/Pipo/releases/download/v1.0/Pipo.apk</a>
+contains <strong>no API keys and no proxy URL</strong>. <code>AiEndpoints</code> therefore reports online AI
+as unavailable, and every chat reply comes from the on-device, rule-based brain. The online-AI rows above
+describe what happens <strong>only</strong> if you build Pipo yourself with your own proxy
+(<code>server/</code> in the repository). This is deliberate: a key inside an APK can be extracted, so none
+is shipped.</p>
+
+<h2 id="third-parties">3. Third-party services</h2>
+<div class="tablewrap">
+<table>
+<thead><tr><th>Service</th><th>Purpose</th><th>Their policy</th></tr></thead>
+<tbody>
+<tr><td><code>ipwho.is</code></td><td>Approximate city from your IP, for the window weather</td><td><a href="https://ipwho.is/" rel="noopener">ipwho.is</a></td></tr>
+<tr><td><code>api.open-meteo.com</code></td><td>Weather for that city</td><td><a href="https://open-meteo.com/en/terms" rel="noopener">open-meteo.com/en/terms</a></td></tr>
+<tr><td><code>alphacephei.com</code></td><td>One-time download of the Vosk English speech model</td><td><a href="https://alphacephei.com/vosk/" rel="noopener">alphacephei.com/vosk</a></td></tr>
+<tr><td>Your AI proxy, then Google Gemini / Groq</td><td>Online AI wording, if you enable it</td><td><a href="https://policies.google.com/privacy" rel="noopener">Google</a> · <a href="https://groq.com/privacy-policy/" rel="noopener">Groq</a></td></tr>
+<tr><td>Your device's speech-recognition service</td><td>Turning your speech into text</td><td>Determined by your device vendor</td></tr>
+<tr><td>YouTube, Google Search, Maps, Spotify, the apps you name</td><td>Opening what you asked Pipo to open</td><td>Those services' own policies</td></tr>
+</tbody>
+</table>
+</div>
+<p>Pipo has no business relationship with any of them beyond making these requests.</p>
+
+<h2 id="permissions">4. Permissions, and what each one is for</h2>
+<p>Every permission below is declared in the manifest. The sensitive ones are <strong>special accesses that
+you grant yourself in Android's settings</strong>, and each stays off until you do.</p>
+<ul>
+  <li><strong>Microphone (<code>RECORD_AUDIO</code>)</strong> — requested the first time you tap the mic.
+  Also used by the optional "Pipo Voice" service, which is <strong>off by default</strong>; having the
+  permission does not switch it on.</li>
+  <li><strong>Notifications (<code>POST_NOTIFICATIONS</code>)</strong> — so Pipo can send you an occasional
+  message. You choose how often, or turn it off.</li>
+  <li><strong>Notification access</strong> — optional, granted in Android's special-access screen. Lets Pipo
+  notice <em>that</em> you received a message or reel. He sees the <strong>app name</strong> and derives a
+  <strong>coarse kind</strong> (message, photo, reel, call) from the notification on the phone. The text is
+  used only to decide that kind, then discarded. Nothing is stored, logged or transmitted, and Pipo never
+  opens, replies to or dismisses a notification.</li>
+  <li><strong>Display over other apps</strong> — optional, Android's own switch. Only so that, when you say
+  "Pipo, …" from another app, he can briefly show his face. Without it you get a notification to tap
+  instead. The bubble cannot be touched and sees nothing.</li>
+  <li><strong>Device admin</strong> — optional, activated on Android's own screen. It requests exactly one
+  policy: lock the screen (like the power button), so "Pipo, lock" works. No accessibility service is used
+  and Pipo cannot read your screen, apps or typing.</li>
+  <li><strong>Modify system settings / Do Not Disturb access</strong> — optional special accesses, used only
+  to do what you ask ("brightness down", "do not disturb on").</li>
+  <li><strong>Set alarms</strong> — only when you ask Pipo to set one.</li>
+  <li><strong>Internet / network state</strong> — for the weather, the optional model download, opening
+  links, and online AI if configured.</li>
+  <li><strong><code>WAKE_LOCK</code> and <code>RECEIVE_BOOT_COMPLETED</code></strong> — merged in by
+  Android's WorkManager library, which runs Pipo's once-an-hour "what happened while you were away" tick.
+  They are not used for anything else.</li>
+  <li><strong>Camera</strong> — Pipo does <strong>not</strong> hold the camera permission. "Pipo, look!"
+  opens <strong>your own camera app</strong> and you take the photo. The torch is driven through
+  <code>CameraManager.setTorchMode</code>, which needs no camera permission.</li>
+  <li><strong>Location, contacts, SMS, call log, storage</strong> — not requested at all.</li>
+</ul>
+
+<h2 id="voice">5. Voice and microphone</h2>
+<ul>
+  <li>Tapping the mic is a one-shot recording session that ends when you stop speaking.</li>
+  <li><strong>Pipo Voice</strong> is a separate, opt-in feature. When on, it runs a foreground service with
+  a permanent notification you can switch it off from. It listens only while the screen is on, the phone is
+  unlocked, Pipo is closed and you are not on a call. It takes no audio focus and makes no sound, so it
+  never pauses or lowers your music or video.</li>
+  <li>Audio is processed in memory by the on-device model and discarded. Nothing that is not a call to Pipo
+  is kept, and no audio is written to storage or sent anywhere by Pipo.</li>
+</ul>
+
+<h2 id="photos">6. Photos of people</h2>
+<p>When you show Pipo a photo, his instructions forbid identifying anyone, guessing names or ages, or
+commenting on appearance. Please do not show him photos of people who would not want that.</p>
+
+<h2 id="children">7. Children</h2>
+<p>Pipo is intended for users <strong>aged 13 and over</strong>. It is not directed at children and is not
+enrolled in Google Play's "Designed for Families" programme.</p>
+
+<h2 id="retention">8. Data retention and deletion</h2>
+<div class="tablewrap">
+<table>
+<thead><tr><th>Data</th><th>Where</th><th>How long</th><th>How to delete</th></tr></thead>
+<tbody>
+<tr><td>Pipo's world, settings, memories</td><td>App-private storage on your phone</td><td>Until you reset or uninstall</td><td><strong>Settings → Reset Pipo</strong>, or uninstall</td></tr>
+<tr><td>Install ID</td><td>App-private storage</td><td>Same</td><td>Same</td></tr>
+<tr><td>Cached weather</td><td>App-private storage</td><td>Until refreshed or app cleared</td><td>Same</td></tr>
+<tr><td>The photo shown to Pipo</td><td>Temporary app-private file</td><td>Deleted immediately after he reads it</td><td>Automatic</td></tr>
+<tr><td>Data sent to an AI provider (only if you enable online AI)</td><td>The provider's systems</td><td>Governed by that provider's policy</td><td>Contact that provider; Pipo keeps no copy</td></tr>
+<tr><td>Data sent to <code>ipwho.is</code> / Open-Meteo</td><td>Those services' logs</td><td>Governed by their policies</td><td>Pipo keeps no copy</td></tr>
+</tbody>
+</table>
+</div>
+<p>Because Pipo has no account system, there is no "delete my account" request to make. Uninstalling is a
+complete deletion of everything Pipo holds.</p>
+
+<h2 id="security">9. Security</h2>
+<p>Pipo's save is written atomically (temporary file, then rename) under a single lock, and a corrupt save
+is set aside rather than crashing the app. The published APK is signed with a project-owned release key and
+is not debuggable. The app does not download or execute code at runtime.</p>
+
+<h2 id="choices">10. Your choices</h2>
+<ul>
+  <li>Leave online AI off and Pipo talks with his own built-in words. Everything else still works.</li>
+  <li>Turn off weather, notifications, notification access, display-over-other-apps, or device admin at any
+  time in Pipo's Settings or in Android's own settings.</li>
+  <li>Reset Pipo, or uninstall, to delete everything.</li>
+</ul>
+
+<h2 id="changes">11. Changes</h2>
+<p>If this policy changes, the date at the top changes and the new version is published at the same URL. The
+policy is versioned in the repository at <code>docs/PRIVACY_POLICY.md</code>, so its history is public.</p>
+
+<h2 id="contact">12. Contact</h2>
+<p>Privacy questions and data requests:
+<a href="https://github.com/aspire488/Pipo/issues" rel="noopener">github.com/aspire488/Pipo/issues</a></p>
+<p>There is no separate privacy email address. The issue tracker is the real, monitored contact channel;
+using it avoids inventing an address that nobody reads.</p>
+
+<footer>
+  <p><a href="../">← Pipo's world</a> · <a href="../classic/">Classic demo</a> ·
+  <a href="https://github.com/aspire488/Pipo">Source (MIT)</a> ·
+  <a href="https://github.com/aspire488/Pipo/releases/tag/v1.0">Download</a></p>
+</footer>
+
+</div>
+</body>
+</html>

@@ -435,7 +435,7 @@ The architecture keeps these separate:
 - **Listening:** tap the mic and `RECORD_AUDIO` is requested *at that moment*. Recognition runs only while the listening pill is visible.
 - **Pipo Voice (explicit opt-in, off by default):** switch it on in Settings → *Pipo Voice* and you can call him from any app: **"Pipo"** brings him on screen, **"Pipo, lock"** locks the phone, **"Pipo, open <app>"** opens one of your apps, **"Pipo, play <x>"** plays it. Recognition runs **inside Pipo, offline** (Vosk small English model, downloaded once with a pinned checksum when you switch it on): his name is spotted by a tiny phrase list (which also holds "lock", so that call is instant), app names come from your own launcher, and the rest goes through the same `LocalBrain` → `PhoneCommands` path as typing in chat. A foreground service with a **persistent notification** (with a Turn off action) listens only while the screen is on, the phone is unlocked, Pipo is closed and no call is live. It reads the mic directly, so it **takes no audio focus and makes no sound**: it can't pause or duck YouTube, Reels or music (the old design, which looped the system recogniser, could). Nothing is recorded, kept or sent. With *Display over other apps* (optional) he pops up when called; otherwise a notification appears to tap. Known limits: music names can be misheard; the listener uses noticeable CPU while the screen is on.
 - **Chat brain: Gemini, then Groq, then his own words.** When you're online, chat replies are voiced by **Gemini** (`gemini-2.5-flash`, thinking off for speed). If that fails, **Groq** (the model set in `GROQ_MODEL`) takes over. If both fail, or you're offline, he answers with his own offline lines. The last six exchanges are sent along so he can follow a conversation. They live only in memory for the session and are never saved. He's prompted as a ~4-year-old robot boy who talks in short, simple sentences and is never an assistant. The rule-based `LocalBrain` still decides every state effect (actions like dancing or sleeping, name learning, phone commands, moods, memory). The AI only words the reply, and phone commands never go to the cloud.
-- **Keys** come from `local.properties` (`GEMINI_API_KEY`, `GEMINI_MODEL`, `GROQ_API_KEY`, `GROQ_MODEL`), which is git-ignored, and are compiled into your own build. A build without keys (for example CI) just uses the offline brain. Don't share an APK built with your keys.
+- **Keys never go inside an APK — not even a debug one.** Anything in an APK can be extracted, and a shared test build would leak the key, so the build compiles empty key fields and online chat goes through **your own proxy** ([`server/`](server/README.md)) when `PIPO_PROXY_URL` is set. Without a proxy (or offline), he uses his own offline brain. Model names (`GEMINI_MODEL`, `GROQ_MODEL`) still come from `local.properties`.
 
 ---
 
@@ -516,16 +516,17 @@ Source layout: `engine/` (behavior, mood, memory, world, simulation, conversatio
 
 Requirements: JDK 17 and the Android SDK (`sdk.dir` in `local.properties`, which is git-ignored).
 
-Optional chat keys, also in `local.properties` (never commit them):
+Optional chat settings, also in `local.properties` (never commit them):
 
 ```properties
-GEMINI_API_KEY=...
 GEMINI_MODEL=gemini-2.5-flash
-GROQ_API_KEY=...
 GROQ_MODEL=openai/gpt-oss-120b
-# release builds: talk to your proxy instead, and ship no keys at all
+# online chat goes through your own proxy; no key is ever compiled into an APK
 PIPO_PROXY_URL=https://pipo-ai-proxy.<you>.workers.dev
 ```
+
+`GEMINI_API_KEY` / `GROQ_API_KEY` are no longer read by the build: keys live only on the proxy
+(`server/`), so debug and release APKs are both key-free and safe to hand out.
 
 ```powershell
 .\gradlew.bat test
@@ -564,7 +565,7 @@ keyAlias=pipo
 keyPassword=...
 ```
 
-Keep the `.jks` file and its password backed up: every future update must be signed with the same key, or phones refuse to install it over the old one. Without `keystore.properties` (for example in CI) release falls back to the debug key.
+Keep the `.jks` file and its password backed up: every future update must be signed with the same key, or phones refuse to install it over the old one. Without `keystore.properties` (for example in CI) a **release** build now **fails on purpose** — it will not fall back to the debug key, because a debug-signed APK can never be installed over a properly signed one. Debug builds and `lintRelease` still run without a keystore.
 
 **Build the APK to share:**
 
@@ -578,7 +579,7 @@ Keep the `.jks` file and its password backed up: every future update must be sig
 - **Directly** (WhatsApp, Telegram, Drive): send `app-release.apk` as a *document*. On their phone they open it, allow **Install unknown apps** when Android asks, and tap **Install anyway** if Play Protect warns (it does for any app that isn't from the Play Store).
 - **As a link**: on GitHub, **Releases → Draft a new release**, attach the APK, publish, and share the release link. Each update is a new release.
 
-**Online AI for friends.** Release builds never contain your Gemini/Groq keys (anything inside an APK can be extracted), so a shared copy uses Pipo's offline brain. To give friends AI chat safely, deploy the small proxy in [`server/`](server/README.md) as a free Cloudflare Worker that holds the keys, set `PIPO_PROXY_URL` in `local.properties`, and rebuild.
+**Online AI for friends.** No build contains your Gemini/Groq keys (anything inside an APK can be extracted), so a shared copy uses Pipo's offline brain unless it was built against your proxy. To give friends AI chat safely, deploy the small proxy in [`server/`](server/README.md) as a free Cloudflare Worker that holds the keys, set `PIPO_PROXY_URL` in `local.properties`, and rebuild.
 
 **Google Play** (later): a developer account, the release key above, and the privacy policy in `docs/`. Expect extra review for the device-admin lock helper, the always-on *Pipo Voice* microphone and *Display over other apps*.
 
@@ -639,9 +640,16 @@ CI passes for the final development phase. The public repository contains **sour
 
 ### 🔒 Security / distribution closeout
 
-The final public-repo audit is clean: **no API keys, tokens, private keys, APKs, MP4s, keystores or .env files** exist in tracked source or Git history. Release APKs no longer contain the Gemini/Groq keys at all (online AI in shared copies goes through the proxy); earlier friend APKs did, so those keys were rotated out of use.
+The final public-repo audit is clean: **no API keys, tokens, private keys, APKs, MP4s, keystores or .env files** exist in tracked source or Git history. No APK built from the current tree contains the Gemini/Groq keys at all, debug or release (online AI in shared copies goes through the proxy); older friend/debug APKs did, so treat those keys as exposed and rotate them in the provider consoles.
 
 The repository's ignore rules keep dist/, APKs, videos and local credential material out of Git. See the device report for the final security/device evidence.
+
+## Privacy
+
+The published policy is at **<https://aspire488.github.io/Pipo/privacy/>** (source:
+[`docs/PRIVACY_POLICY.md`](docs/PRIVACY_POLICY.md)). In short: no account, no analytics, no ads; Pipo's
+world stays on the phone; the only network requests are optional weather, the optional speech-model
+download, the links you ask him to open, and online AI if you build with your own proxy.
 
 ## Project philosophy
 

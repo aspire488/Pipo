@@ -15,19 +15,21 @@ android {
         applicationId = "com.pipo.robot"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Chat brains. Keys live in local.properties (gitignored), never in the repo; without
-        // them Pipo still works and talks with his own offline words.
+        // Chat brains. Provider keys are NEVER compiled into an APK — not even a debug one: anything
+        // inside an APK can be pulled out, and a shared debug build leaks the key. Networked AI goes
+        // through your own proxy (server/, set PIPO_PROXY_URL); without it Pipo uses his offline words.
+        // GEMINI_API_KEY / GROQ_API_KEY stay as empty BuildConfig fields because AiEndpoints reads them.
         val local = Properties().apply {
             rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
         }
         fun prop(name: String, default: String = "") = (local.getProperty(name) ?: System.getenv(name) ?: default).trim()
-        buildConfigField("String", "GEMINI_API_KEY", "\"${prop("GEMINI_API_KEY")}\"")
+        buildConfigField("String", "GEMINI_API_KEY", "\"\"")
         buildConfigField("String", "GEMINI_MODEL", "\"${prop("GEMINI_MODEL", "gemini-2.5-flash")}\"")
-        buildConfigField("String", "GROQ_API_KEY", "\"${prop("GROQ_API_KEY")}\"")
+        buildConfigField("String", "GROQ_API_KEY", "\"\"")
         buildConfigField("String", "GROQ_MODEL", "\"${prop("GROQ_MODEL", "llama-3.3-70b-versatile")}\"")
         // Store builds: the app talks to your own proxy (server/), which holds the real keys.
         buildConfigField("String", "PIPO_PROXY_URL", "\"${prop("PIPO_PROXY_URL")}\"")
@@ -35,7 +37,8 @@ android {
     }
 
     // Release signing: your own key, from keystore.properties (git-ignored; the key itself lives
-    // outside the repo). Without that file (e.g. CI) release falls back to the debug key.
+    // outside the repo). A release build without it FAILS (see the guard below) instead of silently
+    // falling back to the debug key, which would produce an unupgradable, poorly-reputed artifact.
     val releaseKey = rootProject.file("keystore.properties").takeIf { it.exists() }?.let { f ->
         Properties().apply { f.inputStream().use { load(it) } }
     }
@@ -50,16 +53,13 @@ android {
 
     buildTypes {
         release {
-            // Provider keys are NEVER compiled into a release APK: anything in an APK can be pulled
-            // out by whoever has the file. Release talks to the proxy (server/, set PIPO_PROXY_URL),
-            // which holds the real keys; without a proxy he uses his own offline words.
-            buildConfigField("String", "GEMINI_API_KEY", "\"\"")
-            buildConfigField("String", "GROQ_API_KEY", "\"\"")
+            // Provider keys are never compiled into any APK (see defaultConfig); release talks to the
+            // proxy (server/, set PIPO_PROXY_URL), which holds the real keys.
             // Phones only: the wake-word library ships ~10 MB of native code per CPU type, and x86
             // is for emulators (debug builds keep it for emulator tests).
             ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
             isMinifyEnabled = false
-            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release")
         }
     }
     compileOptions {
@@ -72,6 +72,30 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    // Hard guard. If keystore.properties is missing (CI, a fresh clone), a release artifact must
+    // FAIL here instead of shipping unsigned or debug-signed: a debug-signed APK can never be
+    // upgraded over a properly signed install, and it looks untrustworthy to scanners. Only
+    // release artifact tasks are checked, so `assembleDebug` and `lintRelease` still run keystore-free.
+    val releaseSigningConfigured = releaseKey != null
+    gradle.taskGraph.whenReady {
+        val buildingReleaseArtifact = allTasks.any { t ->
+            t.project == project && (
+                t.name == "assembleRelease" ||
+                    t.name == "bundleRelease" ||
+                    t.name == "installRelease" ||
+                    (t.name.startsWith("package") && t.name.endsWith("Release"))
+                )
+        }
+        if (buildingReleaseArtifact && !releaseSigningConfigured) {
+            throw GradleException(
+                "Release signing is not configured: keystore.properties is missing at the repository " +
+                    "root. Create it with storeFile / storePassword / keyAlias / keyPassword pointing at " +
+                    "your release keystore (see README, 'Signing'). Refusing to build a release artifact " +
+                    "without the release identity."
+            )
+        }
     }
 }
 
@@ -96,6 +120,8 @@ dependencies {
     implementation("com.alphacephei:vosk-android:0.3.75")
     implementation("net.java.dev.jna:jna:5.18.1@aar")
     debugImplementation("androidx.compose.ui:ui-tooling")
+    // Unity world, only when it has been exported (see settings.gradle.kts)
+    if (rootProject.findProject(":unityLibrary") != null) implementation(project(":unityLibrary"))
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

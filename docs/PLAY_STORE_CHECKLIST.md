@@ -5,9 +5,15 @@
 1. **Deploy the AI proxy** (`server/README.md`) and set `PIPO_PROXY_URL` + `PIPO_PROXY_TOKEN` in
    `local.properties`. Then check that the release APK has no keys:
    `unzip -p app-release.apk classes*.dex | strings | grep -c AIza` should print `0`.
-2. **Rotate the Gemini and Groq keys.** The current ones have been compiled into debug APKs on test phones.
-3. **Real signing key.** Release currently uses the debug key (`build.gradle.kts`). Create an upload
-   key, configure `signingConfigs.release`, and enrol in Play App Signing.
+   (Since the 1.1 build the keys are no longer compiled into *any* APK — debug included — so this is
+   a regression check, not a fix.)
+2. **Rotate the Gemini and Groq keys.** Older debug APKs on test phones did embed the live keys, so treat
+   them as exposed and rotate them in the provider consoles (Google AI Studio / Groq). New builds do not
+   embed keys, so nothing needs changing in the repo afterwards.
+3. **Real signing key — done, keep it.** Release is signed with the project key
+   (`CN=Pipo`, cert SHA-256 `6ff4c9b3…adafaf7`, `D:/pipo/keys/pipo-release.jks`, alias `pipo`) from a
+   git-ignored `keystore.properties`. A release build now **fails** if that file is missing instead of
+   falling back to the debug key. Back the keystore up, and enrol in Play App Signing.
 4. **Build an App Bundle**: `./gradlew bundleRelease`.
 5. **Host the privacy policy** (`docs/PRIVACY_POLICY.md`, after filling in the date, email and
    audience) at a public URL, and link it in Play Console and in the app's Settings.
