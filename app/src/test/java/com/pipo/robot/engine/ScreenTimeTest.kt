@@ -12,7 +12,8 @@ import kotlin.random.Random
 
 /** Pipo's phone and console are a treat, never an addiction. */
 class ScreenTimeTest {
-    private val day0 = 20_000L * DAY + 9 * HOUR
+    // local 09:00: the daily cap and the engine's hours follow the device timezone, so a simulated day must start at a local time
+    private val day0 = java.util.Calendar.getInstance().apply { timeInMillis = 20_000L * DAY; set(java.util.Calendar.HOUR_OF_DAY, 9); set(java.util.Calendar.MINUTE, 0); set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0) }.timeInMillis
 
     @Test
     fun breakBetweenAnyTwoScreenSessions() {
@@ -37,6 +38,18 @@ class ScreenTimeTest {
         // tomorrow he can have a little screen time again
         assertTrue(ScreenTime.allowed(s, SCROLL_PHONE, day0 + DAY))
         assertEquals(0, ScreenTime.sessionsToday(s, SCROLL_PHONE, day0 + DAY))
+    }
+
+    @Test
+    fun theDailyCapResetsAtLocalMidnightNotUtcMidnight() {
+        // local clock times, so this holds in any device timezone (the cap is "per day" as Pipo's day, not UTC's)
+        fun local(dayOfMonth: Int, h: Int, m: Int) = java.util.Calendar.getInstance().apply { clear(); set(2024, java.util.Calendar.MARCH, dayOfMonth, h, m) }.timeInMillis
+        val s = PipoState()
+        var t = local(10, 0, 10)
+        repeat(ScreenTime.dailyMax(SCROLL_PHONE)) { BehaviorEngine.start(s, SCROLL_PHONE, t, Random(it)); t += ScreenTime.BREAK_MS }
+        assertFalse("still capped later the same local day", ScreenTime.allowed(s, SCROLL_PHONE, local(10, 23, 50)))
+        assertTrue("fresh allowance just after local midnight", ScreenTime.allowed(s, SCROLL_PHONE, local(11, 0, 10)))
+        assertEquals(0, ScreenTime.sessionsToday(s, SCROLL_PHONE, local(11, 0, 10)))
     }
 
     @Test

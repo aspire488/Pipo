@@ -17,6 +17,13 @@ class NibAndInventorTest {
     private fun fresh() = PipoState(seed = 5L).apply { profile.firstRunDone = true; profile.createdAt = noon - 30 * DAY; pet.energy = 0.8f }
 
     @Test
+    fun boltReadsTheLocalClockHoursAndMinutes() {
+        // 14:37 local; in a half-hour zone the UTC minute is 07, so minutes must come from the same local clock as the hour
+        val t = java.util.Calendar.getInstance().apply { clear(); set(2024, java.util.Calendar.MARCH, 10, 14, 37) }.timeInMillis
+        assertEquals("TIME: 14:37.", Inventor.boltSays(fresh(), "what time is it", t))
+    }
+
+    @Test
     fun nibLearnsTricksByPractisingNotInstantly() {
         val s = fresh().apply { pet.bond = 0.3f }
         var learned: NibLife.Trick? = null

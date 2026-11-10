@@ -163,7 +163,7 @@ object Inventor {
             Regex("\\b(project|build|building|working)\\b").containsMatchIn(t) -> s.activeProject()?.let { "PROJECT: ${it.title.uppercase()}. PROGRESS ${(it.progress * 100).toInt()}%. CONFIDENCE: OPTIMISTIC." } ?: "NO ACTIVE PROJECT. RECOMMEND: BUILD SOMETHING."
             Regex("\\b(nib)\\b").containsMatchIn(t) -> "NIB: BOND ${(s.pet.bond * 100).toInt()}%. MOOD ${s.pet.mood.name}. TRICKS ${NibLife.tricks(s).size}. THREAT LEVEL: ADORABLE."
             Regex("\\b(suit|armor|armour)\\b").containsMatchIn(t) -> "ARMOR: MARK ${armorMark(s).takeIf { it > 0 } ?: if (hasCardboardSuit(s)) 0 else -1}".replace("MARK -1", "NONE. RECOMMEND: CARDBOARD.") + ". READY."
-            Regex("\\b(time|clock)\\b").containsMatchIn(t) -> "TIME: %02d:%02d.".format(hourOf(now), (now / 60_000L % 60).toInt())
+            Regex("\\b(time|clock)\\b").containsMatchIn(t) -> java.util.Calendar.getInstance().apply { timeInMillis = now }.let { "TIME: %02d:%02d.".format(it.get(java.util.Calendar.HOUR_OF_DAY), it.get(java.util.Calendar.MINUTE)) }
             else -> "BUILDER LEVEL ${level(s)} (${rank(s).title.uppercase()}). XP ${xp(s)}${nextRank(s)?.let { "/${it.xp}" } ?: ""}. INVENTIONS: ${inventions(s).size}. ALL SYSTEMS: MOSTLY NOMINAL."
         }
     }
