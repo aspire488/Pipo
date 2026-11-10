@@ -1,0 +1,5 @@
+# Application identifier and Play credentials.
+# The JSON key is read from the environment and is never committed.
+json_key_file(ENV["PLAY_JSON_KEY_FILE"]) if ENV["PLAY_JSON_KEY_FILE"]
+
+package_name("com.pipo.robot")

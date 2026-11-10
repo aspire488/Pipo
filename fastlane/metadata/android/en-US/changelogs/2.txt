@@ -1,0 +1,5 @@
+Builds no longer carry any AI provider key, and release signing no longer falls back to the debug key.
+
+- Provider API keys are now empty in every build type (debug included); networked AI goes through your own proxy
+- A release build fails immediately if the release keystore is missing, instead of silently shipping a debug-signed APK
+- versionCode 2, versionName 1.1 so this installs over 1.0

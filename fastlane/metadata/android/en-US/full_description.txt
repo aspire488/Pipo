@@ -1,0 +1,43 @@
+Pipo is a small robot who lives in a room inside your phone, and he is not waiting for you.
+
+You don't manage him. He has ten traits rolled once at first launch, twelve moods, memories that decay
+at different rates, and a scoring engine that picks his next activity from about twenty options. Open
+the app and find out what he is doing: welding something at his workbench, chasing a moth around the
+desk lamp, pretending to be asleep, or gone entirely, because the flying machine needed a motor and he
+walked to the hardware shop. When he leaves, he leaves a note on the door.
+
+HIS OWN DAY
+Pipo lives on his own schedule. Time you spend away is replayed through the same engine, so something
+has usually changed when you come back. He gets hungry, bored, lonely and excited, and how he feels
+changes what he picks next.
+
+NIB, THE TINY MENACE
+A round amber robot-pet with moods, a bond level and a habit of stealing shiny things. Pipo insists he
+is helping. The evidence disagrees.
+
+A WORLD THAT KEEPS MOVING
+Thirteen places to visit, his own weather at the window, money from odd jobs, food he cooks and
+sometimes burns, and projects that need parts, can fail, and get retried with experience carried over.
+
+GAMES AND A JOURNAL
+Eight games to play with him, a journal written in his own hand, and a slow background mystery with no
+quest markers.
+
+EVERYTHING IS DRAWN IN CODE
+No 3D models, no sprite sheets, no game engine, no image assets. Pipo, his room, the weather and the
+parallax outside are procedural drawings with a small 2.5D projection, which is how he turns through
+front, three-quarter, profile and back. The app is about 26 MB.
+
+PRIVATE BY DEFAULT
+One JSON save file on your device. No account, no analytics, no advertising, no in-app purchases, no
+subscription. Optional network use is real weather (approximate city from your IP) and links Pipo opens
+for you when you ask.
+
+HONEST CAVEATS
+This build is a signed APK from GitHub, not a Play Store download, so Play Protect will ask you to
+confirm the install. That prompt is expected for any app distributed outside Play. Chat in this build
+is offline: Pipo answers in his own words from a rule-based brain on the device. Online AI wording is
+available only if you build Pipo yourself with your own proxy, and it is deliberately not in the
+download.
+
+Free, and open source under the MIT licence: https://github.com/aspire488/Pipo

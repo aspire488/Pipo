@@ -1,0 +1,40 @@
+default_platform(:android)
+
+# Fastlane is optional tooling for this project: the Gradle build is the source of truth, and every
+# lane below is a thin wrapper around it. Nothing here publishes automatically.
+#
+# This machine has no Ruby, so these lanes have NOT been executed. They are standard fastlane calls
+# and are validated by inspection only.
+#
+#   bundle install
+#   bundle exec fastlane test
+#   bundle exec fastlane build
+#   bundle exec fastlane metadata        # needs PLAY_JSON_KEY_FILE
+#
+# Play upload is deliberately metadata-only: publishing a binary requires the release to be signed
+# and the v1.1 upgrade path to be verified on a real device first.
+
+platform :android do
+  desc "Unit tests (the same suite CI runs)"
+  lane :test do
+    gradle(task: "testDebugUnitTest")
+  end
+
+  desc "Signed release APK + AAB. Fails if keystore.properties is absent."
+  lane :build do
+    gradle(task: "assembleRelease")
+    gradle(task: "bundleRelease")
+  end
+
+  desc "Upload store listing text and graphics to Play, without any binary"
+  lane :metadata do
+    upload_to_play_store(
+      json_key: ENV["PLAY_JSON_KEY_FILE"],
+      skip_upload_apk: true,
+      skip_upload_aab: true,
+      skip_upload_metadata: false,
+      skip_upload_images: false,
+      skip_upload_screenshots: false
+    )
+  end
+end
