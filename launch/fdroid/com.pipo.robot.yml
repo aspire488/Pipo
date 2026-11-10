@@ -23,14 +23,32 @@ Name: Pipo
 RepoType: git
 Repo: https://github.com/aspire488/Pipo.git
 
-# v1.0 is the only published release. After v1.1 ships, add a second Builds entry with the new
-# versionCode/versionName/commit and move CurrentVersion/CurrentVersionCode forward.
+# v1.0 is the only published release. It predates the `pipo.unsignedRelease` opt-out, so this entry
+# does not need it. When v1.1 is published, add the entry shown in MaintainerNotes instead.
+# `commit` must be a full hash, not a tag name (F-Droid build metadata reference).
 Builds:
   - versionName: "1.0"
     versionCode: 1
-    commit: v1.0
+    commit: 73afc91002c6d81c452fe6cd38b6b29e39fef626
     gradle:
       - yes
+
+MaintainerNotes: |
+  From the release that contains the `pipo.unsignedRelease` opt-out onwards, Pipo's release build
+  refuses to run without the upstream keystore, so F-Droid must request an unsigned build explicitly
+  (F-Droid signs the APK itself). Use this as the next Builds entry:
+
+        - versionName: "1.1"
+          versionCode: 2
+          commit: <full hash of the v1.1 tag>
+          gradle:
+            - yes
+          gradleprops:
+            - pipo.unsignedRelease=true
+
+  Without `gradleprops`, `assembleRelease` aborts with "Release signing is not configured".
+  With it, the build produces build/outputs/apk/release/app-release-unsigned.apk and no debug key is
+  involved. Verified locally on 2026-11-10: see README.md section 5.
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags

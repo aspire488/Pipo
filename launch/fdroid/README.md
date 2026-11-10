@@ -64,15 +64,7 @@ The merge request should state: the app is MIT, the maintainer is the upstream a
 
 ## 4. Outstanding reviewer requirements to expect
 
-- **BLOCKER — the release-signing guard would fail an F-Droid build.** `app/build.gradle.kts` throws
-  `GradleException("Release signing is not configured…")` whenever a release artifact task
-  (`assembleRelease`, `bundleRelease`, `installRelease`, `package*Release`) is in the task graph and
-  `keystore.properties` is absent. F-Droid's build server has no keystore and does build a release
-  APK, so the build would abort before producing anything. **Minimum legitimate fix:** let the guard
-  be skipped explicitly, e.g. `if (!buildingReleaseArtifact || releaseSigningConfigured ||
-  System.getenv("PIPO_UNSIGNED_RELEASE") == "1") { … }`, and have the F-Droid recipe set
-  `PIPO_UNSIGNED_RELEASE=1`. This changes release security configuration, so it was deliberately
-  **not** applied in this sprint — it needs the owner's decision.
+- **The release-signing guard would fail an F-Droid build — solved by an explicit opt-out.** See §5.
 
 - A build-server run of `v1.0` — the `prebuild`/`gradle` lines in the YAML assume the standard
   Android build with no NDK work beyond what Gradle pulls.
@@ -82,6 +74,62 @@ The merge request should state: the app is MIT, the maintainer is the upstream a
 - `CurrentVersionCode: 1` matches the `v1.0` tag. **After v1.1 is published**, bump `Builds` and
   `CurrentVersion` to the new tag; F-Droid's `UpdateCheckMode: Tags` will then track it automatically.
 
-## 5. Do not claim
+## 5. Unsigned release build — how F-Droid gets an APK
+
+**Implemented and tested locally on 2026-11-10.**
+
+F-Droid signs the APK itself and its build server has no upstream keystore, so it needs an
+**unsigned** release APK. `app/build.gradle.kts` supports exactly one opt-out, and only when it is
+requested explicitly:
+
+```kotlin
+val unsignedRelease = listOfNotNull(
+    providers.gradleProperty("pipo.unsignedRelease").orNull,
+    System.getenv("PIPO_UNSIGNED_RELEASE")
+).any { val v = it.trim(); v.equals("true", ignoreCase = true) || v == "1" }
+```
+
+When set, `release.signingConfig` is **null** — not the release key, and deliberately never the debug
+key. When not set, behaviour is unchanged: a release artifact without `keystore.properties` still
+aborts.
+
+### Exact invocation
+
+```bash
+# F-Droid's Gradle recipe runs assembleRelease; the metadata field below passes the property through
+./gradlew assembleRelease -Ppipo.unsignedRelease=true
+
+# equivalent environment form, for a local reproduction
+PIPO_UNSIGNED_RELEASE=1 ./gradlew assembleRelease
+```
+
+Output: `app/build/outputs/apk/release/app-release-unsigned.apk`.
+
+Pass it via the metadata field `Builds.gradleprops`, which F-Droid forwards as `-Pfoo=bar` (confirmed
+in the [build metadata reference](https://f-droid.org/docs/Build_Metadata_Reference/)). The
+ready-to-paste entry is in `com.pipo.robot.yml` under `MaintainerNotes`.
+
+### Verified test matrix
+
+| Scenario | Command | Result |
+|---|---|---|
+| Signed release, keystore present | `assembleRelease` | **BUILD SUCCESSFUL** — `CN=Pipo, O=Pipo`, cert SHA-256 `6ff4c9b3…adafaf7` (unchanged) |
+| Missing keystore, no opt-out | `assembleRelease` | **BUILD FAILED in 2s** — "Release signing is not configured…" |
+| Missing keystore + Gradle property | `assembleRelease -Ppipo.unsignedRelease=true` | **BUILD SUCCESSFUL** — `app-release-unsigned.apk`; `apksigner`: *DOES NOT VERIFY — Missing META-INF/MANIFEST.MF*, i.e. unsigned and no debug key |
+| Missing keystore + env var | `PIPO_UNSIGNED_RELEASE=1 ./gradlew assembleRelease` | **BUILD SUCCESSFUL** — same unsigned output |
+| Debug build | `assembleDebug` | **BUILD SUCCESSFUL** — `CN=Android Debug`, unchanged |
+
+Unsigned APK identity: `package com.pipo.robot`, `targetSdkVersion 35`, label `Pipo`, `debuggable`
+absent from the manifest. These values come from the current tree (`versionCode 2`, `versionName 1.1`);
+the `v1.0` tag predates the opt-out and reports `1` / `1.0`.
+
+### Which version the MR should target
+
+The opt-out only exists from the commit that introduces it. The `v1.0` tag predates both the
+opt-out **and** the signing guard, so a `v1.0` build simply ignores the property. **Open the MR
+against v1.1** once it is published, using the `MaintainerNotes` entry, so the guard and its opt-out
+ship in the same release.
+
+## 6. Do not claim
 
 F-Droid inclusion has **not** been requested, is **not** pending review, and is **not** accepted.

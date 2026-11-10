@@ -42,6 +42,16 @@ android {
     val releaseKey = rootProject.file("keystore.properties").takeIf { it.exists() }?.let { f ->
         Properties().apply { f.inputStream().use { load(it) } }
     }
+    // F-Droid builds Pipo from source and signs the result with F-Droid's own key, so it must be
+    // handed an UNSIGNED release APK. This flag is the only way to produce a release artifact
+    // without the release keystore, and it is never inferred from a missing keystore — it has to be
+    // asked for explicitly: -Ppipo.unsignedRelease=true (F-Droid metadata: `gradleprops`), or
+    // PIPO_UNSIGNED_RELEASE=1 in the environment.
+    val unsignedRelease = listOfNotNull(
+        providers.gradleProperty("pipo.unsignedRelease").orNull,
+        System.getenv("PIPO_UNSIGNED_RELEASE")
+    ).any { val v = it.trim(); v.equals("true", ignoreCase = true) || v == "1" }
+
     signingConfigs {
         if (releaseKey != null) create("release") {
             storeFile = file(releaseKey.getProperty("storeFile"))
@@ -59,7 +69,9 @@ android {
             // is for emulators (debug builds keep it for emulator tests).
             ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
             isMinifyEnabled = false
-            signingConfig = signingConfigs.findByName("release")
+            // An explicitly requested unsigned build (F-Droid) gets NO signing config at all:
+            // not the release key, and deliberately never the debug key.
+            signingConfig = if (unsignedRelease) null else signingConfigs.findByName("release")
         }
     }
     compileOptions {
@@ -74,8 +86,8 @@ android {
         buildConfig = true
     }
 
-    // Hard guard. If keystore.properties is missing (CI, a fresh clone), a release artifact must
-    // FAIL here instead of shipping unsigned or debug-signed: a debug-signed APK can never be
+    // Hard guard. Unless an unsigned build was explicitly requested (F-Droid), a release artifact
+    // must FAIL here instead of shipping unsigned or debug-signed. A debug-signed APK can never be
     // upgraded over a properly signed install, and it looks untrustworthy to scanners. Only
     // release artifact tasks are checked, so `assembleDebug` and `lintRelease` still run keystore-free.
     val releaseSigningConfigured = releaseKey != null
@@ -88,7 +100,7 @@ android {
                     (t.name.startsWith("package") && t.name.endsWith("Release"))
                 )
         }
-        if (buildingReleaseArtifact && !releaseSigningConfigured) {
+        if (buildingReleaseArtifact && !releaseSigningConfigured && !unsignedRelease) {
             throw GradleException(
                 "Release signing is not configured: keystore.properties is missing at the repository " +
                     "root. Create it with storeFile / storePassword / keyAlias / keyPassword pointing at " +
