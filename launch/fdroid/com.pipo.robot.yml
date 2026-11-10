@@ -1,0 +1,38 @@
+# F-Droid build metadata for com.pipo.robot (Pipo)
+#
+# Prepared locally; NOT yet submitted. Place at metadata/com.pipo.robot.yml in a fork of
+# https://gitlab.com/fdroid/fdroiddata and open a merge request. See README.md beside this file.
+#
+# Summary and description are intentionally absent: F-Droid reads them from the upstream Fastlane
+# structure at fastlane/metadata/android/en-US/ in the app's own repository.
+
+Categories:
+  - Game
+  - Science & Education
+
+License: MIT
+
+AuthorName: aspire488
+AuthorWebSite: https://github.com/aspire488
+WebSite: https://aspire488.github.io/Pipo/
+SourceCode: https://github.com/aspire488/Pipo
+IssueTracker: https://github.com/aspire488/Pipo/issues
+
+AutoName: Pipo
+
+RepoType: git
+Repo: https://github.com/aspire488/Pipo.git
+
+# v1.0 is the only published release. After v1.1 ships, add a second Builds entry with the new
+# versionCode/versionName/commit and move CurrentVersion/CurrentVersionCode forward.
+Builds:
+  - versionName: "1.0"
+    versionCode: 1
+    commit: v1.0
+    gradle:
+      - yes
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: "1.0"
+CurrentVersionCode: 1
