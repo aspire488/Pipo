@@ -38,6 +38,17 @@
 
 **Pipo is an Android app.** A little robot lives in his own room on your phone and gets on with his day: his own traits, moods and memories, a pet called Nib, and a world that keeps moving while you are away. Free, offline-first, no ads, no analytics, MIT-licensed. **Install it in one tap: [download the APK](https://github.com/aspire488/Pipo/releases/download/v1.0/Pipo.apk).**
 
+<div align="center">
+
+<img src="launch/store-assets/screenshots/01-diwali-workshop-pipo-garland.png" alt="Pipo in his workshop, dressed up for Diwali" width="24%"/>
+<img src="launch/store-assets/screenshots/04-journal-today.png" alt="Pipo's journal, written by him" width="24%"/>
+<img src="launch/store-assets/screenshots/05-nib-companion.png" alt="Nib, Pipo's robot pet" width="24%"/>
+<img src="launch/store-assets/screenshots/07-map-football-field-memories.png" alt="Pipo's map and the places he has been" width="24%"/>
+
+<sub>Real screenshots from a Samsung Galaxy S23, taken during Diwali.</sub>
+
+</div>
+
 Pipo is an autonomous little robot with a persistent inner life. He makes plans, gets distracted, builds questionable inventions, goes exploring, remembers people, and occasionally just lies on the floor.
 
 You don't manage him. You drop in and discover what happened.
