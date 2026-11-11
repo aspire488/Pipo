@@ -12,6 +12,8 @@
 
 <a href="https://github.com/aspire488/Pipo/releases/tag/v1.0"><strong>VIEW RELEASE NOTES ↗</strong></a>
 &nbsp;&nbsp; · &nbsp;&nbsp;
+<a href="https://www.producthunt.com/products/pipo-2?launch=pipo-3"><strong>FIND PIPO ON PRODUCT HUNT ↗</strong></a>
+&nbsp;&nbsp; · &nbsp;&nbsp;
 <a href="https://aspire488.github.io/Pipo/"><strong>ENTER THE LIVE 3D WORLD ↗</strong></a>
 &nbsp;&nbsp; · &nbsp;&nbsp;
 <a href="Pipo-Intro.mp4"><strong>WATCH THE INTRO ↗</strong></a>
