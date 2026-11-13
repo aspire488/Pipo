@@ -1,0 +1,8 @@
+{
+  "name": "Pipo.Editor",
+  "rootNamespace": "Pipo.EditorTools",
+  "references": ["Pipo.Runtime"],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "autoReferenced": true
+}

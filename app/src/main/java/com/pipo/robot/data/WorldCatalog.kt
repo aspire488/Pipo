@@ -69,6 +69,9 @@ object Places {
             findTags = setOf("round", "lens", "light"), mapX = 0.14f, mapY = 0.28f, color = 0xFF6FA8C9, blurb = "Flat and shiny. The frogs have opinions."),
         Place("hills", "The hills", PlaceKind.OUTDOOR, 35, wildlife = listOf("sparrow", "butterfly"),
             findTags = setOf("metal", "coil", "gear"), mapX = 0.48f, mapY = 0.12f, color = 0xFF9DB08A, blurb = "Windy. You can see the whole town. It's small."),
+        Place("forest", "Forest Hills", PlaceKind.OUTDOOR, 30, wildlife = listOf("deer", "rabbit", "robin", "woodpecker", "owl", "fox", "sparrow", "butterfly", "firefly"),
+            findTags = setOf("soft", "round", "light"), mapX = 0.30f, mapY = 0.10f, color = 0xFF4F8A5B,
+            blurb = "Pine trees all over the hills. Deer, rabbits, birds everywhere, and an owl that judges."),
         // ---- not on the map until he finds them
         Place("observatory", "The old dome", PlaceKind.HIDDEN, 45, mapX = 0.74f, mapY = 0.10f, color = 0xFFB0A3C9,
             findTags = setOf("lens", "coil"), blurb = "A round building with a hole in the roof. He dreamed it first."),
@@ -220,6 +223,13 @@ object Wildlife {
         Species("firefly", "firefly", "fireflies", Daytime.NIGHT, setOf("CLEAR", "CLOUDY"), looks = listOf("a firefly that blinks in threes")),
         Species("duck", "duck", "ducks", Daytime.DAY, looks = listOf("a duck that follows other ducks", "a duck with a wonky quack")),
         Species("moth", "moth", "moths", Daytime.NIGHT, window = true, looks = listOf("the lamp moth")),
+        // Forest Hills
+        Species("deer", "deer", "deer", Daytime.DAY, looks = listOf("a deer with one ear that flops", "a young deer who isn't scared of him", "a deer that freezes and pretends to be a tree")),
+        Species("rabbit", "rabbit", "rabbits", Daytime.DAY, looks = listOf("a rabbit with a white tail like a cotton ball", "a rabbit who thumps when he gets close")),
+        Species("robin", "robin", "robins", Daytime.DAY, window = true, looks = listOf("a robin with a very orange chest", "a robin who sings at him")),
+        Species("woodpecker", "woodpecker", "woodpeckers", Daytime.DAY, looks = listOf("a woodpecker drumming like a tiny builder", "a woodpecker with a red cap")),
+        Species("owl", "owl", "owls", Daytime.DUSK, looks = listOf("an owl that turns its whole head at him", "a sleepy owl in a hollow")),
+        Species("fox", "fox", "foxes", Daytime.DUSK, looks = listOf("a fox with a white-tipped tail", "a fox who sat and watched him")),
     )
 
     /** Names he gives the ones he keeps seeing. */

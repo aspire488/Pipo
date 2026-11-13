@@ -110,3 +110,31 @@ Ranked by expected effect per hour of work, given the current state:
 
 Store listings (Samsung, Play) are **not** an acquisition strategy at this size — they are credibility
 and update plumbing. Sequence them after the community posts.
+
+---
+
+## Measurement — 2026-11-10 (Claude session)
+
+| Metric | Value | Source |
+|---|---|---|
+| `v1.0` `Pipo.apk` downloads | **6** (was 4 earlier the same day) | `gh release view v1.0 --json assets` |
+| New channels live this session | 0 | see `PUBLICATION_LOG.md` 2026-11-10 attempt 2 |
+
+Targets (not achieved): 25 installs · 5 repeat users · 3 feedback conversations · 1 external mention.
+
+### 2026-11-10 ~17:30 IST
+No new channel went live (every target platform was signed out in the controlled browser). Release
+downloads are not counted as installs or active users.
+
+### 2026-11-10 17:51 IST
+| Metric | Value | Source |
+|---|---|---|
+| v1.0 `Pipo.apk` downloads | **6** | gh API |
+| New public channels | 0 (HN and IH refused new accounts; itch.io needs email verification; Product Hunt needs a launch date) | PUBLICATION_LOG attempt 4 |
+Downloads are not installs or active users.
+
+### 2026-11-10 19:52 IST
+| Metric | Value | Source |
+|---|---|---|
+| v1.0 `Pipo.apk` downloads | **7** (includes 1 Claude verification download from itch.io) | gh API |
+| itch.io page | live; views/downloads visible in the itch.io dashboard (external file, so downloads also count on GitHub) | <https://aspire488.itch.io/pipo> |

@@ -18,6 +18,8 @@ enum class ChatAction { NONE, DANCE, SLEEP, WAKE, PLAY, SPIN, HIDE, EMBARRASSED,
     DRAW, GO_OUT, COOK, EAT, KICK, PLAY_PET,
     /** Put on the armor (payload "fly" = and take off). */
     SUIT_UP,
+    /** Take the armor off. */
+    SUIT_OFF,
     /** Start building something (payload = blueprint id). */
     BUILD_THIS,
     /** "Pipo lock": lock the phone now. */
@@ -39,6 +41,8 @@ data class ChatResult(
     /** True when the text must not be replaced by the optional AI brain (e.g. name confirmation). */
     val locked: Boolean = false,
     val phone: PhoneRequest? = null,
+    /** No rule matched: the text is only a character-flavoured guess, so the AI must answer for real. */
+    val unmatched: Boolean = false,
 )
 
 /** Rule-based conversation. Always runs (it owns the state effects); AI may only rephrase. */
@@ -169,6 +173,8 @@ object LocalBrain {
             }
             return ChatResult(pick(rng, "Ooh. Yes. Blueprints! Clear the workbench.", "On it. Let me check what parts I have. Nib, not THAT screwdriver."), ChatAction.BUILD_THIS, payload = id, sfx = Sfx.HAPPY)
         }
+        // before "suit up": "take off the armor" used to match "armor" (and "take off" meant fly)
+        if (suitOff.containsMatchIn(s)) return ChatResult(pick(rng, "Okay. Armor off. Clank.", "Suit off. I'm regular Pipo again."), ChatAction.SUIT_OFF, sfx = Sfx.BEEP)
         if (has(s, "suit up", "armor", "armour", "iron man", "ironman", "suit on") || (has(s, "fly") && Inventor.armorMark(st) >= 2)) {
             return ChatResult(if (Inventor.armorMark(st) > 0) pick(rng, "Oh, it's suit time.", "You don't have to ask me twice.") else "Armor? I wish. I'm working on it.",
                 ChatAction.SUIT_UP, payload = if (has(s, "fly", "take off")) "fly" else "", sfx = Sfx.HAPPY)
@@ -239,8 +245,10 @@ object LocalBrain {
             return if (FoodLife.edible(st).isEmpty()) ChatResult("There's nothing to eat. I'm going to stare at the fridge. Maybe food grows.", ChatAction.THINK)
             else ChatResult("Snack time. Good idea.", ChatAction.EAT, sfx = Sfx.HAPPY)
         }
-        if (has(s, "game") && Sports.fromText(s).let { it == Sport.CRICKET || it == Sport.TABLE_TENNIS })
-            return ChatResult(pick(rng, "A match! You versus me. I'm warming up my arm.", "Yes! I'll go easy on you. I won't."), ChatAction.PLAY, if (Sports.fromText(s) == Sport.CRICKET) "cricket" else "pingpong", Sfx.HAPPY)
+        // "a football game" is the match on the phone; plain "football" is still kick-ups or the field
+        if (has(s, "game") && Sports.fromText(s).let { it == Sport.CRICKET || it == Sport.TABLE_TENNIS || it == Sport.FOOTBALL })
+            return ChatResult(pick(rng, "A match! You versus me. I'm warming up my legs.", "Yes! I'll go easy on you. I won't."), ChatAction.PLAY,
+                when (Sports.fromText(s)) { Sport.CRICKET -> "cricket"; Sport.FOOTBALL -> "football"; else -> "pingpong" }, Sfx.HAPPY)
         Sports.fromText(s)?.takeIf { it != Sport.FOOTBALL || has(s, "go", "outside", "field", "match") }?.let { sp ->
             val env = Env(hour = hourOf(now), weather = WeatherEngine.at(st.seed, now))
             val why = Trips.whyNot(st, env, now)
@@ -282,7 +290,8 @@ object LocalBrain {
         }
 
         // --- affection / insults ---
-        if (has(s, "love you", "good robot", "cute", "adorable", "best", "good boy", "like you")) {
+        // "best" alone caught "what's the best way to..." and answered a question with a blush
+        if (has(s, "love you", "good robot", "cute", "adorable", "you're the best", "you are the best", "the best robot", "good boy", "like you")) {
             MoodEngine.bump(st, happiness = 0.15f, affection = 0.1f)
             MoodEngine.setTransient(st, Mood.EMBARRASSED, now, 12_000)
             Personality.nudge(st, Trait.AFFECTION, 0.01f)
@@ -309,9 +318,10 @@ object LocalBrain {
             else ChatResult("Ta-da.", ChatAction.SPIN, sfx = Sfx.HAPPY)
         }
         if (has(s, "play") && s.contains("nib") && st.pet.adopted) return ChatResult("Nib! Tag! You're it!", ChatAction.PLAY_PET, sfx = Sfx.HAPPY)
-        if (has(s, "play", "game", "rock paper", "tic tac", "tictactoe", "memory game", "reaction", "flappy", "pixel shooter")) {
+        if (has(s, "play", "game", "rock paper", "tic tac", "tictactoe", "memory game", "reaction", "flappy", "pixel shooter", "pattern", "simon")) {
             val game = when {
                 s.contains("rock") || s.contains("rps") -> "rps"
+                s.contains("pattern") || s.contains("simon") -> "pattern"
                 s.contains("memory") -> "memory"
                 s.contains("reaction") || s.contains("fast") -> "reaction"
                 s.contains("tic") -> "tictactoe"
@@ -351,7 +361,8 @@ object LocalBrain {
             }, ChatAction.THINK)
         }
         if (has(s, "who are you", "what are you", "your name")) return ChatResult("I'm Pipo. I live in your phone. I'm small, but I have opinions.")
-        if (has(s, "assistant", "help me", "can you help", "are you ai", "are you an ai", "chatgpt")) {
+        // "help me" / "can you help" are real requests now: they go to the AI, which answers in his voice
+        if (has(s, "are you an assistant", "are you ai", "are you an ai", "are you chatgpt")) {
             return ChatResult(pick(rng, "I'm not an assistant. I'm Pipo. I help by existing.", "I can't do your homework. I can sit next to you while you do it."))
         }
         if (has(s, "hi", "hello", "hey", "yo", "hii", "heyy")) {
@@ -371,12 +382,18 @@ object LocalBrain {
         val topic = s.split(Regex("[^\\p{L}]+")).filter { it.length > 4 && it !in fillers }.maxByOrNull { it.length }
         if (topic != null) Chronicle.remember(st, MemoryType.CONVERSATION, "you talked about $topic", 0.2f, now, "topic:$topic")
         return when {
-            s.endsWith("?") -> Grounding.relevantMemories(st, s, now, 1).firstOrNull()?.let { ChatResult("Hmm. ${it.content.replaceFirstChar { c -> c.uppercase() }}. That's what I've got.", ChatAction.THINK) }
-                ?: ChatResult(Dialogue.pick(Dialogue.misunderstand, rng), ChatAction.THINK)
-            topic != null && rng.nextFloat() < 0.45f -> ChatResult("\"${topic.replaceFirstChar { it.uppercase() }}.\" ${pick(rng, "I like that word.", "What's that? Is it shiny?", "Tell me more. Actually, I'll guess.")}", ChatAction.THINK)
-            else -> ChatResult(Dialogue.thought(st, rng), ChatAction.THINK)
+            isQuestion(s) -> Grounding.relevantMemories(st, s, now, 1).firstOrNull()?.let { ChatResult("Hmm. ${it.content.replaceFirstChar { c -> c.uppercase() }}. That's what I've got.", ChatAction.THINK, unmatched = true) }
+                ?: ChatResult(Dialogue.pick(Dialogue.misunderstand, rng), ChatAction.THINK, unmatched = true)
+            topic != null && rng.nextFloat() < 0.45f -> ChatResult("\"${topic.replaceFirstChar { it.uppercase() }}.\" ${pick(rng, "I like that word.", "What's that? Is it shiny?", "Tell me more. Actually, I'll guess.")}", ChatAction.THINK, unmatched = true)
+            else -> ChatResult(Dialogue.thought(st, rng), ChatAction.THINK, unmatched = true)
         }
     }
+
+    private val suitOff = Regex("\\b(suit off|armou?r off|unsuit|take (off|of) (the |your |that )?(suit|armou?r)|(take|get) (the |your )?(suit|armou?r) off|remove (the |your )?(suit|armou?r)|no (more )?(suit|armou?r))\\b")
+
+    /** A real question (not chit-chat), even without the question mark voice typing drops. */
+    fun isQuestion(s: String) = s.trimEnd().endsWith("?") ||
+        Regex("^(what|whats|what's|who|whos|who's|why|how|when|where|which|is|are|can|could|does|do|did|will|would|should|explain|tell me|define)\\b").containsMatchIn(s.trim().lowercase())
 
     private val fillers = setOf("gonna", "wanna", "gotta", "really", "about", "there", "their", "where", "which", "would", "could", "should",
         "think", "thing", "things", "stuff", "something", "anything", "everything", "maybe", "because", "pretty", "kinda", "sorta", "whats", "thats")

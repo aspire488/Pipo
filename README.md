@@ -137,6 +137,8 @@ A round amber robot-pet with moods, habits and a talent for stealing shiny thing
 3. If prompted, allow your browser or file manager to install unknown apps.
 4. Install Pipo and open him.
 
+<sub>New here? [Living with Pipo](docs/LIVING_WITH_PIPO.md) is the slow-living companion guide: journals, Nib, weather, rough days, and a five-year ritual list.</sub>
+
 <details>
 <summary><strong>VERIFY THE APK</strong></summary>
 

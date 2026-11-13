@@ -183,9 +183,19 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
         else micLauncher.launch(Manifest.permission.RECORD_AUDIO)
     }
 
+    // 3D room unless it's switched off or this phone can't run it (then the painted room, same Pipo)
+    var stageFailed by remember { mutableStateOf(false) }
+    val use3d = vm.world3d && !stageFailed
+    // the Unity world, when this build has it and you switched it on; the WebView stage otherwise
+    var unityFailed by remember { mutableStateOf(false) }
+    val useUnity = use3d && vm.unityWorld && com.pipo.robot.unity.UnityBridge.available && !unityFailed
+    val webHud = use3d && !useUnity   // the WebView stage draws its own bubbles and composer; Unity uses ours
+
     Box(Modifier.fillMaxSize().background(PipoPalette.night)) {
         // ---------------- the world
-        Canvas(
+        if (useUnity) com.pipo.robot.unity.UnityStage(vm, onFailed = { unityFailed = true })
+        else if (use3d) Stage3D(vm, onMenu = { menuOpen = true }, onMic = { mic() }, onGames = { gamesOpen = true }, onFailed = { stageFailed = true })
+        else Canvas(
             Modifier.fillMaxSize()
                 // screen readers: what's actually going on in the room, in plain words
                 .semantics { contentDescription = vm.sceneDescription; liveRegion = LiveRegionMode.Polite }
@@ -272,14 +282,20 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
         // ---------------- he's out playing: watch the match
         vm.outPlaying?.let { sport ->
             @Suppress("UNUSED_VARIABLE") val tick = vm.frame
-            Box(Modifier.align(Alignment.TopCenter).windowInsetsPadding(WindowInsets.safeDrawing).padding(top = 70.dp)
-                .clip(RoundedCornerShape(50)).background(PipoPalette.mint).clickable { onNavigate("map") }.padding(horizontal = 18.dp, vertical = 10.dp)) {
-                Text("Watch the match: Pipo vs Nib, ${sport.lowercase().replace('_', ' ')}", color = Color(0xFF0F2A2A), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            // he's out playing a sport that's also a game here: you can watch, or join in on the phone
+            val joinGame = when (sport) { "FOOTBALL" -> "football"; "CRICKET" -> "cricket"; "TABLE_TENNIS" -> "pingpong"; else -> null }
+            Row(Modifier.align(Alignment.TopCenter).windowInsetsPadding(WindowInsets.safeDrawing).padding(top = 70.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(Modifier.clip(RoundedCornerShape(50)).background(PipoPalette.mint).clickable { onNavigate("map") }.padding(horizontal = 18.dp, vertical = 10.dp)) {
+                    Text("Watch the match: Pipo vs Nib, ${sport.lowercase().replace('_', ' ')}", color = Color(0xFF0F2A2A), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                }
+                if (joinGame != null) Box(Modifier.clip(RoundedCornerShape(50)).background(PipoPalette.amber).clickable { onNavigate("game:$joinGame") }.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                    Text("Join in", color = Color(0xFF2A1A08), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                }
             }
         }
 
         // ---------------- Nib's own little bubble (Nib talks for itself), over Nib's head
-        vm.nibLine?.let { line ->
+        vm.nibLine?.takeIf { !use3d }?.let { line ->
             Box(
                 Modifier
                     .layout { m, c ->
@@ -299,7 +315,7 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
         }
 
         // ---------------- speech bubble, anchored above Pipo's head every frame
-        val bubble = vm.bubble
+        val bubble = vm.bubble.takeIf { !webHud }   // the WebView stage draws its own bubbles
         if (bubble != null) {
             val density = LocalDensity.current
             val gap = with(density) { 14.dp.toPx() }
@@ -310,7 +326,8 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
                         @Suppress("UNUSED_VARIABLE") val tick = vm.frame
                         val p = m.measure(c.copy(minWidth = 0, minHeight = 0, maxWidth = min(c.maxWidth, maxW)))
                         layout(c.maxWidth, c.maxHeight) {
-                            val h = vm.headView()
+                            // Unity draws Pipo itself: the bubble sits above where its camera frames his head
+                            val h = if (useUnity) Offset(c.maxWidth / 2f, c.maxHeight * 0.3f) else vm.headView()
                             val x = (h.x - p.width / 2f).coerceIn(16f, (c.maxWidth - p.width - 16f).coerceAtLeast(16f))
                             val lo = gap * 5
                             val hi = (c.maxHeight - p.height).toFloat().coerceAtLeast(lo)
@@ -366,7 +383,7 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
         }
 
         // ---------------- your last line
-        vm.userLine?.let {
+        vm.userLine?.takeIf { !webHud }?.let {
             Box(
                 Modifier.align(Alignment.BottomEnd).windowInsetsPadding(WindowInsets.safeDrawing).imePadding()
                     .padding(end = 16.dp, bottom = if (vm.openChat) 84.dp else 92.dp).widthIn(max = 260.dp)
@@ -376,7 +393,7 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
 
         // ---------------- top-right menu (subtle)
         Box(Modifier.align(Alignment.TopEnd).windowInsetsPadding(WindowInsets.safeDrawing).padding(12.dp)) {
-            RoundButton(Glyph.MENU, { menuOpen = true }, size = 48.dp, bg = PipoPalette.card.copy(alpha = 0.55f), description = "Menu")
+            if (!webHud) RoundButton(Glyph.MENU, { menuOpen = true }, size = 48.dp, bg = PipoPalette.card.copy(alpha = 0.55f), description = "Menu")
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 DropdownMenuItem(text = { Text("Journal") }, onClick = { menuOpen = false; onNavigate("journal") })
                 DropdownMenuItem(text = { Text("Map") }, onClick = { menuOpen = false; onNavigate("map") })
@@ -390,6 +407,7 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
         Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().windowInsetsPadding(WindowInsets.safeDrawing).imePadding().padding(16.dp)) {
             when {
                 vm.listening -> ListeningPill(vm) { vm.stopListening() }
+                webHud -> Unit   // the WebView stage has the composer and quick actions
                 vm.openChat -> ChatField(chatText, { chatText = it }, placeholder = if (vm.away) "Text Pipo…" else "Say something to Pipo…", onSend = {
                     // sent: the keyboard goes away so you can watch him answer (and do it)
                     vm.sendChat(chatText); chatText = ""; keyboard?.hide(); focus.clearFocus(); vm.openChat = false
@@ -434,7 +452,7 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
                     Text("Play with Pipo", style = MaterialTheme.typography.headlineSmall, color = PipoPalette.text)
                     Spacer(Modifier.height(14.dp))
                     listOf("rps" to "Rock Paper Scissors", "memory" to "Memory Match", "reaction" to "Reaction Race", "tictactoe" to "Tic-Tac-Toe",
-                        "flappy" to "Flappy Pipo", "shooter" to "Pixel Shooter", "cricket" to "Cricket", "pingpong" to "Table Tennis").forEach { (id, name) ->
+                        "flappy" to "Flappy Pipo", "shooter" to "Pixel Shooter", "cricket" to "Cricket", "pingpong" to "Table Tennis", "football" to "Pipo Football", "pattern" to "Pipo's Pattern (together)").forEach { (id, name) ->
                         Row(
                             Modifier.fillMaxWidth().padding(vertical = 5.dp).clip(RoundedCornerShape(16.dp)).background(PipoPalette.cardHi)
                                 .clickable { gamesOpen = false; vm.requestGame(id) }.padding(16.dp),
@@ -442,7 +460,10 @@ fun HomeScreen(vm: HomeViewModel, consumeLaunch: () -> LaunchInfo?, onNavigate: 
                         ) {
                             GlyphIcon(Glyph.GAMES, color = PipoPalette.mint)
                             Spacer(Modifier.width(12.dp))
-                            Text(name, style = MaterialTheme.typography.titleMedium, color = PipoPalette.text)
+                            Column {
+                                Text(name, style = MaterialTheme.typography.titleMedium, color = PipoPalette.text)
+                                vm.gameSummary(id)?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = PipoPalette.muted) }
+                            }
                         }
                     }
                 }

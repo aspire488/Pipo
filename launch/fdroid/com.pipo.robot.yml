@@ -3,12 +3,15 @@
 # Prepared locally; NOT yet submitted. Place at metadata/com.pipo.robot.yml in a fork of
 # https://gitlab.com/fdroid/fdroiddata and open a merge request. See README.md beside this file.
 #
-# Summary and description are intentionally absent: F-Droid reads them from the upstream Fastlane
-# structure at fastlane/metadata/android/en-US/ in the app's own repository.
+# Summary and Description are inline because the v1.0 commit predates fastlane/ upstream. Once a
+# later tagged release ships fastlane/metadata/android/en-US/, drop them here.
+
+AntiFeatures:
+  NonFreeNet:
+    en-US: Uses the ipwho.is service to estimate the city for optional real weather (open-meteo.com).
 
 Categories:
-  - Game
-  - Science & Education
+  - Casual Game
 
 License: MIT
 
@@ -19,6 +22,23 @@ SourceCode: https://github.com/aspire488/Pipo
 IssueTracker: https://github.com/aspire488/Pipo/issues
 
 Name: Pipo
+Summary: A little robot who lives his own life on your phone
+Description: |-
+    Pipo is a small robot who lives in a room inside your phone, and he is not waiting for you.
+
+    You don't manage him. He has ten traits rolled once at first launch, twelve moods, memories that
+    decay at different rates, and a scoring engine that picks his next activity from about twenty
+    options. Open the app and find out what he is doing: welding something at his workbench, chasing a
+    moth around the desk lamp, pretending to be asleep, or gone entirely, because the flying machine
+    needed a motor and he walked to the hardware shop.
+
+    * Nib, a round amber robot-pet with moods, a bond level and a habit of stealing shiny things
+    * Thirteen places to visit, his own weather at the window, odd jobs, cooking and projects
+    * Eight games to play with him and a journal written in his own hand
+    * Everything is drawn in code: no 3D models, sprite sheets or image assets
+
+    One JSON save file on your device. No account, no analytics, no ads, no in-app purchases. Chat is
+    offline: Pipo answers in his own words from a rule-based brain on the device.
 
 RepoType: git
 Repo: https://github.com/aspire488/Pipo.git
@@ -32,6 +52,9 @@ Builds:
     commit: 73afc91002c6d81c452fe6cd38b6b29e39fef626
     gradle:
       - yes
+    # v1.0 falls back to the debug signingConfig when no keystore exists; fdroidserver's
+    # remove_signing_keys() drops the signingConfigs block but not this line (verified 2026-11-10).
+    prebuild: sed -i -e '/signingConfig = signingConfigs.findByName/d' app/build.gradle.kts
 
 MaintainerNotes: |
   From the release that contains the `pipo.unsignedRelease` opt-out onwards, Pipo's release build

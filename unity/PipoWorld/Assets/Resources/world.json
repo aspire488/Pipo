@@ -1,0 +1,661 @@
+{
+    "v": 1,
+    "home": {
+        "id": "home",
+        "name": "Pipo's room",
+        "kind": "HOME",
+        "width": 296.0,
+        "objects": [
+            {
+                "id": "bed",
+                "l": 3.0,
+                "r": 50.0,
+                "bottom": -6.0,
+                "top": 30.0
+            },
+            {
+                "id": "plant",
+                "l": 55.0,
+                "r": 67.0,
+                "bottom": -4.0,
+                "top": 28.0
+            },
+            {
+                "id": "charger",
+                "l": 74.0,
+                "r": 97.0,
+                "bottom": -6.0,
+                "top": 22.0
+            },
+            {
+                "id": "window",
+                "l": 86.0,
+                "r": 122.0,
+                "bottom": 38.0,
+                "top": 76.0
+            },
+            {
+                "id": "corkboard",
+                "l": 126.0,
+                "r": 156.0,
+                "bottom": 39.0,
+                "top": 58.0
+            },
+            {
+                "id": "desk",
+                "l": 123.0,
+                "r": 157.0,
+                "bottom": -4.0,
+                "top": 36.0
+            },
+            {
+                "id": "drawings",
+                "l": 8.0,
+                "r": 46.0,
+                "bottom": 48.0,
+                "top": 70.0
+            },
+            {
+                "id": "shelf",
+                "l": 160.0,
+                "r": 202.0,
+                "bottom": 52.0,
+                "top": 64.0
+            },
+            {
+                "id": "workbench",
+                "l": 160.0,
+                "r": 202.0,
+                "bottom": -4.0,
+                "top": 46.0
+            },
+            {
+                "id": "arcade",
+                "l": 205.0,
+                "r": 225.0,
+                "bottom": -4.0,
+                "top": 48.0
+            },
+            {
+                "id": "toys",
+                "l": 226.0,
+                "r": 242.0,
+                "bottom": -8.0,
+                "top": 20.0
+            },
+            {
+                "id": "clock",
+                "l": 56.0,
+                "r": 68.0,
+                "bottom": 54.0,
+                "top": 66.0
+            },
+            {
+                "id": "console",
+                "l": 106.0,
+                "r": 122.0,
+                "bottom": -4.0,
+                "top": 16.0
+            },
+            {
+                "id": "box",
+                "l": 267.0,
+                "r": 277.0,
+                "bottom": -4.0,
+                "top": 11.0
+            },
+            {
+                "id": "mirror",
+                "l": 270.5,
+                "r": 277.5,
+                "bottom": 4.0,
+                "top": 46.0
+            },
+            {
+                "id": "kitchen",
+                "l": 244.0,
+                "r": 272.0,
+                "bottom": -4.0,
+                "top": 34.0
+            },
+            {
+                "id": "door",
+                "l": 276.0,
+                "r": 295.0,
+                "bottom": -4.0,
+                "top": 58.0
+            }
+        ],
+        "stations": {
+            "BED": 56.0,
+            "PLANT": 71.0,
+            "CHARGER": 84.0,
+            "WINDOW": 104.0,
+            "DESK": 138.0,
+            "SHELF": 181.0,
+            "WORKBENCH": 181.0,
+            "ARCADE": 215.0,
+            "TOYS": 225.0,
+            "RUG": 104.0,
+            "CONSOLE": 92.0,
+            "WANDER": 104.0,
+            "FRONT": 104.0,
+            "STAY": 104.0,
+            "KITCHEN": 262.0,
+            "DOOR": 286.0,
+            "HIDE": 104.0
+        }
+    },
+    "places": [
+        {
+            "id": "garden",
+            "name": "The garden",
+            "kind": "OUTDOOR",
+            "travelMin": 3,
+            "opens": 0,
+            "closes": 24,
+            "npc": "",
+            "sells": [],
+            "wildlife": [
+                "sparrow",
+                "butterfly",
+                "bee",
+                "frog",
+                "firefly",
+                "cat"
+            ],
+            "mapX": 0.4,
+            "mapY": 0.58,
+            "color": "#7FB77E",
+            "blurb": "Right outside. Grass, a hedge, a bee who thinks it owns the place."
+        },
+        {
+            "id": "park",
+            "name": "The park",
+            "kind": "OUTDOOR",
+            "travelMin": 12,
+            "opens": 0,
+            "closes": 24,
+            "npc": "",
+            "sells": [],
+            "wildlife": [
+                "squirrel",
+                "sparrow",
+                "cat",
+                "butterfly"
+            ],
+            "mapX": 0.24,
+            "mapY": 0.4,
+            "color": "#8CC08A",
+            "blurb": "Benches. Squirrels. A slide he's scared of."
+        },
+        {
+            "id": "field",
+            "name": "The football field",
+            "kind": "OUTDOOR",
+            "travelMin": 10,
+            "opens": 0,
+            "closes": 24,
+            "npc": "kip",
+            "sells": [],
+            "wildlife": [
+                "sparrow"
+            ],
+            "mapX": 0.62,
+            "mapY": 0.36,
+            "color": "#9ACB7A",
+            "blurb": "Two goals. One of them leans."
+        },
+        {
+            "id": "cricket",
+            "name": "The cricket ground",
+            "kind": "OUTDOOR",
+            "travelMin": 12,
+            "opens": 6,
+            "closes": 19,
+            "npc": "raj",
+            "sells": [],
+            "wildlife": [
+                "sparrow"
+            ],
+            "mapX": 0.86,
+            "mapY": 0.42,
+            "color": "#A8D08A",
+            "blurb": "A real pitch, a boundary rope, and Coach Raj, who says 'well left' a lot."
+        },
+        {
+            "id": "sports_hall",
+            "name": "Riverside Sports Hall",
+            "kind": "INDOOR",
+            "travelMin": 11,
+            "opens": 7,
+            "closes": 21,
+            "npc": "lin",
+            "sells": [],
+            "wildlife": [],
+            "mapX": 0.88,
+            "mapY": 0.6,
+            "color": "#C98E55",
+            "blurb": "Table tennis tables, squeaky floors, and Lin, who never misses."
+        },
+        {
+            "id": "court",
+            "name": "The badminton court",
+            "kind": "OUTDOOR",
+            "travelMin": 9,
+            "opens": 6,
+            "closes": 20,
+            "npc": "bea",
+            "sells": [],
+            "wildlife": [
+                "butterfly"
+            ],
+            "mapX": 0.36,
+            "mapY": 0.26,
+            "color": "#7FB27A",
+            "blurb": "A green court with a net that sags a bit. Bea keeps score."
+        },
+        {
+            "id": "hardware",
+            "name": "Grumble's Hardware",
+            "kind": "SHOP",
+            "travelMin": 9,
+            "opens": 8,
+            "closes": 19,
+            "npc": "grumble",
+            "sells": [
+                "screws",
+                "wire",
+                "sticks",
+                "magnet",
+                "springs"
+            ],
+            "wildlife": [],
+            "mapX": 0.56,
+            "mapY": 0.62,
+            "color": "#B8865A",
+            "blurb": "Every screw in the world. Grumble knows each one."
+        },
+        {
+            "id": "electronics",
+            "name": "Juniper Electronics",
+            "kind": "SHOP",
+            "travelMin": 14,
+            "opens": 9,
+            "closes": 20,
+            "npc": "juniper",
+            "sells": [
+                "motor",
+                "battery_pack",
+                "led",
+                "propeller"
+            ],
+            "wildlife": [],
+            "mapX": 0.7,
+            "mapY": 0.56,
+            "color": "#6FA8C9",
+            "blurb": "Blinking lights. It hums. He loves it."
+        },
+        {
+            "id": "market",
+            "name": "Pim's Market",
+            "kind": "SHOP",
+            "travelMin": 8,
+            "opens": 7,
+            "closes": 21,
+            "npc": "pim",
+            "sells": [
+                "noodles",
+                "egg",
+                "tomato",
+                "rice",
+                "honey",
+                "milk",
+                "apple",
+                "banana",
+                "juice",
+                "cheese",
+                "chocolate",
+                "umbrella"
+            ],
+            "wildlife": [],
+            "mapX": 0.46,
+            "mapY": 0.74,
+            "color": "#E0A86A",
+            "blurb": "Food. Also umbrellas, for some reason."
+        },
+        {
+            "id": "bakery",
+            "name": "Mo's Bakery",
+            "kind": "SHOP",
+            "travelMin": 7,
+            "opens": 6,
+            "closes": 17,
+            "npc": "mo",
+            "sells": [
+                "bread",
+                "croissant",
+                "cookie",
+                "cake_slice"
+            ],
+            "wildlife": [],
+            "mapX": 0.33,
+            "mapY": 0.7,
+            "color": "#E8C07A",
+            "blurb": "It smells like a hug."
+        },
+        {
+            "id": "cafe",
+            "name": "The Corner Café",
+            "kind": "SHOP",
+            "travelMin": 8,
+            "opens": 8,
+            "closes": 22,
+            "npc": "ada",
+            "sells": [
+                "hot_chocolate",
+                "pancakes",
+                "pizza_slice"
+            ],
+            "wildlife": [],
+            "mapX": 0.28,
+            "mapY": 0.56,
+            "color": "#C99A7A",
+            "blurb": "Hot chocolate the size of his head."
+        },
+        {
+            "id": "secondhand",
+            "name": "Old Rook's Things",
+            "kind": "SHOP",
+            "travelMin": 16,
+            "opens": 10,
+            "closes": 18,
+            "npc": "rook",
+            "sells": [
+                "magnifier",
+                "cardboard_tube",
+                "felt",
+                "rubber_duck"
+            ],
+            "wildlife": [],
+            "mapX": 0.8,
+            "mapY": 0.72,
+            "color": "#9C8AB0",
+            "blurb": "Everything in here used to be something else."
+        },
+        {
+            "id": "repair",
+            "name": "Fennel Fix-It",
+            "kind": "SHOP",
+            "travelMin": 11,
+            "opens": 9,
+            "closes": 18,
+            "npc": "fennel",
+            "sells": [],
+            "wildlife": [],
+            "mapX": 0.66,
+            "mapY": 0.78,
+            "color": "#8FA3A6",
+            "blurb": "Fennel fixes things. Sometimes Pipo helps. For coins."
+        },
+        {
+            "id": "library",
+            "name": "The Library",
+            "kind": "INDOOR",
+            "travelMin": 13,
+            "opens": 10,
+            "closes": 19,
+            "npc": "tess",
+            "sells": [],
+            "wildlife": [],
+            "mapX": 0.16,
+            "mapY": 0.62,
+            "color": "#A69070",
+            "blurb": "Quiet. He whispers the whole time. Even outside."
+        },
+        {
+            "id": "lake",
+            "name": "The lake",
+            "kind": "OUTDOOR",
+            "travelMin": 25,
+            "opens": 0,
+            "closes": 24,
+            "npc": "",
+            "sells": [],
+            "wildlife": [
+                "frog",
+                "duck",
+                "firefly",
+                "sparrow"
+            ],
+            "mapX": 0.14,
+            "mapY": 0.28,
+            "color": "#6FA8C9",
+            "blurb": "Flat and shiny. The frogs have opinions."
+        },
+        {
+            "id": "hills",
+            "name": "The hills",
+            "kind": "OUTDOOR",
+            "travelMin": 35,
+            "opens": 0,
+            "closes": 24,
+            "npc": "",
+            "sells": [],
+            "wildlife": [
+                "sparrow",
+                "butterfly"
+            ],
+            "mapX": 0.48,
+            "mapY": 0.12,
+            "color": "#9DB08A",
+            "blurb": "Windy. You can see the whole town. It's small."
+        },
+        {
+            "id": "forest",
+            "name": "Forest Hills",
+            "kind": "OUTDOOR",
+            "travelMin": 30,
+            "opens": 0,
+            "closes": 24,
+            "npc": "",
+            "sells": [],
+            "wildlife": [
+                "deer",
+                "rabbit",
+                "robin",
+                "woodpecker",
+                "owl",
+                "fox",
+                "sparrow",
+                "butterfly",
+                "firefly"
+            ],
+            "mapX": 0.3,
+            "mapY": 0.1,
+            "color": "#4F8A5B",
+            "blurb": "Pine trees all over the hills. Deer, rabbits, birds everywhere, and an owl that judges."
+        },
+        {
+            "id": "observatory",
+            "name": "The old dome",
+            "kind": "HIDDEN",
+            "travelMin": 45,
+            "opens": 0,
+            "closes": 24,
+            "npc": "",
+            "sells": [],
+            "wildlife": [],
+            "mapX": 0.74,
+            "mapY": 0.1,
+            "color": "#B0A3C9",
+            "blurb": "A round building with a hole in the roof. He dreamed it first."
+        },
+        {
+            "id": "otherside",
+            "name": "???",
+            "kind": "HIDDEN",
+            "travelMin": 50,
+            "opens": 0,
+            "closes": 24,
+            "npc": "",
+            "sells": [],
+            "wildlife": [],
+            "mapX": 0.9,
+            "mapY": 0.2,
+            "color": "#9FF3E0",
+            "blurb": "The same street. Not the same street."
+        }
+    ],
+    "npcs": [
+        {
+            "id": "grumble",
+            "name": "Grumble",
+            "placeId": "hardware",
+            "hello": "Grumble looked at him for a long time. Then said: \"Screws are aisle two.\""
+        },
+        {
+            "id": "juniper",
+            "name": "Juniper",
+            "placeId": "electronics",
+            "hello": "Juniper blinked all her lights at him. That's hello, apparently."
+        },
+        {
+            "id": "pim",
+            "name": "Mrs. Pim",
+            "placeId": "market",
+            "hello": "Mrs. Pim said he was too small to carry a basket. He carried it anyway."
+        },
+        {
+            "id": "mo",
+            "name": "Mo",
+            "placeId": "bakery",
+            "hello": "Mo was covered in flour. So is Pipo now."
+        },
+        {
+            "id": "ada",
+            "name": "Ada",
+            "placeId": "cafe",
+            "hello": "Ada gave him a mug bigger than his head. He loved it."
+        },
+        {
+            "id": "rook",
+            "name": "Old Rook",
+            "placeId": "secondhand",
+            "hello": "Old Rook said everything here used to be something else. Including Rook."
+        },
+        {
+            "id": "fennel",
+            "name": "Fennel",
+            "placeId": "repair",
+            "hello": "Fennel handed him a screwdriver before saying hi."
+        },
+        {
+            "id": "tess",
+            "name": "Tess",
+            "placeId": "library",
+            "hello": "Tess whispered hello. He whispered it back. Too loud."
+        },
+        {
+            "id": "raj",
+            "name": "Coach Raj",
+            "placeId": "cricket",
+            "hello": "Coach Raj fixed his grip on the bat. Then said 'well left' when he missed."
+        },
+        {
+            "id": "lin",
+            "name": "Lin",
+            "placeId": "sports_hall",
+            "hello": "Lin returned every single ball. Every one. With a smile."
+        },
+        {
+            "id": "bea",
+            "name": "Bea",
+            "placeId": "court",
+            "hello": "Bea kept score on a little chalkboard. She draws a smiley for every point."
+        },
+        {
+            "id": "kip",
+            "name": "Kip",
+            "placeId": "field",
+            "hello": "Kip kicked the ball to him. He missed it. Kip was nice about it."
+        }
+    ],
+    "species": [
+        {
+            "id": "sparrow",
+            "name": "sparrow",
+            "daytime": "DAY"
+        },
+        {
+            "id": "butterfly",
+            "name": "butterfly",
+            "daytime": "DAY"
+        },
+        {
+            "id": "bee",
+            "name": "bee",
+            "daytime": "DAY"
+        },
+        {
+            "id": "frog",
+            "name": "frog",
+            "daytime": "ANY"
+        },
+        {
+            "id": "squirrel",
+            "name": "squirrel",
+            "daytime": "DAY"
+        },
+        {
+            "id": "cat",
+            "name": "cat",
+            "daytime": "ANY"
+        },
+        {
+            "id": "firefly",
+            "name": "firefly",
+            "daytime": "NIGHT"
+        },
+        {
+            "id": "duck",
+            "name": "duck",
+            "daytime": "DAY"
+        },
+        {
+            "id": "moth",
+            "name": "moth",
+            "daytime": "NIGHT"
+        },
+        {
+            "id": "deer",
+            "name": "deer",
+            "daytime": "DAY"
+        },
+        {
+            "id": "rabbit",
+            "name": "rabbit",
+            "daytime": "DAY"
+        },
+        {
+            "id": "robin",
+            "name": "robin",
+            "daytime": "DAY"
+        },
+        {
+            "id": "woodpecker",
+            "name": "woodpecker",
+            "daytime": "DAY"
+        },
+        {
+            "id": "owl",
+            "name": "owl",
+            "daytime": "DUSK"
+        },
+        {
+            "id": "fox",
+            "name": "fox",
+            "daytime": "DUSK"
+        }
+    ]
+}

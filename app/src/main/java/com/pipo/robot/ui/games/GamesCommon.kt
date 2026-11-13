@@ -261,6 +261,8 @@ fun GameHost(id: String, onExit: () -> Unit) {
         "shooter" -> ShooterGame(onExit)
         "cricket" -> CricketGame(onExit)
         "pingpong" -> PingPongGame(onExit)
+        "pattern" -> PatternGame(onExit)
+        "football" -> FootballGame(onExit)
         else -> TicTacToeGame(onExit)
     }
 }

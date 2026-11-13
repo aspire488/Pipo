@@ -4,8 +4,7 @@
 (`gitlab.com`), which does not exist in this environment and cannot be created without the owner
 completing email verification.
 
-The file next to this one, `com.pipo.robot.yml`, is the exact metadata file F-Droid's `fdroiddata`
-repository expects at `metadata/com.pipo.robot.yml`.
+The annotated file next to this one, `com.pipo.robot.yml`, is the maintainer copy. `com.pipo.robot.fdroiddata.yml` is the exact `fdroid rewritemeta`-formatted file to place at `metadata/com.pipo.robot.yml` in the `fdroiddata` fork.
 
 ## 1. Eligibility — assessed against the current inclusion policy
 
@@ -133,3 +132,29 @@ ship in the same release.
 ## 6. Do not claim
 
 F-Droid inclusion has **not** been requested, is **not** pending review, and is **not** accepted.
+
+## 7. Vosk / JNA native libraries: policy finding (2026-11-10)
+
+**Verdict: acceptable under the current Inclusion Policy. No source build appears required.**
+
+Evidence (all fetched 2026-11-10):
+- F-Droid Inclusion Policy: "Applications can download prebuilt FLOSS binaries with specific conditions
+  from trusted Maven repositories. Those include Maven Central, Google Maven, …" and "Library
+  dependencies must be built from source or provided in a trusted Maven repo." Binaries must still be
+  freely licensed.
+- Pipo v1.0 resolves dependencies only from `google()` and `mavenCentral()` (`settings.gradle.kts` @ `73afc91`).
+- `com.alphacephei:vosk-android:0.3.75` is on Maven Central (POM HTTP 200), licence **Apache-2.0**. The AAR
+  bundles `jni/{arm64-v8a,armeabi-v7a,x86,x86_64}/libvosk.so`.
+- `net.java.dev.jna:jna:5.18.1` (aar), Maven Central, licence **LGPL-2.1-or-later / Apache-2.0**.
+- Precedent: **Dicio** (`org.stypox.dicio`), live on F-Droid at 4.2 / versionCode 19, depends on
+  `vosk-android` 0.3.70 and `jna` 5.18.1 (aar) from Maven. Its fdroiddata recipe has no srclib, no
+  `scandelete` and no special handling for either.
+
+### Note to put in the MR description
+
+> Pipo uses Vosk for optional offline wake-word/voice (`com.alphacephei:vosk-android:0.3.75`, Apache-2.0)
+> and JNA 5.18.1 (aar), both from Maven Central. Dicio uses the same libraries from the same repo
+> (vosk-android 0.3.70 + jna 5.18.1). We're relying on the trusted-Maven-repo rule. If you'd prefer
+> libvosk built from source for this app, please say so and we'll add a srclib.
+> The v1.0 build has a `prebuild` sed that removes the release→debug signingConfig fallback (fixed
+> upstream after v1.0 via `-Ppipo.unsignedRelease`). The NonFreeNet anti-feature covers ipwho.is (weather city lookup).

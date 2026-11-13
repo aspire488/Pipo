@@ -18,8 +18,11 @@ object GameLog {
     @Volatile private var last: Result? = null
     fun consume(): Result? = last.also { last = null }
 
-    /** [pipoWon]: true = Pipo won, false = you won, null = draw. */
-    fun record(repo: PipoRepository, game: String, pipoWon: Boolean?, detail: String) {
+    /**
+     * [pipoWon]: true = Pipo won, false = you won, null = draw. Co-op games pass [coopBest] (a new
+     * shared record, or null) and pipoWon = null: nobody beat anybody.
+     */
+    fun record(repo: PipoRepository, game: String, pipoWon: Boolean?, detail: String, coop: Boolean = false, coopBest: Int? = null) {
         val now = System.currentTimeMillis()
         val gname = Dialogue.gameName(game)
         repo.mutate { s ->
@@ -61,7 +64,9 @@ object GameLog {
                     }
                     if (r.userStreak >= 3) Chronicle.remember(s, MemoryType.GAME, "you beat me at $gname three times in a row", 0.75f, now, "streak:$game")
                 }
-                null -> if (first) Chronicle.journal(s, "A tie at $gname", "Nobody won. Pipo says that means he won.", JournalCategory.GAME, now)
+                null -> if (coop) {
+                    if (coopBest != null) Chronicle.journal(s, "Round $coopBest at $gname, together", "Our best yet. $detail", JournalCategory.GAME, now)
+                } else if (first) Chronicle.journal(s, "A tie at $gname", "Nobody won. Pipo says that means he won.", JournalCategory.GAME, now)
             }
         }
         last = Result(game, pipoWon, detail)

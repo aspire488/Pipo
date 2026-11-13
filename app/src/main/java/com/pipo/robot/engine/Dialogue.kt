@@ -183,7 +183,7 @@ object Dialogue {
 
     fun gameName(id: String) = when (id) {
         "rps" -> "rock paper scissors"; "memory" -> "memory"; "reaction" -> "reaction"; "tictactoe" -> "tic-tac-toe"
-        "flappy" -> "Flappy Pipo"; "shooter" -> "Pixel Shooter"; "cricket" -> "cricket"; "pingpong" -> "table tennis"; else -> "a game"
+        "flappy" -> "Flappy Pipo"; "shooter" -> "Pixel Shooter"; "cricket" -> "cricket"; "pingpong" -> "table tennis"; "pattern" -> "Pipo's Pattern"; "football" -> "Pipo Football"; else -> "a game"
     }
 
     val gameStartConfident = listOf("Prepare to lose.", "I've never lost. Recently.", "This will be quick.")
@@ -216,6 +216,11 @@ object Dialogue {
     val compliments = listOf("Stop. ...Say it again.", "I know. But thanks.", "My face is doing a thing.")
     val insulted = listOf("Rude.", "Wow. Okay.", "I'm telling the plant.", "I'm going to pretend I didn't hear that.")
     val brainWeird = listOf("My brain is being weird.", "Hold on, my thoughts are loading.", "Something in my head went bzzt.")
+    /** Online brain didn't answer a real question: honest, and says what to do. */
+    val brainUnreachable = listOf(
+        "My online brain isn't answering right now, so I can't look that up. Ask me again in a minute?",
+        "I tried to think about that, but my internet brain went quiet. Try me again soon?",
+    )
 
     /* ---------------- callbacks to memories (only real ones: the memory is passed in) ---------------- */
     fun callback(m: PipoMemory, s: PipoState, rng: Random): String = when (m.type) {

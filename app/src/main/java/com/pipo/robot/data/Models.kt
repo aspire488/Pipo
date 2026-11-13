@@ -290,6 +290,10 @@ data class PipoSettings(
     var onlineAi: Boolean = true,
     /** Pipo's weather is your real weather (shares your approximate city with the weather service). */
     var realWeather: Boolean = true,
+    /** Pipo's room as the real-time 3D stage (off = the classic 2.5D painted room). */
+    var world3d: Boolean = true,
+    /** Use the Unity world for the 3D room, when the build includes it. */
+    var unityWorld: Boolean = false,
 ) {
     fun categoryOn(c: NotifCategory) = categories[c.name] ?: true
 }

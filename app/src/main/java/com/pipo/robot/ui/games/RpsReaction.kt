@@ -167,6 +167,7 @@ fun ReactionGame(onExit: () -> Unit) {
     var goAt by remember { mutableLongStateOf(0L) }
     var msg by remember { mutableStateOf("Tap when Pipo's antenna turns green.") }
     var best by remember { mutableLongStateOf(Long.MAX_VALUE) }
+    val record = remember { mutableLongStateOf(gp.repo.read { it.records["best:reaction"]?.toLong() ?: 0L }) }
     var roundId by remember { mutableIntStateOf(0) }
     // Pipo's reflexes depend on how awake he is.
     val pipoMs = { (230 + (1f - gp.energy) * 170 + gp.rng.nextInt(120)).toLong() }
@@ -209,12 +210,14 @@ fun ReactionGame(onExit: () -> Unit) {
             "go" -> {
                 val ms = System.currentTimeMillis() - goAt
                 best = minOf(best, ms); roundId++
-                finishRound(true, "You: $ms ms!")
+                val isRecord = record.longValue == 0L || ms < record.longValue
+                if (isRecord) { record.longValue = ms; gp.repo.mutate { it.records["best:reaction"] = ms.toInt() } }
+                finishRound(true, if (isRecord) "You: $ms ms! New record!" else "You: $ms ms!")
             }
         }
     }
 
-    GameScaffold("Reaction Race", gp, onExit, "Round ${minOf(round + 1, 5)}/5  ·  Pipo $pipo  ·  You $you") {
+    GameScaffold("Reaction Race", gp, onExit, "Round ${minOf(round + 1, 5)}/5  ·  Pipo $pipo  ·  You $you" + if (record.longValue > 0) "  ·  Record ${record.longValue} ms" else "") {
         if (state == "over") {
             GameOver(gp, if (pipo > you) "Pipo is faster. Today." else if (you > pipo) "Your fingers win!" else "Tie!",
                 onAgain = { round = 0; you = 0; pipo = 0; state = "ready"; best = Long.MAX_VALUE; msg = "Tap when Pipo's antenna turns green." }, onExit = onExit)

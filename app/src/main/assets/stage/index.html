@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0d111c">
+<title>Pipo Stage</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="./stage.css">
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<canvas id="world" aria-label="Pipo's room in 3D"></canvas>
+<div id="bubbles" aria-live="polite"></div>
+
+<header id="top">
+  <div class="chip brand"><span class="dot" id="moodDot"></span><strong>Pipo</strong></div>
+  <div class="chip state" id="statePill" role="status" aria-live="polite" hidden></div>
+  <button class="icon" id="btnMenu" aria-label="Menu" title="Menu">☰</button>
+</header>
+
+<div id="toasts" aria-live="polite"></div>
+<div id="choices" hidden></div>
+
+<footer id="dock">
+  <nav id="quick" aria-label="Quick actions">
+    <button class="qa" data-act="suit" id="qaSuit" aria-pressed="false"><span class="ic">🛡</span><span class="lb">Suit</span></button>
+    <button class="qa" data-act="findout"><span class="ic">🔎</span><span class="lb">Find out</span></button>
+    <button class="qa" data-act="weather"><span class="ic">⛅</span><span class="lb">Weather</span></button>
+    <button class="qa" data-act="dance"><span class="ic">♪</span><span class="lb">Dance</span></button>
+    <button class="qa" data-act="play"><span class="ic">🎮</span><span class="lb">Play</span></button>
+    <button class="qa" data-act="sleep" id="qaSleep"><span class="ic">☾</span><span class="lb">Sleep</span></button>
+    <button class="qa" data-act="forest"><span class="ic">🌲</span><span class="lb">Forest Hills</span></button>
+    <button class="qa" data-act="camera" id="qaCam"><span class="ic">◎</span><span class="lb">Follow</span></button>
+  </nav>
+  <form id="composer" autocomplete="off">
+    <button type="button" class="icon" id="btnMic" aria-label="Talk to Pipo" title="Talk">🎙</button>
+    <input id="msg" type="text" enterkeyhint="send" maxlength="500" placeholder="Say something to Pipo…" aria-label="Message to Pipo">
+    <button type="submit" class="icon send" id="btnSend" aria-label="Send" title="Send">➤</button>
+  </form>
+</footer>
+
+<div id="loading" class="loading" role="progressbar" aria-label="Loading"><span></span><span></span><span></span></div>
+<div id="fatal" hidden></div>
+<script type="module" src="./src/stage.js"></script>
+</body>
+</html>

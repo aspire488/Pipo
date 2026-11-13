@@ -639,6 +639,10 @@ fun SettingsScreen(onBack: () -> Unit) {
         item {
             Section("Motion") {
                 ToggleRow("Calmer camera (no zoom or tilt)", st.calmMotion) { on -> edit { it.calmMotion = on } }
+                ToggleRow("3D room", st.world3d) { on -> edit { it.world3d = on } }
+                if (com.pipo.robot.unity.UnityBridge.available && st.world3d) ToggleRow("Unity world (beta)", st.unityWorld) { on -> edit { it.unityWorld = on } }
+                Text(if (st.world3d) "Pipo's room is real-time 3D. Switch off for the classic painted room (lighter on older phones)."
+                    else "The classic painted room.", color = PipoPalette.muted, style = MaterialTheme.typography.bodyMedium)
                 Text("Pipo still moves the way he moves. This only keeps the room still around him. It's also on automatically when Android's \"remove animations\" is on.",
                     color = PipoPalette.muted, style = MaterialTheme.typography.bodyMedium)
             }

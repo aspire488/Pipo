@@ -281,7 +281,7 @@ fun DrawScope.drawOutside(p: Place, d: OutsideDirector, hour: Float, weather: We
     drawPath(Path().apply { moveTo(0f, gy * 0.84f); cubicTo(w * 0.25f, gy * 0.76f, w * 0.5f, gy * 0.88f, w * 0.7f, gy * 0.8f); cubicTo(w * 0.85f, gy * 0.75f, w * 0.95f, gy * 0.82f, w, gy * 0.8f); lineTo(w, gy); lineTo(0f, gy); close() }, haze2)
 
     // ---------------- the place itself (mid layer)
-    val grass = shade(when (p.id) { "field" -> Color(0xFF6FAE5C); "hills" -> Color(0xFF8DAE6A); "lake" -> Color(0xFF79A86A); else -> Color(0xFF79AE68) }, night)
+    val grass = shade(when (p.id) { "field" -> Color(0xFF6FAE5C); "hills" -> Color(0xFF8DAE6A); "forest" -> Color(0xFF5E9A5A); "lake" -> Color(0xFF79A86A); else -> Color(0xFF79AE68) }, night)
     when {
         p.id == "sports_hall" || p.id == "cricket" || p.id == "court" -> Unit // painted with the ground, below
         p.kind == PlaceKind.SHOP || p.kind == PlaceKind.INDOOR || p.id == "repair" -> drawShopfront(p, gy, night, t)
@@ -289,6 +289,11 @@ fun DrawScope.drawOutside(p: Place, d: OutsideDirector, hour: Float, weather: We
         p.id == "field" -> drawGoal(gy, night)
         p.id == "lake" -> {}
         p.id == "hills" || p.id == "observatory" -> {}
+        p.id == "forest" -> { // pines on the hillside, far ones hazy, near ones framing him
+            for (i in 0 until 9) drawPine(w * (i * 0.12f + 0.02f), gy * (0.9f - (i % 3) * 0.03f), h * (0.2f + (i % 4) * 0.03f), lerp(shade(Color(0xFF3E6E4A), night), skyBot, 0.35f), t, i.toFloat())
+            drawPine(w * 0.05f, gy + h * 0.02f, h * 0.48f, shade(Color(0xFF2F5A3A), night), t, 0.4f)
+            drawPine(w * 0.94f, gy + h * 0.03f, h * 0.55f, shade(Color(0xFF2B5236), night), t, 2.1f)
+        }
         else -> { // park & garden: proper trees, a bench / a fence and flowers
             drawTree(w * 0.08f, gy, h * 0.42f, night, t, 0f)
             drawTree(w * 0.9f, gy, h * 0.5f, night, t, 1.3f)
@@ -298,7 +303,7 @@ fun DrawScope.drawOutside(p: Place, d: OutsideDirector, hour: Float, weather: We
     }
 
     // ---------------- ground
-    if (p.id == "hills" || p.id == "observatory") {
+    if (p.id == "hills" || p.id == "observatory" || p.id == "forest") {
         drawPath(Path().apply { moveTo(0f, gy * 0.92f); quadraticBezierTo(w * 0.5f, gy * 0.82f, w, gy * 0.95f); lineTo(w, h); lineTo(0f, h); close() }, grass)
         if (p.id == "observatory") {
             val c = shade(Color(0xFFB0A3C9), night * 0.6f)
@@ -332,7 +337,8 @@ fun DrawScope.drawOutside(p: Place, d: OutsideDirector, hour: Float, weather: We
     val ph = h * 0.36f
     if (d.purpose == TripPurpose.WILDLIFE) {
         val cx = d.critterX * w
-        if (p.id == "lake") { // a frog on a lily pad
+        if (p.id == "forest") drawDeer(cx, gy + h * 0.09f, h * 0.16f, shade(Color(0xFFB07A4A), night), t)
+        else if (p.id == "lake") { // a frog on a lily pad
             val cy = gy + h * 0.08f
             drawOval(shade(Color(0xFF5E9E5A), night), Offset(cx - w * 0.04f, cy - h * 0.01f), Size(w * 0.08f, h * 0.025f))
             drawCircle(shade(Color(0xFF7CC26E), night), w * 0.018f, Offset(cx, cy - h * 0.012f))
@@ -344,6 +350,23 @@ fun DrawScope.drawOutside(p: Place, d: OutsideDirector, hour: Float, weather: We
             drawOval(wing, Offset(cx - w * 0.022f * flap, cy - h * 0.018f), Size(w * 0.022f * flap, h * 0.03f))
             drawOval(wing, Offset(cx, cy - h * 0.018f), Size(w * 0.022f * flap, h * 0.03f))
             drawLine(Color(0xFF3A2A20), Offset(cx, cy - h * 0.02f), Offset(cx, cy + h * 0.012f), 2f)
+        }
+    }
+    // Forest Hills: birds are always about, crossing the sky and hopping in the grass
+    if (p.id == "forest") {
+        val bird = if (night > 0.5f) Color(0xFF1E2430) else Color(0xFF3A3A44)
+        for (i in 0 until 4) {
+            val bx = ((t * (0.035f + i * 0.008f) + i * 0.29f) % 1.2f - 0.1f) * w
+            val by = h * (0.14f + i * 0.045f) + sin(t * 1.3f + i) * h * 0.01f
+            val flap = sin(t * 9f + i * 2f) * h * 0.012f
+            drawLine(bird, Offset(bx - h * 0.018f, by - flap), Offset(bx, by), 2.5f)
+            drawLine(bird, Offset(bx, by), Offset(bx + h * 0.018f, by - flap), 2.5f)
+        }
+        if (night < 0.5f) for (i in 0 until 2) { // robins in the grass
+            val rx = w * (0.32f + i * 0.36f) + sin(t * 0.7f + i) * w * 0.02f
+            val ry = gy + h * 0.115f - abs(sin(t * 4f + i * 1.7f)) * h * 0.012f
+            drawOval(Color(0xFF6B5444), Offset(rx - h * 0.014f, ry - h * 0.012f), Size(h * 0.028f, h * 0.02f))
+            drawCircle(Color(0xFFE07A4A), h * 0.007f, Offset(rx + h * 0.006f, ry - h * 0.004f))
         }
     }
     // the neighbour who lives/works here
@@ -568,5 +591,32 @@ private fun DrawScope.shopGoods(id: String, tl: Offset, sz: Size, t: Float) {
         "repair" -> row(ItemShape.GEAR, ItemShape.RADIO, ItemShape.SPRING)
         "library" -> for (i in 0 until 9) drawRect(listOf(Color(0xFF6F8FA6), Color(0xFFB97E5E), Color(0xFF7FB77E))[i % 3], Offset(tl.x + sz.width * (0.05f + i * 0.1f), c.y - s * 0.7f), Size(sz.width * 0.08f, s * 1.3f))
         else -> Unit
+    }
+}
+
+/** A pine: three stacked triangles that sway a little in the wind. */
+private fun DrawScope.drawPine(x: Float, baseY: Float, height: Float, col: Color, t: Float, seed: Float) {
+    val sway = sin(t * 0.8f + seed) * height * 0.012f
+    drawRect(lerp(col, Color(0xFF3A2A20), 0.6f), Offset(x - height * 0.03f, baseY - height * 0.18f), Size(height * 0.06f, height * 0.18f))
+    for (k in 0 until 3) {
+        val top = baseY - height * (0.42f + k * 0.2f)
+        val half = height * (0.24f - k * 0.05f)
+        drawPath(Path().apply { moveTo(x + sway * (k + 1), top - height * 0.2f); lineTo(x + half, top + height * 0.1f); lineTo(x - half, top + height * 0.1f); close() }, lerp(col, Color.White, k * 0.04f))
+    }
+}
+
+/** A deer grazing; now and then it lifts its head to look at him. */
+private fun DrawScope.drawDeer(x: Float, footY: Float, size: Float, col: Color, t: Float) {
+    val look = sin(t * 0.5f) > 0.6f
+    val legC = lerp(col, Color(0xFF3A2A20), 0.35f)
+    for (lx in listOf(-0.3f, -0.18f, 0.2f, 0.32f)) drawLine(legC, Offset(x + lx * size, footY - size * 0.42f), Offset(x + lx * size, footY), size * 0.05f)
+    drawOval(col, Offset(x - size * 0.4f, footY - size * 0.62f), Size(size * 0.8f, size * 0.3f))
+    drawCircle(Color.White.copy(alpha = 0.8f), size * 0.05f, Offset(x - size * 0.42f, footY - size * 0.55f))
+    val head = if (look) Offset(x + size * 0.48f, footY - size * 0.86f) else Offset(x + size * 0.5f, footY - size * 0.3f)
+    drawLine(col, Offset(x + size * 0.3f, footY - size * 0.55f), head, size * 0.12f)
+    drawOval(col, Offset(head.x - size * 0.07f, head.y - size * 0.07f), Size(size * 0.2f, size * 0.13f))
+    if (look) {
+        drawCircle(Color(0xFF1E1A16), size * 0.022f, Offset(head.x + size * 0.04f, head.y - size * 0.01f))
+        drawLine(legC, Offset(head.x - size * 0.02f, head.y - size * 0.06f), Offset(head.x - size * 0.08f, head.y - size * 0.18f), size * 0.03f)
     }
 }

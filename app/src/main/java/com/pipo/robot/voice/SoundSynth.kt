@@ -155,6 +155,9 @@ class SoundSynth {
     /** Stops the sound thread. Call when the owner goes away (a game screen, the ViewModel). */
     fun shutdown() { enabled = false; exec.shutdownNow() }
 
+    /** One clean pitched beep (game pads, chimes). */
+    fun tone(freq: Float, ms: Int = 220) = play(listOf(Note(freq, freq, ms, vol = 0.3f)))
+
     fun sfx(s: Sfx) = play(
         when (s) {
             Sfx.BEEP -> listOf(Note(880f, 1100f, 70))

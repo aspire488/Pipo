@@ -145,7 +145,7 @@ fun DrawScope.drawPhotoImage(p: PinnedPhoto, tl: Offset, w: Float, hh: Float, t:
     when (p.subject) {
         PhotoSubject.CREATURE -> {
             val sp = p.ref.substringBefore(':')
-            val col = when (sp) { "cat" -> Color(0xFF8C8F99); "frog" -> Color(0xFF6FA27A); "butterfly" -> Color(0xFFF3C35A); "duck" -> Color(0xFFE8E2D6); "squirrel" -> Color(0xFFB8804F); "bee" -> Color(0xFFF3C35A); "firefly" -> Color(0xFFFFF1A0); else -> Color(0xFF9A7A60) }
+            val col = when (sp) { "cat" -> Color(0xFF8C8F99); "frog" -> Color(0xFF6FA27A); "butterfly" -> Color(0xFFF3C35A); "duck" -> Color(0xFFE8E2D6); "squirrel" -> Color(0xFFB8804F); "bee" -> Color(0xFFF3C35A); "firefly" -> Color(0xFFFFF1A0); "deer" -> Color(0xFFB07A4A); "fox" -> Color(0xFFD9733A); "rabbit" -> Color(0xFFD8CFC2); "robin" -> Color(0xFFE07A4A); "owl" -> Color(0xFF8A7458); "woodpecker" -> Color(0xFF3A3A3A); else -> Color(0xFF9A7A60) }
             drawOval(col, Offset(c.x - 1.8f * s, c.y - 1f * s), Size(3.4f * s, 2.2f * s))
             drawCircle(col, 1f * s, Offset(c.x + 1.4f * s, c.y - 1.2f * s))
             drawCircle(inkCol, 0.2f * s, Offset(c.x + 1.6f * s, c.y - 1.4f * s))

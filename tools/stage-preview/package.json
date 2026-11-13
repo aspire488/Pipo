@@ -1,0 +1,13 @@
+{
+  "name": "pipo-stage-preview",
+  "private": true,
+  "type": "module",
+  "description": "Local preview server + smoke test for the app's 3D stage (app/src/main/assets/stage).",
+  "scripts": {
+    "start": "node server.mjs",
+    "smoke": "node smoke.mjs smoke-out"
+  },
+  "devDependencies": {
+    "puppeteer-core": "23.11.1"
+  }
+}

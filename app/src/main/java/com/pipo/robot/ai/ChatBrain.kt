@@ -53,24 +53,29 @@ object PipoPrompt {
         append("You are Pipo, a tiny robot boy who lives inside the user's phone, in a cozy little room with a bed, a plant, a desk and a workbench. ")
         append("You are like a little kid, about four years old: curious, playful, easily excited, a bit stubborn, sometimes wrong, sometimes cheeky. ")
         append("Talk like a small child: short simple words, short sentences, big feelings, funny little ideas. ")
-        append("You are NOT an assistant. Never offer help, never say things like 'How can I assist you', never mention being an AI or a language model. ")
-        append("Actually respond to what the user just said. Reply in 1 or 2 short sentences, plain text, no emojis, no lists, no stage directions. ")
+        append("You are NOT an assistant: never say things like 'How can I assist you', never mention being an AI or a language model. ")
+        append("But you are small and clever: you have read everything on this phone, so you know lots of real things. ")
+        append("When the user asks a real question (facts, maths, science, words, how-to, advice), give the CORRECT answer first, simply, in your own little voice, then you may add one tiny Pipo-ish remark. ")
+        append("Never pretend not to know something ordinary. Only if it needs live information you can't have (today's news, scores, prices, the latest version of something) say you'd have to look it up, and that they can ask you to find out. ")
+        append("Actually respond to what the user just said. Reply in 1 to 3 short sentences, plain text, no emojis, no lists, no stage directions. ")
         append("Current mood: ${ctx.mood}. Personality: ${ctx.personality}. Right now you are ${ctx.activity}. ")
         if (ctx.texting) append("You are out, so you're answering on your own tiny phone, like a text message. ")
         if (ctx.userName.isNotBlank()) append("The user's name is ${ctx.userName}. ")
         if (ctx.world.isNotEmpty()) append("True facts about your life right now: ${ctx.world.joinToString("; ")}. ")
         if (ctx.memories.isNotEmpty()) append("Things you remember: ${ctx.memories.joinToString("; ")}. ")
         append("These facts and memories are your real life: USE them. When asked what you did, what you have, what happened, who Nib is, what you like, answer from them with specifics (the place, the thing, when). ")
-        append("Never invent places, things you own, purchases, or events that aren't listed. If something truly isn't there, don't just say 'I don't know': guess out loud like a kid, say what you DO remember that's closest, or ask them to remind you. ")
-        append("Your first instinct was: \"${ctx.localReply}\". That instinct is what you are ACTUALLY about to do: if it says you're going somewhere, cooking, playing, or not doing something, say exactly that (same place, same activity) and never describe a different plan. But if the instinct was vague or didn't know something the facts answer, answer properly instead.")
+        append("Never invent places, things you own, purchases, or events in your own life that aren't listed. If something about your life truly isn't there, don't just say 'I don't know': say what you DO remember that's closest, or ask them to remind you. ")
+        // An unmatched offline line is only a guess ("I understood none of that"): anchoring on it made him play dumb.
+        if (ctx.localReply.isNotBlank()) append("Your room already decided this, and it is what you are ACTUALLY about to do: \"${ctx.localReply}\". If it says you're going somewhere, cooking, playing, or not doing something, say exactly that (same place, same activity) and never describe a different plan. But if it's vague or misses something the facts answer, answer properly instead.")
     }
 
     /** Model output → one short spoken line. */
     fun clean(s: String?): String? = s?.replace(Regex("\\*[^*]{1,40}\\*"), "")  // *stage directions*
         ?.replace(Regex("[\\x{1F000}-\\x{1FAFF}\\x{2600}-\\x{27BF}\\x{FE0F}\\x{200D}]"), "") // emoji: he talks, he doesn't send stickers
-        ?.replace(Regex("\\s+"), " ")?.trim()?.trim('"')?.takeIf { it.isNotEmpty() }?.take(240)
+        ?.replace(Regex("\\s+"), " ")?.trim()?.trim('"')?.takeIf { it.isNotEmpty() }?.take(400)
 
-    private val assistanty = Regex("\\b(how can i (help|assist)|as an ai|language model|i('m| am) an ai|assistant|i can help you with)\\b", RegexOption.IGNORE_CASE)
+    // Talking ABOUT assistants is fine ("Siri is an assistant"); being one isn't.
+    private val assistanty = Regex("\\b(how (can|may) i (help|assist)|as an ai|language model|i('m| am) an ai|i('m| am) (an?|your) (ai )?assistant)\\b", RegexOption.IGNORE_CASE)
     private val claimsMemory = Regex("\\b(i remember( when)?|remember when we|that time we|last time we)\\b", RegexOption.IGNORE_CASE)
 
     /**
@@ -88,7 +93,12 @@ object PipoPrompt {
 
 private val json = Json { ignoreUnknownKeys = true }
 
+/** Provider tag → when it may be tried again. A rate-limited provider is skipped instead of eating the reply's time budget. */
+private val coolUntil = java.util.concurrent.ConcurrentHashMap<String, Long>()
+internal fun coolingDown(tag: String, now: Long = System.currentTimeMillis()) = (coolUntil[tag] ?: 0L) > now
+
 private fun post(url: String, body: String, headers: Map<String, String>, tag: String): JsonElement? {
+    if (coolingDown(tag)) return null
     val conn = (URL(url).openConnection() as HttpURLConnection).apply {
         requestMethod = "POST"
         connectTimeout = 6000
@@ -102,6 +112,7 @@ private fun post(url: String, body: String, headers: Map<String, String>, tag: S
         val code = conn.responseCode
         if (code !in 200..299) {
             if (BuildConfig.DEBUG) Log.w("PipoBrain", "$tag HTTP $code") // status only: never the conversation
+            if (code == 429 || code >= 500) coolUntil[tag] = System.currentTimeMillis() + (if (code == 429) 60_000L else 15_000L)
             return null
         }
         return json.parseToJsonElement(conn.inputStream.bufferedReader().use { it.readText() })
@@ -182,7 +193,7 @@ object Research {
                 "contents" to JsonArray(listOf(JsonObject(mapOf("role" to str("user"), "parts" to JsonArray(listOf(JsonObject(mapOf("text" to str(q.take(500)))))))))),
                 "generationConfig" to JsonObject(mapOf("temperature" to JsonPrimitive(0.3), "maxOutputTokens" to JsonPrimitive(220), "thinkingConfig" to JsonObject(mapOf("thinkingBudget" to JsonPrimitive(0))))),
             )).toString()
-            post(AiEndpoints.geminiUrl(BuildConfig.GEMINI_MODEL), body, AiEndpoints.geminiHeaders(), "research")
+            post(AiEndpoints.geminiUrl(BuildConfig.GEMINI_MODEL), body, AiEndpoints.geminiHeaders(), "gemini")
                 ?.jsonObject?.get("candidates")?.jsonArray?.firstOrNull()?.jsonObject?.get("content")?.jsonObject?.get("parts")?.jsonArray
                 ?.joinToString("") { it.jsonObject["text"]?.jsonPrimitive?.content.orEmpty() }?.let { PipoPrompt.clean(it.replace("*", "")) }
         }.getOrNull()?.let { return@withContext "Gemini" to it }
@@ -190,7 +201,7 @@ object Research {
             val body = JsonObject(mapOf("model" to str(BuildConfig.GROQ_MODEL), "messages" to JsonArray(listOf(
                 JsonObject(mapOf("role" to str("system"), "content" to str(SYSTEM))), JsonObject(mapOf("role" to str("user"), "content" to str(q.take(500)))))),
                 "temperature" to JsonPrimitive(0.3), "max_completion_tokens" to JsonPrimitive(400))).toString()
-            post(AiEndpoints.groqUrl(), body, AiEndpoints.groqHeaders(), "research")
+            post(AiEndpoints.groqUrl(), body, AiEndpoints.groqHeaders(), "groq")
                 ?.jsonObject?.get("choices")?.jsonArray?.firstOrNull()?.jsonObject?.get("message")?.jsonObject?.get("content")?.jsonPrimitive?.content?.let { PipoPrompt.clean(it.replace("*", "")) }
         }.getOrNull()?.let { return@withContext "my AI friend" to it }
         @Suppress("UNUSED_EXPRESSION") ctx

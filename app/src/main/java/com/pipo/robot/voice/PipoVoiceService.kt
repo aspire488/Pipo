@@ -225,7 +225,8 @@ class PipoVoiceService : Service() {
                 .apply { setMaxAlternatives(3) } // its top guesses, so a "Pipo, lock" ranked second still counts
             val commands = Recognizer(model, RATE.toFloat(), JSONArray(WakeCommands.commandGrammar(apps)).toString())
             val words = Recognizer(model, RATE.toFloat())
-            val call = CallAssembler(isInstalledApp = { heard -> WakeCommands.matchApp(heard, apps) != null || WakeCommands.squash(heard) in appKeys })
+            val call = CallAssembler(isInstalledApp = { heard -> WakeCommands.matchApp(heard, apps) != null || WakeCommands.squash(heard) in appKeys },
+                isExactApp = { heard -> WakeCommands.squash(heard) in appKeys })
             val buf = ByteArray(3200) // 100 ms
             fun text(json: String) = JSONObject(json).optString("text")
             /** All guesses in a result, best first (results carry "alternatives" once those are on). */
@@ -242,12 +243,16 @@ class PipoVoiceService : Service() {
                     val now = System.currentTimeMillis()
                     if (now < quietUntil) { name.reset(); commands.reset(); words.reset(); call.reset(); continue }
                     if (name.acceptWaveForm(buf, n)) {
-                        val guesses = guesses(name.result)
+                        val json = name.result
+                        val guesses = guesses(json)
                         val h = guesses.firstOrNull().orEmpty()
                         val wake = WakeCommands.bestWake(guesses)
                         if (wake != WakeCommands.Wake.NONE) {
-                            if (BuildConfig.DEBUG) Log.d(TAG, "name: $guesses ($wake)")
-                            call.onName(wake, now)
+                            val agree = guesses.count { it.isNotBlank() && WakeCommands.wake(it) == wake }
+                            // the spotter's own scores per guess (calibrating the lock against room noise)
+                            val conf = JSONObject(json).optJSONArray("alternatives")?.let { a -> (0 until a.length()).map { "%.0f".format(a.getJSONObject(it).optDouble("confidence")) } }
+                            if (BuildConfig.DEBUG) Log.d(TAG, "name: $guesses ($wake x$agree) conf=$conf")
+                            call.onName(wake, now, agree)
                         }
                     }
                     if (commands.acceptWaveForm(buf, n)) {

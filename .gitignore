@@ -22,3 +22,26 @@ keystore.properties
 dist/
 *.mp4
 *.mov
+
+# 3D stage preview tooling
+tools/stage-preview/node_modules/
+tools/stage-preview/smoke-out/
+
+# Simulation code and reports are public; generated rows, summaries and logs stay local
+simulation_1000/*
+!simulation_1000/simulate.py
+!simulation_1000/FORECAST_REPORT.md
+simulation_25k_5yr/*
+!simulation_25k_5yr/simulate_5yr.py
+!simulation_25k_5yr/LONGITUDINAL_REPORT_5YR.md
+
+# Personal launch analytics — local only, never committed
+launch_tracker/
+
+# Local agent handoff and old UI captures; the screenshot shows the owner's first name
+docs/preview/
+launch/CLAUDE_EXECUTION_STATE.md
+launch/store-assets/screenshots/03-conversation-happy-diwali.png
+
+# Blender's automatic backup
+*.blend1

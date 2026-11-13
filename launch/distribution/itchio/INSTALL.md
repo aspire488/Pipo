@@ -27,8 +27,9 @@ Paste `description.md`.
 
 - **Cover image:** required. Use `fastlane/metadata/android/en-US/images/icon.png` (512×512) or
   `web/og.png` (1200×630) — both are generated from Pipo's own vector icon, not new art.
-- **Screenshots:** **none current.** `docs/preview/*.png` show a superseded UI and must not be used.
-  See `launch/SCREENSHOT_CAPTURE_GUIDE.md`; capture on a real device first.
+- **Screenshots (real S23 captures, 2026-11-10):** upload from `launch/store-assets/screenshots/`,
+  in order: `01`, `02`, `04`, `05`, `06`, `07`, `08`, `09`. **Never `03`**: it shows the owner's
+  first name. `docs/preview/*.png` show a superseded UI and must not be used.
 
 ## 4. Paste this into the page (installation + troubleshooting)
 

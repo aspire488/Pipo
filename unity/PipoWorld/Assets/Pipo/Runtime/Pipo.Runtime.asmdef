@@ -1,0 +1,9 @@
+{
+  "name": "Pipo.Runtime",
+  "rootNamespace": "Pipo",
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "autoReferenced": true
+}

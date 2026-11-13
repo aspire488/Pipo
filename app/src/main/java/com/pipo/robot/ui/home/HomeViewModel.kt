@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.pipo.robot.ai.BrainContext
+import kotlinx.serialization.json.put
 import com.pipo.robot.ai.ChatBrain
 import com.pipo.robot.ai.Brains
 import com.pipo.robot.ai.Turn
@@ -432,6 +433,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         sensors?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.let { sensors.registerListener(shakeListener, it, SensorManager.SENSOR_DELAY_UI) }
         // the online AI only if you've left it on (Settings → Privacy)
         brain = if (settings.onlineAi) (brain.takeIf { it !== NoBrain } ?: Brains.fromBuild()) else NoBrain
+        world3d = settings.world3d
+        unityWorld = settings.unityWorld
 
         var digest: String? = null
         var fromMessage = false
@@ -708,7 +711,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 petAct = PetActivity.HIDE; petTarget = 20f; petRunning = true; petDecideAt = 12f
                 if (!away && !asleep && cur == null && beats.isEmpty() && (hasArmor || repo.read { it.profile.traits.confidence > 0.45f }) && rng.nextFloat() < 0.5f) {
                     lastThunderReact = clock
-                    if (armorMark > 0 && rig.suit == 0) { rig.suit = armorMark; suitUntil = clock + 300f }
+                    if (armorMark > 0 && rig.suit == 0) setSuit(armorMark, forSeconds = 300f)
                     enqueue(Beat.Move(26f), Beat.Act(AnimState.PETTING, 2f, Expr.WORRIED), Beat.Say(Dialogue.pick(listOf("It's okay, Nib. It's just the sky being loud.", "I've got you, Nib. I'm very brave. Mostly."), rng), null))
                     repo.mutate(notify = false) { PetEngine.together(it, "storm", "I sat with Nib under the bed during a storm", System.currentTimeMillis(), 0.55f) }
                 }
@@ -1731,7 +1734,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         if (dragging) return
         if (clock < flyUntil) { lift += ((16f + sin(clock * 3f) * 2.5f) - lift) * (1f - exp(-dt * 3f)); liftVel = 0f; return }
         if (lift > 0f && liftVel == 0f) liftVel = -1f // coming down after a flight: gravity takes over
-        if (rig.suit > 0 && clock > suitUntil && festivalNow != com.pipo.robot.engine.Festival.HALLOWEEN && weather.kind != Weather.STORM && cur == null) rig.suit = 0 // suit off
+        if (rig.suit > 0 && clock > suitUntil && festivalNow != com.pipo.robot.engine.Festival.HALLOWEEN && weather.kind != Weather.STORM && cur == null) setSuit(0, forSeconds = 0f) // his own suit time is over
         if (lift > 0f || liftVel != 0f) {
             liftVel -= 170f * dt
             lift += liftVel * dt
@@ -2046,12 +2049,19 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         // his own armor is his Halloween costume, if he has it
         rig.hat = if (f == com.pipo.robot.engine.Festival.HALLOWEEN && armor) null else com.pipo.robot.ui.render.hatFor(f, false)
         pet.hat = com.pipo.robot.ui.render.hatFor(f, true)
-        rig.rocketBoots = boots || rig.suit >= 2; pet.tailGlow = tail; nibTurbo = wheel; hasArmor = armor
+        ownsBoots = boots; rig.rocketBoots = boots || rig.suit >= 2; pet.tailGlow = tail; nibTurbo = wheel; hasArmor = armor
         armorMark = repo.read { com.pipo.robot.engine.Inventor.armorMark(it) }
+        ownsCardboard = repo.read { com.pipo.robot.engine.Inventor.hasCardboardSuit(it) }
         // debug builds only: preview a suit without touching his saved progress (debug_flags: previewsuit=3)
         com.pipo.robot.DebugFlags["previewsuit"].firstOrNull()?.toIntOrNull()?.let { armorMark = it.coerceIn(1, 3) }
         // Halloween: the armor IS the costume
-        if (f == com.pipo.robot.engine.Festival.HALLOWEEN && armorMark > 0) rig.suit = armorMark
+        if (f == com.pipo.robot.engine.Festival.HALLOWEEN && armorMark > 0) setSuit(armorMark, forSeconds = 300f)
+        // the suit you asked for is still on after a restart (only if he still owns it)
+        val worn = repo.read { it.world.objectStates["suit:worn"] }
+        if (rig.suit == 0) when {
+            worn == "mk0" && repo.read { com.pipo.robot.engine.Inventor.hasCardboardSuit(it) } -> setSuit(1, cardboard = true)
+            (worn?.toIntOrNull() ?: 0) in 1..armorMark -> setSuit(worn!!.toInt())
+        }
     }
     private var armorMark = 0
 
@@ -2158,6 +2168,161 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     }
     private var suitUntil = 0f
     private var flyUntil = 0f
+    private var ownsBoots = false
+
+    /** What he's wearing: 0 none, 1..3 = Mk I..III (with [suitCardboard], Mk 0). */
+    val suitWorn get() = rig.suit
+    val suitCardboard get() = rig.cardboard
+
+    /**
+     * The only place the worn suit changes, so the drawn suit, the cardboard look and the saved
+     * state can't disagree. [forSeconds] null = you asked: it stays on (and is saved) until you
+     * say "suit off". Otherwise it's his own idea and comes off by itself.
+     */
+    private fun setSuit(mk: Int, cardboard: Boolean = false, forSeconds: Float? = null) {
+        rig.suit = mk.coerceIn(0, 3)
+        rig.cardboard = rig.suit > 0 && cardboard
+        rig.rocketBoots = ownsBoots || rig.suit >= 2
+        if (rig.suit < 2) flyUntil = 0f
+        suitUntil = if (forSeconds == null) Float.MAX_VALUE else clock + forSeconds
+        if (forSeconds == null) repo.mutate(notify = false) {
+            it.world.objectStates["suit:worn"] = when { rig.suit == 0 -> "0"; rig.cardboard -> "mk0"; else -> "${rig.suit}" }
+        }
+    }
+
+    /** Quick action: the suit button. */
+    fun toggleSuit() { registerInteraction(); if (rig.suit > 0) suitOff() else suitUp(fly = false) }
+
+    /* ================================================================ */
+    /*  3D stage bridge (ui/home/Stage3D.kt + assets/stage)              */
+    /* ================================================================ */
+
+    /** The 3D room is on (Settings → Motion → 3D room). Off = the classic 2.5D room. */
+    var world3d by mutableStateOf(true)
+    @Volatile var stageReady = false
+    private var ownsCardboard = false
+
+    /** What a tool/action is doing right now, for the holo panel. Set only from real outcomes. */
+    private class ToolStatus(val title: String, val detail: String, val status: String, val at: Float)
+    private var tool: ToolStatus? = null
+    private var toastSeq = 0L
+    private var toast: Triple<Long, String, String>? = null
+
+    private fun toolRunning(title: String, detail: String) { tool = ToolStatus(title, detail, "running", clock) }
+    private fun toolDone(title: String, detail: String, ok: Boolean) {
+        tool = ToolStatus(title, detail, if (ok) "ok" else "fail", clock)
+        toast = Triple(++toastSeq, (if (ok) "✓ " else "✕ ") + "$title: $detail", if (ok) "ok" else "fail")
+    }
+
+    private fun stageAiState(): String {
+        val t = tool
+        return when {
+            listening -> "listening"
+            t != null && t.status == "running" -> "working"
+            aiThinking -> "thinking"
+            t != null && clock - t.at < 2.6f -> if (t.status == "ok") "success" else "error"
+            rig.talking -> "speaking"
+            else -> "idle"
+        }
+    }
+
+    /** One frame of truth for the stage, as JSON. Called ~30 times a second while it's shown. */
+    fun stageState(): String {
+        val p = rig.pose
+        val trip = if (away) repo.read { it.trip } else null
+        val t = tool?.takeIf { it.status == "running" || clock - it.at < 4.5f }
+        val b = bubble
+        return kotlinx.serialization.json.buildJsonObject {
+            put("x", pipoX); put("lift", lift)
+            put("pose", kotlinx.serialization.json.buildJsonObject {
+                put("bob", p.bob); put("squash", p.squash); put("stretch", p.stretchX); put("lean", p.lean)
+                put("headTilt", p.headTilt); put("headBob", p.headBob); put("armL", p.armL); put("armR", p.armR)
+                put("legL", p.legL); put("legR", p.legR); put("spread", p.legSpread); put("sit", p.sit); put("lie", p.lie)
+                put("jump", p.jump); put("crouch", p.crouch); put("cross", p.cross); put("cover", p.cover); put("hold", p.hold)
+                put("shake", p.shakeX); put("yaw", rig.yaw + p.spin); put("headYaw", rig.headYaw)
+            })
+            put("expr", rig.expr.name); put("mood", rig.mood.name); put("talking", rig.talking); put("sleepy", inBed)
+            put("look", kotlinx.serialization.json.JsonArray(listOf(kotlinx.serialization.json.JsonPrimitive(rig.lookX), kotlinx.serialization.json.JsonPrimitive(rig.lookY))))
+            put("suit", kotlinx.serialization.json.buildJsonObject {
+                put("mk", rig.suit); put("cardboard", rig.cardboard); put("owned", armorMark); put("ownedCardboard", ownsCardboard); put("flying", clock < flyUntil)
+            })
+            put("nib", kotlinx.serialization.json.buildJsonObject {
+                put("x", petX); put("anim", pet.anim.name); put("visible", petHome || trip?.withPet == true); put("withPipo", trip?.withPet == true)
+                put("facing", if (pet.facing > 0) 1.2f else -1.2f)
+            })
+            put("away", away); put("place", trip?.placeId?.let { kotlinx.serialization.json.JsonPrimitive(it) } ?: kotlinx.serialization.json.JsonNull)
+            put("ai", kotlinx.serialization.json.buildJsonObject {
+                put("state", stageAiState())
+                put("panel", t?.let { kotlinx.serialization.json.buildJsonObject { put("title", it.title); put("detail", it.detail); put("status", it.status) } } ?: kotlinx.serialization.json.JsonNull)
+            })
+            if (b != null) put("say", kotlinx.serialization.json.buildJsonObject { put("id", b.id); put("who", "pipo"); put("text", b.text) })
+            else nibLine?.let { line -> put("say", kotlinx.serialization.json.buildJsonObject { put("id", "nib:${line.hashCode()}"); put("who", "nib"); put("text", line) }) }
+            toast?.let { (id, text, kind) -> put("toast", kotlinx.serialization.json.buildJsonObject { put("id", id); put("text", text); put("kind", kind) }) }
+            put("hud", kotlinx.serialization.json.buildJsonObject {
+                put("asleep", inBed)
+                put("choices", kotlinx.serialization.json.JsonArray(b?.choices.orEmpty().map { kotlinx.serialization.json.JsonPrimitive(it.label) }))
+            })
+            put("env", kotlinx.serialization.json.buildJsonObject { put("hour", room.hour); put("weather", weather.kind.name.lowercase()) })
+        }.toString()
+    }
+
+    /** Quick actions from the stage. Each goes through the same engine path as saying it. */
+    fun stageAction(id: String) {
+        when {
+            id == "suit" -> toggleSuit()
+            id == "dance" -> sendChat("dance")
+            id == "sleep" -> sendChat(if (inBed) "wake up" else "go to sleep")
+            id == "weather" -> sendChat("what's the weather like?")
+            id == "forest" -> sendChat(if (away) "come home" else "let's go to forest hills")
+            id.startsWith("findout:") -> id.removePrefix("findout:").trim().takeIf { it.isNotEmpty() }?.let { sendChat("find out $it") }
+            id.startsWith("choice:") -> bubble?.choices?.getOrNull(id.removePrefix("choice:").toIntOrNull() ?: -1)?.let { pickChoice(it) }
+        }
+    }
+
+    /** Taps resolved by the stage's own 3D picking. */
+    fun stageTap(target: String) {
+        if (reveal != null) { reveal = null; return }
+        if (doorNote != null) { doorNote = null; return }
+        when {
+            target == "pipo" -> if (hideSpot != null && activity == ActivityType.HIDE) found() else tapPipo()
+            target == "nib" -> tapPet()
+            target.startsWith("obj:") -> {
+                val id = target.removePrefix("obj:")
+                if (away && id == "door") { registerInteraction(); repo.read { it.trip }?.let { t -> doorNote = Trips.doorNote(t, mood == Mood.MISCHIEVOUS) } }
+                else if (!away && SceneGeo.objects.any { it.id == id }) { registerInteraction(); tapObject(id) }
+            }
+            target.startsWith("floor:") && !away && !inBed -> target.removePrefix("floor:").toFloatOrNull()?.let { x ->
+                registerInteraction(); interrupt(); activity = null
+                enqueue(Beat.Move(x.coerceIn(8f, SceneGeo.WORLD_W - 8f)))
+            }
+        }
+    }
+
+    /** The Unity world is on (Settings → Motion, only when the build includes it). */
+    var unityWorld by mutableStateOf(false)
+
+    /** What Unity reports. Only validated v1 events arrive here (UnityBridge.parse); the app decides what they mean. */
+    fun onUnityEvent(e: com.pipo.robot.unity.UnityBridge.Event) {
+        val target = e.target.orEmpty()
+        when (e.type) {
+            "interaction" -> when {
+                target == "pipo" || target == "nib" -> stageTap(target)
+                target.startsWith("object:") -> stageTap("obj:" + target.removePrefix("object:"))
+                target.startsWith("npc:") -> com.pipo.robot.data.Npcs.byId(target.removePrefix("npc:"))?.let { n -> registerInteraction(); enqueue(Beat.Say("That's ${n.name}. ${if (away) "Hi, ${n.name}!" else ""}".trim(), Sfx.BEEP)) }
+                target.startsWith("item:") || target.startsWith("critter:") -> { registerInteraction(); rig.showEmote(EmoteKind.SPARKLE) }
+            }
+            "navRequest" -> if (target == "door:home" && away) sendChat("come home")
+            "error" -> if (com.pipo.robot.BuildConfig.DEBUG) android.util.Log.w("PipoUnity", e.message.orEmpty())
+        }
+    }
+
+    /** "Suit off": the armor comes off, all of it, and stays off. */
+    private fun suitOff() {
+        if (rig.suit == 0) { setSuit(0); toolDone("Suit", "already off", true); return }
+        enqueue(Beat.Act(AnimState.SPIN, 0.9f, Expr.FOCUSED),
+            Beat.Do { setSuit(0); toolDone("Suit", "off", true); if (sounds) voice.synth.sfx(Sfx.SERVO) },
+            Beat.Act(AnimState.STRETCH, 0.8f, Expr.CONTENT))
+    }
 
     /** "Suit up": the armor goes on, piece by piece, with a lot of noise. */
     private fun suitUp(fly: Boolean) {
@@ -2170,20 +2335,20 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                     Beat.Move(SceneGeo.BOX_L - 4f, run = true), Beat.Act(AnimState.BUILDING, 1.8f, Expr.FOCUSED), Beat.Do { if (sounds) voice.synth.sfx(Sfx.SCRIBBLE); nib(PetFace.CURIOUS, Sfx.PET_CURIOUS, PetThought.QUESTION) },
                     Beat.Act(AnimState.BUILDING, 1.8f, Expr.FOCUSED), Beat.Say("Tape. Scissors. Two eye holes. Science.", Sfx.EFFORT),
                     Beat.Act(AnimState.BUILDING, 1.4f, Expr.FOCUSED),
-                    Beat.Do { repo.mutate { com.pipo.robot.engine.Inventor.buildCardboardSuit(it, System.currentTimeMillis()) } })
+                    Beat.Do { repo.mutate { com.pipo.robot.engine.Inventor.buildCardboardSuit(it, System.currentTimeMillis()) }; ownsCardboard = true })
             }
             enqueue(Beat.Act(AnimState.SPIN, 1f, Expr.FOCUSED),
-                Beat.Do { rig.suit = 1; rig.cardboard = true; suitUntil = clock + 120f; if (sounds) voice.synth.sfx(Sfx.SERVO); nib(PetFace.SURPRISED, Sfx.PET_HAPPY, PetThought.EXCLAIM) },
+                Beat.Do { setSuit(1, cardboard = true); toolDone("Suit", "Mk 0 (cardboard) on", true); if (sounds) voice.synth.sfx(Sfx.SERVO); nib(PetFace.SURPRISED, Sfx.PET_HAPPY, PetThought.EXCLAIM) },
                 Beat.Act(AnimState.PROUD, 1.4f, Expr.PROUD),
                 Beat.Say(Dialogue.pick(listOf("Armor Mark Zero. Online. Mostly cardboard. Fully heroic.", "Mark Zero! It's a prototype. Don't poke it. Nib, don't poke it."), rng), Sfx.WIN))
             if (fly) enqueue(Beat.Act(AnimState.HOP, 0.6f, Expr.EXCITED), Beat.Say("Mark Zero doesn't fly. That was a jump. A heroic jump.", Sfx.GIGGLE))
             return
         }
-        rig.cardboard = false
-        if (rig.suit == 0) enqueue(
+        if (rig.suit == mk && !rig.cardboard) setSuit(mk) // already on: now it stays on
+        else enqueue(
             Beat.Say(if (repo.read { com.pipo.robot.engine.Inventor.has(it, "helper") }) "Bolt, suit up." else "Suit up!", Sfx.BEEP),
             Beat.Act(AnimState.SPIN, 1.1f, Expr.FOCUSED), Beat.Emote(EmoteKind.SPARKLE),
-            Beat.Do { rig.suit = mk; rig.rocketBoots = rig.rocketBoots || mk >= 2; suitUntil = clock + 120f; if (sounds) voice.synth.sfx(Sfx.SERVO); nib(PetFace.SURPRISED, Sfx.PET_CURIOUS, PetThought.EXCLAIM) },
+            Beat.Do { setSuit(mk); toolDone("Suit", "Mk ${listOf("", "I", "II", "III")[mk]} on", true); if (sounds) voice.synth.sfx(Sfx.SERVO); nib(PetFace.SURPRISED, Sfx.PET_CURIOUS, PetThought.EXCLAIM) },
             Beat.Act(AnimState.PROUD, 1.2f, Expr.PROUD),
             Beat.Say("Mark ${listOf("", "One", "Two", "Three")[mk]}. Online.", Sfx.WIN))
         if (fly) {
@@ -3194,14 +3359,28 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
             aiThinking = true
             rig.showEmote(EmoteKind.DOTS)
             viewModelScope.launch {
-                val ctx = brainContext(res.text, t)
+                val ctx = brainContext(if (res.unmatched) "" else res.text, t)
                 val ai = withTimeoutOrNull(14_000) { b.reply(t, ctx) }
                 aiThinking = false
-                val line = ai ?: if (!brainFailedOnce) { brainFailedOnce = true; Dialogue.pick(Dialogue.brainWeird, rng) + " " + res.text } else res.text
+                val line = ai ?: when {
+                    // a real question he can't answer offline: say why, instead of "I understood none of that"
+                    res.unmatched && LocalBrain.isQuestion(t) -> Dialogue.pick(Dialogue.brainUnreachable, rng)
+                    !brainFailedOnce -> { brainFailedOnce = true; Dialogue.pick(Dialogue.brainWeird, rng) + " " + res.text }
+                    else -> res.text
+                }
+                if (ai == null) rig.showEmote(EmoteKind.QUESTION)
                 remember(t, line)
                 respond(line, res)
             }
-        } else { remember(t, res.text); respond(res.text, res) }
+        } else {
+            val line = when {
+                !res.unmatched || !LocalBrain.isQuestion(t) -> res.text
+                b === NoBrain && Brains.configured -> "My online brain is switched off in Settings, so I only know room things. Switch on Online AI and ask me again?"
+                b === NoBrain -> "I don't have an online brain in this build, so I only know room things."
+                else -> "I'm offline right now, so I can't look that up. Ask me again when the internet's back?"
+            }
+            remember(t, line); respond(line, res)
+        }
     }
 
     /**
@@ -3220,7 +3399,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         if (b !== NoBrain && !res.locked && phoneState.online) {
             aiThinking = true
             viewModelScope.launch {
-                val ai = withTimeoutOrNull(12_000) { b.reply(t, brainContext(res.text, t)) }
+                val ai = withTimeoutOrNull(12_000) { b.reply(t, brainContext(if (res.unmatched) "" else res.text, t)) }
                 aiThinking = false
                 val line = ai ?: res.text
                 remember(t, line)
@@ -3298,6 +3477,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 forceActivity(ActivityType.PLAY_TOY)
             })
             ChatAction.SUIT_UP -> enqueue(Beat.Do { suitUp(fly = res.payload == "fly") })
+            ChatAction.SUIT_OFF -> enqueue(Beat.Do { suitOff() })
             ChatAction.PLAY_PET -> if (res.payload.startsWith("TRICK:")) enqueue(Beat.Do { nibDoesTrick(NibLife.Trick.valueOf(res.payload.removePrefix("TRICK:"))) })
                 else enqueue(Beat.Do { forceActivity(ActivityType.PLAY_PET) })
             ChatAction.EMBARRASSED -> enqueue(Beat.Act(AnimState.EMBARRASSED, 2f, Expr.EMBARRASSED), Beat.Emote(EmoteKind.HEART))
@@ -3336,11 +3516,13 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         if (brain === NoBrain) { enqueue(Beat.Say("My online brain is switched off. Want me to search it instead?", Sfx.HMM, listOf(
             Choice("Search") { doPhone(PhoneRequest(PhoneCmd.SEARCH, req.arg)) }, Choice("Never mind") { }))); return }
         aiThinking = true
+        toolRunning("Find out", req.arg.take(60))
         rig.phoneApp = null; rig.anim = AnimState.PHONE
         rig.showEmote(EmoteKind.DOTS)
         viewModelScope.launch {
             val got = withTimeoutOrNull(15_000) { com.pipo.robot.ai.Research.ask(req.arg) }
             aiThinking = false
+            toolDone("Find out", if (got == null) "no answer (offline or timed out)" else "answer from ${got.first}", got != null)
             if (got == null) {
                 enqueue(Beat.Say("The internet isn't answering me. Want me to search it instead?", Sfx.SIGH, listOf(
                     Choice("Search") { doPhone(PhoneRequest(PhoneCmd.SEARCH, req.arg)) }, Choice("Never mind") { })))
@@ -3372,6 +3554,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         val exec = Beat.Do {
             val ok = runCatching { phoneActions.execute(req, lastSpoken) }.getOrDefault(false)
             val access = phoneActions.needsAccess
+            if (req.cmd != PhoneCmd.FIND_OUT) toolDone(PhoneCommands.title(req.cmd), if (ok) "done" else if (access != null) "needs your permission" else "didn't work", ok)
             if (!ok && access != null) {
                 // Only missing because you haven't allowed it yet: say so, then open that exact page.
                 beats.addFirst(Beat.Do { phoneActions.openAccessPage(access) })
@@ -3680,6 +3863,19 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** You picked a game from the menu. Pipo still gets a say. */
+    /** One line for the games menu: how it's going between you two, from saved records only. */
+    fun gameSummary(id: String): String? = repo.read { s ->
+        val r = s.games[id]
+        val best = when (id) {
+            "reaction" -> s.records["best:reaction"]?.let { "your record $it ms" }
+            "flappy", "shooter" -> s.records["best:$id"]?.let { "your best $it" }
+            "pattern" -> s.records["best:pattern"]?.let { "our best: round $it" }
+            else -> null
+        }
+        val tally = r?.takeIf { it.plays > 0 && id != "pattern" }?.let { "you ${it.userWins} · Pipo ${it.pipoWins}" + if (it.draws > 0) " · draws ${it.draws}" else "" }
+        listOfNotNull(tally, best).joinToString("  ·  ").ifEmpty { if (r == null || r.plays == 0) "new" else null }
+    }
+
     fun requestGame(id: String) {
         registerInteraction()
         if (away) { showText(Dialogue.pick(listOf("I'm out! Save me a game.", "Games when I'm back. Don't practise without me."), rng)); return }

@@ -31,10 +31,14 @@ object WakeCommands {
     /** Two-word spellings ("pee po"). */
     private val WAKE2 = setOf("pee po", "pi po", "pee poe", "pea po", "p o", "pee pope", "pee pole", "pee pore")
     private val LEAD = setOf("hey", "hi", "okay", "ok", "oh", "a", "the", "hello")
-    private val OPEN = setOf("open", "launch", "start", "opened", "opening")
-    private val PLAY = setOf("play", "played", "playing", "plays")
-    /** How "lock" gets heard. */
-    private val LOCK = setOf("lock", "locked", "lok", "luck", "look", "log", "lack", "like", "lark", "block", "loch")
+    /** Imperatives only: "people playing outside" / "opened it" are talk, not a call. */
+    private val OPEN = setOf("open", "launch", "start")
+    private val PLAY = setOf("play")
+    /**
+     * How "lock" gets heard (accents: "lok" -> "luck", "log"...). Never "like" ("I like it" used
+     * to lock the phone) and never "look" ("Pipo, look!" is his camera).
+     */
+    private val LOCK = setOf("lock", "locked", "lok", "luck", "log", "lack", "lark", "block", "loch")
     private val LOCK_TAIL = setOf("", "it", "my phone", "the phone", "phone", "now", "my mobile", "the screen", "screen", "please")
     private val SUMMON = setOf("come here", "come", "here", "on screen", "come on", "where are you", "show up", "please")
 
@@ -68,10 +72,7 @@ object WakeCommands {
     private val SPOTTER_NAMES = listOf("people", "pippa", "hippo", "pepper", "peep", "pupil", "keeper", "pippin")
     /** Lock rides in the name listener: a handful of phrases, so a short "lock" can't be drowned out. */
     private val SPOTTER_LOCK = listOf("lock", "lock my phone", "lock the phone", "lock it", "lock phone")
-    /**
-     * How "lock" comes out in other accents ("lok" -> "luck", "log"...). Never "look": "Pipo, look!"
-     * is his camera.
-     */
+    /** How "lock" comes out in other accents in the name listener. Never "look": that's his camera. */
     private val LOCK_SOUNDS = setOf("lock", "luck", "log", "lack", "locked", "block")
     private val SPOTTER_LOCK_ALIKE = listOf("luck", "log", "lack", "locked", "block")
     /** "Pipo, on screen" / "Pipo, come": in the name listener too, the same way as lock. */
@@ -80,13 +81,13 @@ object WakeCommands {
         .flatMap { listOf(it, "hey $it") } + "[unk]"
 
     /**
-     * The best reading across the name listener's guesses (best first): if ANY guess was "Pipo,
-     * lock", it's a lock — that call matters most and is the one that used to need repeating.
+     * The best reading across the name listener's guesses (best first): a "Pipo, lock" ranked
+     * second still counts as a lock (it used to need repeating). It is only acted on once another
+     * listener hears the lock in the same breath (see CallAssembler).
      */
     fun bestWake(guesses: List<String>): Wake {
         val all = guesses.map { wake(it) }
         val top = all.firstOrNull() ?: return Wake.NONE
-        // a lock further down only counts when the best guess heard his name too
         return if (top != Wake.NONE && Wake.LOCK in all) Wake.LOCK else top
     }
 

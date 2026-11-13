@@ -464,6 +464,9 @@ object PhoneCommands {
         }
     }
 
+    /** A short human name for a command, for status and outcome labels ("Flash on"). */
+    fun title(c: PhoneCmd): String = c.name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }
+
     fun confirmQuestion(r: PhoneRequest): String = when (r.cmd) {
         PhoneCmd.DIAL -> "Open the dialer for \"${r.arg}\"?"
         PhoneCmd.ALARM -> "An alarm for ${"%02d:%02d".format(r.hour, r.minute)}?"

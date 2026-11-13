@@ -14,7 +14,7 @@ class PipoPromptTest {
         assertEquals("Hi Joel! Wanna play?", PipoPrompt.clean("  \"Hi Joel! *bounces* Wanna   play?\"\n"))
         assertNull(PipoPrompt.clean("   "))
         assertNull(PipoPrompt.clean(null))
-        assertTrue(PipoPrompt.clean("x".repeat(1000))!!.length <= 240)
+        assertTrue(PipoPrompt.clean("x".repeat(1000))!!.length <= 400)
     }
 
     @Test

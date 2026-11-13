@@ -1,0 +1,11 @@
+{
+  "name": "Pipo.Tests",
+  "rootNamespace": "Pipo.Tests",
+  "references": ["Pipo.Runtime", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "overrideReferences": true,
+  "precompiledReferences": ["nunit.framework.dll"],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"]
+}

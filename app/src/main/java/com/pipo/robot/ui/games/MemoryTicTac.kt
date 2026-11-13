@@ -55,17 +55,20 @@ private class Card(val shape: ItemShape) {
 fun MemoryGame(onExit: () -> Unit) {
     val gp = rememberGamePipo("memory")
     val scope = rememberCoroutineScope()
+    // beat him to move up a board; the level you've reached is saved
+    var level by remember { mutableIntStateOf(gp.repo.read { it.records["memory:level"] ?: 0 }) }
     fun deal(): List<Card> {
-        val pool = listOf(ItemShape.GEAR, ItemShape.BATTERY, ItemShape.MARBLE, ItemShape.KEY, ItemShape.PEBBLE, ItemShape.BUTTON, ItemShape.SPRING, ItemShape.TUBE)
-        return pool.shuffled(gp.rng).take(6).flatMap { listOf(Card(it), Card(it)) }.shuffled(gp.rng)
+        val pool = listOf(ItemShape.GEAR, ItemShape.BATTERY, ItemShape.MARBLE, ItemShape.KEY, ItemShape.PEBBLE, ItemShape.BUTTON, ItemShape.SPRING, ItemShape.TUBE, ItemShape.APPLE, ItemShape.COOKIE, ItemShape.UMBRELLA, ItemShape.LED)
+        return pool.shuffled(gp.rng).take(com.pipo.robot.engine.MemoryLevels.pairs(level)).flatMap { listOf(Card(it), Card(it)) }.shuffled(gp.rng)
     }
     val cards = remember { mutableStateListOf<Card>().apply { addAll(deal()) } }
     var yourTurn by remember { mutableStateOf(true) }
     var first by remember { mutableIntStateOf(-1) }
     var busy by remember { mutableStateOf(false) }
     var over by remember { mutableStateOf(false) }
+    var levelAfter by remember { mutableIntStateOf(-1) }
     val seen = remember { mutableMapOf<Int, ItemShape>() } // Pipo's (imperfect) memory
-    val recall = 0.45f + gp.traits.curiosity * 0.25f + gp.energy * 0.15f
+    val recall = 0.45f + gp.traits.curiosity * 0.25f + gp.energy * 0.15f + com.pipo.robot.engine.MemoryLevels.recallBonus(level)
 
     val you = cards.count { it.owner == 1 } / 2
     val pipo = cards.count { it.owner == 2 } / 2
@@ -78,7 +81,10 @@ fun MemoryGame(onExit: () -> Unit) {
             val y = cards.count { it.owner == 1 } / 2; val p = cards.count { it.owner == 2 } / 2
             val pw = if (y == p) null else p > y
             gp.react(if (pw == true) AnimState.DANCING else AnimState.IDLE, if (pw == true) Expr.PROUD else Expr.CONTENT, gp.finalWords(pw), if (pw == true) Sfx.WIN else Sfx.BEEP, secs = 3f)
-            GameLog.record(gp.repo, "memory", pw, "Pairs: Pipo $p, you $y.")
+            GameLog.record(gp.repo, "memory", pw, "Pairs: Pipo $p, you $y. Board: ${com.pipo.robot.engine.MemoryLevels.name(level)}.")
+            val next = com.pipo.robot.engine.MemoryLevels.next(level, if (pw == null) null else !pw)
+            if (next != level) { gp.repo.mutate { it.records["memory:level"] = next }; gp.line = "Okay. Bigger board next time. ${com.pipo.robot.engine.MemoryLevels.name(next)}. I'm warning you." }
+            levelAfter = next
         }
     }
 
@@ -134,17 +140,17 @@ fun MemoryGame(onExit: () -> Unit) {
         }
     }
 
-    GameScaffold("Memory Match", gp, onExit, "Pipo $pipo  ·  You $you  ·  ${if (over) "done" else if (yourTurn) "your turn" else "Pipo's turn"}") {
-        if (over) GameOver(gp, if (pipo > you) "Pipo remembers everything." else if (you > pipo) "You win!" else "Tie!",
-            onAgain = { cards.clear(); cards.addAll(deal()); seen.clear(); over = false; yourTurn = true; first = -1 }, onExit = onExit)
+    GameScaffold("Memory Match", gp, onExit, "${com.pipo.robot.engine.MemoryLevels.name(level)}  ·  Pipo $pipo  ·  You $you  ·  ${if (over) "done" else if (yourTurn) "your turn" else "Pipo's turn"}") {
+        if (over) GameOver(gp, if (pipo > you) "Pipo remembers everything." else if (you > pipo) (if (levelAfter > level) "You win! Next: ${com.pipo.robot.engine.MemoryLevels.name(levelAfter)}" else "You win!") else "Tie!",
+            onAgain = { if (levelAfter >= 0) level = levelAfter; levelAfter = -1; cards.clear(); cards.addAll(deal()); seen.clear(); over = false; yourTurn = true; first = -1 }, onExit = onExit)
         else Column(Modifier.widthIn(max = 380.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            for (r in 0 until 3) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                for (c in 0 until 4) {
-                    val i = r * 4 + c
+            for (r in 0 until com.pipo.robot.engine.MemoryLevels.rows(level)) Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                for (c in 0 until com.pipo.robot.engine.MemoryLevels.COLS) {
+                    val i = r * com.pipo.robot.engine.MemoryLevels.COLS + c
                     val card = cards[i]
                     val flip by androidx.compose.animation.core.animateFloatAsState(if (card.up || card.owner != 0) 180f else 0f, androidx.compose.animation.core.tween(260), label = "flip")
                     Box(
-                        Modifier.weight(1f).aspectRatio(0.8f).graphicsLayer { rotationY = flip; cameraDistance = 12f * density }.clip(RoundedCornerShape(14.dp))
+                        Modifier.weight(1f).aspectRatio(when (com.pipo.robot.engine.MemoryLevels.rows(level)) { 3 -> 0.8f; 4 -> 0.95f; else -> 1.1f }).graphicsLayer { rotationY = flip; cameraDistance = 12f * density }.clip(RoundedCornerShape(14.dp))
                             .background(when { card.owner == 1 -> PipoPalette.amber.copy(alpha = 0.35f); card.owner == 2 -> PipoPalette.mint.copy(alpha = 0.3f); card.up -> PipoPalette.paper; else -> PipoPalette.cardHi })
                             .clickable { tap(i) },
                         contentAlignment = Alignment.Center,

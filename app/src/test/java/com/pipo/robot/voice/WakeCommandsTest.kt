@@ -14,8 +14,9 @@ class WakeCommandsTest {
     fun callsAsTheRecogniserWritesThem() {
         assertEquals(WakeAction.Open("you tube"), WakeCommands.interpret("people open you tube"))
         assertEquals(WakeAction.Open("instagram"), WakeCommands.interpret("hey pippa open instagram"))
-        assertEquals(WakeAction.Lock, WakeCommands.interpret("people luck"))
-        assertEquals(WakeAction.Lock, WakeCommands.interpret("hey people like my phone"))
+        assertEquals(WakeAction.Lock, WakeCommands.interpret("people lock"))
+        assertEquals(WakeAction.Lock, WakeCommands.interpret("hey people lock my phone"))
+        assertEquals(WakeAction.Lock, WakeCommands.interpret("people luck")) // accents
         assertEquals(WakeAction.Lock, WakeCommands.interpret("pee po lock"))
         assertEquals(WakeAction.Play("lo ve music on youtube"), WakeCommands.interpret("people play lo ve music on you tube"))
         assertEquals(WakeAction.Play("origin saying"), WakeCommands.interpret("people play origin saying"))
@@ -30,7 +31,11 @@ class WakeCommandsTest {
         assertNull(WakeCommands.interpret("however open the door"))
         assertNull(WakeCommands.interpret("people are weird"))
         assertNull(WakeCommands.interpret("open instagram")) // no call to Pipo
-        assertNull(WakeCommands.interpret("people like my style")) // "like" isn't "lock" unless it's about the phone
+        assertNull(WakeCommands.interpret("people like my style"))
+        // "like" is never "lock": "I like it" used to lock the phone
+        assertNull(WakeCommands.interpret("people like it"))
+        assertNull(WakeCommands.interpret("keeper look now"))
+        assertNull(WakeCommands.interpret("people playing outside")) // talk, not "Pipo, play"
         assertNull(WakeCommands.interpret("people open")) // open what?
         assertNull(WakeCommands.interpret("hey"))
         assertNull(WakeCommands.interpret(""))
@@ -54,6 +59,8 @@ class WakeCommandsTest {
         assertEquals(WakeCommands.Wake.NONE, WakeCommands.wake("[unk] people"))
         assertEquals(WakeAction.Open("instagram"), WakeCommands.command("open instagram"))
         assertEquals(WakeAction.Play("loki music"), WakeCommands.command("he will play loki music"))
+        assertEquals(WakeAction.Lock, WakeCommands.command("people lock"))
+        assertNull(WakeCommands.command("i like it"))
         assertEquals(WakeAction.Lock, WakeCommands.command("people luck"))
         assertNull(WakeCommands.command("instagram"))
         assertNull(WakeCommands.command("hello"))

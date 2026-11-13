@@ -39,3 +39,33 @@
 - F-Droid re-signs with its own key, so an F-Droid install cannot upgrade over a GitHub install and
   switching sources loses the save. Disclose this wherever both are offered.
 - No paid promotion, no bought upvotes, no fabricated metrics.
+
+---
+
+## Update — 2026-11-10 (Claude session)
+
+| Channel | Status | Exact blocker |
+|---|---|---|
+| Hacker News | NOT SUBMITTED | Signed out in the Claude-connected Chrome |
+| itch.io | NOT SUBMITTED | Cloudflare check plus signed out in the Claude-connected Chrome |
+| Indie Hackers | NOT POSTED | Signed out |
+| Product Hunt | NOT LISTED | Signed out |
+| F-Droid | NOT SUBMITTED | (1) GitLab signed out; (2) `fdroidserver` not installed, so `fdroid lint`/`fdroid build` were not run; (3) see the F-Droid risks in `CLAUDE_EXECUTION_STATE.md` |
+| Reddit | NOT POSTED | Claude in Chrome refuses reddit.com; the owner posts manually |
+
+## F-Droid validation — 2026-11-10 ~17:30 IST (fdroidserver 2.4.5, venv `D:\pipo\.tools\fdroidserver-venv`)
+
+| Check | Result |
+|---|---|
+| `fdroid lint com.pipo.robot` (real fdroiddata categories + anti-features) | **PASS, exit 0** (`D:\pipo\.tools\logs\fdroid-lint-4.log`) |
+| `fdroid build` | **Not runnable on Windows**: crashes before cloning (`fdroid-build.log`). Needs Linux/Docker; Docker's data lives on C:, so it was not used |
+| Equivalent build: `git archive 73afc91`, fdroidserver `remove_signing_keys()`, metadata `prebuild` sed, `gradlew assembleRelease` | **BUILD SUCCESSFUL**, output `app-release-unsigned.apk` 27,343,561 B, no signature, 0 key-shaped strings (`v1.0-fdroid-style-assembleRelease.log`) |
+| Blocker 1, debug-key fallback | **Resolved in metadata**: `prebuild` sed removes the line; v1.0 history untouched |
+| Blocker 3, no fastlane at v1.0 | **Resolved in metadata**: inline Summary/Description |
+| Blocker 2, Vosk prebuilt `libvosk.so` (4 ABIs) + JNA `.so` | **Open**: needs an F-Droid maintainer ruling (accept the Maven binaries or build from source) |
+| MR | **Held** on purpose, and GitLab is signed out |
+| Blocker 2 update (Vosk/JNA) | **Resolved by policy and precedent**: trusted-Maven-repo rule, Apache-2.0/LGPL licences, Dicio (live on F-Droid) uses the same libs with no special handling. Evidence and the MR note are in `fdroid/README.md` §7. MR still held per owner; GitLab verified as `aspire488`. |
+| itch.io (2026-11-10 19:52) | **LIVE**: <https://aspire488.itch.io/pipo>, external file → v1.0 GitHub APK (hash verified) |
+| Product Hunt | **SCHEDULED** 2026-11-11 00:01 PT |
+| F-Droid | Fork plus branch `com.pipo.robot` ready (commit 3d9969d0); the owner opens the MR (`fdroid/MR_DESCRIPTION.md`) |
+| GitHub README | PR #16 merged as `8c71af4` |

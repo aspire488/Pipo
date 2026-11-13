@@ -80,7 +80,7 @@ object Trips {
 
     private val wishes = listOf(
         "football" to "field", "field" to "field", "cricket" to "cricket", "sports hall" to "sports_hall", "table tennis" to "sports_hall", "court" to "court", "badminton" to "court", "park" to "park", "walk" to "park", "garden" to "garden", "bugs" to "garden",
-        "lake" to "lake", "frogs" to "lake", "hills" to "hills", "library" to "library", "book" to "library",
+        "lake" to "lake", "frogs" to "lake", "forest hills" to "forest", "forest" to "forest", "woods" to "forest", "deer" to "forest", "owl" to "forest", "birds" to "forest", "hills" to "hills", "library" to "library", "book" to "library",
         "market" to "market", "groceries" to "market", "food" to "market", "bakery" to "bakery", "bread" to "bakery", "cafe" to "cafe",
         "café" to "cafe", "hardware" to "hardware", "electronics" to "electronics", "rook" to "secondhand", "fennel" to "repair",
     )
@@ -202,6 +202,7 @@ object Trips {
         if (env.hour in 8..19) add("field", TripPurpose.FOOTBALL, emptyList(), "Football. I've been practising in my head.", 0.1f + t.playfulness * 0.4f + (s.feed["football"] ?: 0f) * 0.6f + m.energy * 0.2f)
         add("library", TripPurpose.LIBRARY, emptyList(), "I need a book. About something. I'll know when I see it.", 0.1f + t.curiosity * 0.25f + (1f - t.adventurousness) * 0.15f + (if (env.weather.wet) 0.3f else 0f))
         if (env.hour in 7..18 && m.energy > 0.5f) add("lake", TripPurpose.WILDLIFE, emptyList(), "The frogs at the lake have opinions. I want to hear them.", 0.05f + t.adventurousness * 0.3f + (s.feed["wildlife"] ?: 0f) * 0.4f)
+        if (env.hour in 7..18 && m.energy > 0.5f) add("forest", TripPurpose.WILDLIFE, emptyList(), "Forest Hills. There's a deer up there who might be my friend. And birds. So many birds.", 0.04f + t.adventurousness * 0.3f + (s.feed["wildlife"] ?: 0f) * 0.4f)
         if (env.hour in 8..17 && m.energy > 0.55f) add("hills", TripPurpose.EXPLORE, emptyList(), "The hills. You can see everything from up there. Everything is small.", 0.03f + t.adventurousness * 0.3f)
         // ---- the thing he can't stop thinking about
         Mystery.tripIdea(s, env, now)?.let { add(it.placeId, it.purpose, it.list, it.reason, it.score) }
@@ -449,6 +450,7 @@ object Trips {
         p.id == "hardware" -> "Grumble. Screws."
         p.id == "lake" -> "frogs!!"
         p.id == "hills" -> "windy. big view"
+        p.id == "forest" -> "trees!! deer!! birds!!"
         p.id == "field" -> "football!"
         p.id == "library" -> "whisper here"
         p.id == "secondhand" -> "weird stuff. good weird"
