@@ -57,6 +57,16 @@ You don't manage him. You drop in and discover what happened.
 
 ---
 
+## A SMALL, REAL LAUNCH — 13 NOVEMBER 2026
+
+Pipo has begun reaching beyond its developer's own devices. As of **13 November 2026**, the v1.0 GitHub release records **22 APK downloads**.
+
+That is an early distribution signal, not a count of confirmed people or installations: GitHub's download counter does not identify unique downloaders, and Pipo deliberately has no analytics or account system to measure installs or retention. The number may include repeat downloads and verification activity.
+
+Pipo is still early. If you try him, feedback, bug reports and thoughtful contributions are welcome.
+
+---
+
 <div align="center">
 
 ## A DAY IN THE LIFE
