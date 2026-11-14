@@ -1,0 +1,11 @@
+{
+  "note": "Tracked seed for cloud runs. Local runtime observations live in data/manual/freebuff.json and take precedence. Freebuff exposes no public API: one dated observation per real reading, never estimated.",
+  "observations": [
+    {
+      "date": "2026-11-13",
+      "downloads": 23,
+      "source": "README.md launch note: 'On 13 November 2026, Freebuff reported 23 downloads.'",
+      "listing_status": "reported"
+    }
+  ]
+}

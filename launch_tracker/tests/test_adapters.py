@@ -179,6 +179,13 @@ class FreebuffTests(unittest.TestCase):
         self.assertNotIn("downloads", result["metrics"])
         self.assertEqual(result["status"], "partial")
 
+    def test_tracked_seed_is_used_when_local_data_is_absent(self):
+        # Cloud runs start with no data/ dir; the tracked seed keeps the baseline.
+        config = {"freebuff": {"seed_file": "config/freebuff.json"}}
+        result = freebuff_adapter.collect(FakeClient({}), config, store=FakeStore({}))
+        self.assertEqual(result["status"], "manual")
+        self.assertEqual(result["metrics"]["downloads"], 23)
+
 
 class XerjTests(unittest.TestCase):
     def test_unsupported_without_endpoint(self):

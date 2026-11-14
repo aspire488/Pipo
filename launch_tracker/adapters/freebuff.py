@@ -7,15 +7,34 @@ interpolated, estimated or carried forward as if it were measured today.
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
+from pathlib import Path
 
 from core.model import parse_iso, platform_result
 
 NAME = "freebuff"
 
 
+def _seed_data(config) -> dict:
+    """Tracked seed so cloud runs keep the baseline the local data dir holds."""
+    seed = (config.get("freebuff") or {}).get("seed_file")
+    if not seed:
+        return {}
+    path = Path(__file__).resolve().parent.parent / seed
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 def _observations(config, store) -> list:
     data = store.load_manual("freebuff") if store is not None else {}
+    if not data:
+        data = _seed_data(config)
     if not data:
         return []
     entries = [e for e in (data.get("observations") or [])
