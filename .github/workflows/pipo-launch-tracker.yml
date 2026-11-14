@@ -133,8 +133,25 @@ jobs:
           rm -rf launch_tracker/data launch_tracker/reports
           cp -R ../snapshot/data launch_tracker/data
           cp -R ../snapshot/reports launch_tracker/reports
+          # Keep the delivery ledger; drop the per-run operational log (it does not
+          # travel cleanly and can only mention secret names, never values).
+          rm -f launch_tracker/data/notifications.log
           git add -A
           git -c user.name="pipo-launch-bot" \
               -c user.email="actions@users.noreply.github.com" \
               commit -q -m "chore: launch snapshot ${GITHUB_RUN_ID}" || exit 0
-          git push -q origin launch-data
+          # Push with a short retry so two close runs do not race on the branch.
+          for i in 1 2 3; do
+            if git fetch -q origin launch-data 2>/dev/null; then
+              if git merge --ff-only -q FETCH_HEAD 2>/dev/null; then
+                : # up to date, nothing to rebase
+              else
+                git rebase -q FETCH_HEAD 2>/dev/null || true
+              fi
+            fi
+            if git push -q origin launch-data 2>/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          git push -q origin launch-data 2>/dev/null || echo "warning: could not push launch-data after retries"

@@ -133,6 +133,28 @@ class StorageTests(unittest.TestCase):
             handle.write("{not json}\n")
         self.assertEqual(len(self.store.history()), 1)
 
+    def test_corrupt_deliveries_line_is_skipped_and_append_still_works(self):
+        self.store.append_delivery({"timestamp_utc": "2026-01-01T00:00:00Z", "channel": "email",
+                                    "status": "sent", "event_id": "ok"})
+        with open(self.store.deliveries_path, "a", encoding="utf-8") as handle:
+            handle.write("{not json}\n")
+        self.assertEqual(len(self.store.deliveries()), 1)
+        self.store.append_delivery({"timestamp_utc": "2026-01-02T00:00:00Z", "channel": "email",
+                                    "status": "sent", "event_id": "fresh"})
+        self.assertEqual(len(self.store.deliveries()), 2)
+        self.assertIn("fresh", [r["event_id"] for r in self.store.deliveries()])
+
+    def test_atomic_write_overwrites_a_leftover_partial_temp(self):
+        # Simulate a crash that left a half-written temp file from a previous attempt.
+        target = self.store.data / "partial.json"
+        tmp = self.store.data / ".partial.json.tmp"
+        tmp.write_text("{incomplete", encoding="utf-8")
+        self.store.atomic_write(target, '{"complete": true}\n')
+        self.assertEqual(target.read_text(encoding="utf-8"), '{"complete": true}\n')
+        self.assertFalse(tmp.exists())
+        # No stray temp files remain after a successful atomic write.
+        self.assertEqual(list(self.store.data.glob(".*.tmp")), [])
+
 
 if __name__ == "__main__":
     unittest.main()

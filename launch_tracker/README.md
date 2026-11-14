@@ -32,7 +32,7 @@ launch_tracker/
     notify.py              console, Windows toast, step summary, webhook
     report.py              reports/PIPO_LAUNCH_REPORT.md
   adapters/                one module per platform, isolated failures
-  tests/                   66 tests, fully mocked, no network
+  tests/                   88 tests, fully mocked, no network
   data/                    snapshots, events, milestones, manual observations (ignored)
   reports/                 generated report (ignored)
 ```
@@ -56,7 +56,7 @@ A failing adapter degrades exactly one platform; the rest still update.
 
 ## Credentials (all optional)
 
-| Variable | Enables |
+| Secret / variable | Enables |
 |---|---|
 | `GITHUB_TOKEN` | higher rate limits and 14-day traffic views |
 | `REDDIT_CLIENT_ID` / `REDDIT_CLIENT_SECRET` | official Reddit API instead of public JSON |
@@ -98,12 +98,21 @@ F-Droid adapter, so nothing is lost.
 
 ## GitHub Actions
 
-`.github/workflows/pipo-launch-tracker.yml` runs every 6 hours and on demand:
-tests first, then collection, then artifacts (report + data, 90 days).
-Default permissions are `contents: read`. Durable history across runs requires
-setting the repository variable `LAUNCH_PERSIST=true`; only the separate
-`persist-history` job then gets write access, and it commits solely to the
-isolated `launch-data` branch — never to `main`.
+`.github/workflows/pipo-launch-tracker.yml` runs on two schedules and on demand:
+
+- every 6 hours (`17 */6 * * *`) — tests first, then collection, then artifacts
+  (report + data, 90 days retention);
+- daily digest at 09:00 IST (`30 3 * * *` = 03:30 UTC), sent only when there is
+  something to report.
+
+Manual dispatch accepts `platforms` (comma-separated, empty = all) and
+`digest_only` (send the digest now). Default permissions are `contents: read`.
+Durable history across runs requires setting the repository variable
+`LAUNCH_PERSIST=true`; only the separate `persist-history` job then gets write
+access, and it commits solely to the isolated `launch-data` branch — never to
+`main`. The persist push retries briefly so two close runs do not race on the
+branch; a persistent push failure is logged as a warning and does not block the
+collection result.
 
 ## Data model and honesty rules
 
@@ -163,6 +172,8 @@ Or: Actions -> **Pipo launch tracker** -> Run workflow (tick `digest_only` to te
 - One email per material event, subject `[Pipo Launch Alert] SEVERITY - title`.
 - A delivery is recorded as `sent` only after the SMTP server accepts it; failures
   are retried (3 attempts, exponential backoff) and remain eligible next run.
+  The email Subject header is sanitized so platform event text can never inject
+  extra headers.
 - `data/notifications/deliveries.jsonl` is the delivery ledger and travels with the
   `launch-data` branch, so deduplication survives separate workflow runs.
 - The digest is sent at most once per IST day, only when there is something to say

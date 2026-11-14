@@ -248,6 +248,24 @@ class StoreBackedEmailTests(unittest.TestCase):
         self.assertIn("TEST - simulated", result["subject"])
         self.assertEqual(self.store.events(), [])
 
+    def test_subject_strips_header_injection_characters(self):
+        # An event whose type is unknown and whose message carries newlines must
+        # not let those newlines reach the email Subject header.
+        bad = {"severity": "high", "type": "unknown_kind",
+                "message": "a\nb\r\nInjected: header: yes\rX-Inject: 1",
+                "platform": "x"}
+        subject = render_event(bad)["subject"]
+        # The security property: no CR/LF can reach the header.
+        self.assertNotIn("\r", subject)
+        self.assertNotIn("\n", subject)
+        # After stripping, the formerly-multiline message is one line.
+        self.assertTrue(subject.startswith("[Pipo Launch Alert] HIGH - a b"))
+        # Truncation still applies to long subjects.
+        long_msg = "x" * 200
+        long_subject = render_event({"severity": "normal", "type": "unknown_kind",
+                                     "message": long_msg, "platform": "x"})["subject"]
+        self.assertTrue(len(long_subject) <= 70 + len("[Pipo Launch Alert] NORMAL - "))
+
 
 if __name__ == "__main__":
     unittest.main()

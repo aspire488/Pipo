@@ -220,7 +220,9 @@ def _html_table(rows, headers) -> str:
 def event_subject(event) -> str:
     severity = (event.get("severity") or "normal").upper()
     title = TYPE_TITLE.get(event.get("type")) or event.get("message") or "launch update"
-    title = title if len(title) <= 70 else title[:67] + "..."
+    # Headers must not carry characters that an upstream event could inject.
+    title = title.replace("\r", "").replace("\n", " ").strip()
+    title = title if len(title) <= 70 else title[:67].rstrip() + "..."
     return "[Pipo Launch Alert] %s - %s" % (severity, title)
 
 
