@@ -302,9 +302,11 @@ def main(argv=None) -> int:
 
     if args.digest or args.force_digest:
         result = send_digest(store, config, force=args.force_digest)
+        unconfigured = "not configured" in (result.get("detail") or "")
         state = "skipped" if result.get("skipped") else ("ok" if result.get("ok") else "FAIL")
         print("digest    %-7s %s" % (state, result.get("detail", "")))
-        return 0 if result.get("ok") else 1
+        # Before SMTP secrets exist, keep scheduled runs green but say so loudly.
+        return 0 if (result.get("ok") or unconfigured) else 1
 
     if args.deliveries is not None:
         records = store.deliveries(args.deliveries)

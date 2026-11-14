@@ -124,8 +124,11 @@ jobs:
           git init -q history
           cd history
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git fetch -q --depth=1 origin launch-data || true
-          git checkout -q -B launch-data
+          if git fetch -q --depth=1 origin launch-data 2>/dev/null; then
+            git checkout -q -B launch-data FETCH_HEAD
+          else
+            git checkout -q -B launch-data
+          fi
           mkdir -p launch_tracker
           rm -rf launch_tracker/data launch_tracker/reports
           cp -R ../snapshot/data launch_tracker/data
