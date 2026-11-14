@@ -57,11 +57,11 @@ You don't manage him. You drop in and discover what happened.
 
 ---
 
-## A SMALL, REAL LAUNCH — 13 NOVEMBER 2026
+## A SMALL, REAL LAUNCH — 14 NOVEMBER 2026
 
-Pipo has begun reaching beyond its developer's own devices. As of **13 November 2026**, the v1.0 GitHub release records **22 APK downloads**.
+Pipo has begun reaching beyond its developer's own devices. On **13 November 2026**, Freebuff reported **23 downloads**. As of **14 November 2026**, the v1.0 GitHub release asset records **25 APK downloads**.
 
-That is an early distribution signal, not a count of confirmed people or installations: GitHub's download counter does not identify unique downloaders, and Pipo deliberately has no analytics or account system to measure installs or retention. The number may include repeat downloads and verification activity.
+These are platform-reported download counts, not confirmed people or installations. The counters do not identify unique downloaders, and Pipo deliberately has no analytics or account system to measure installs or retention. Counts may include repeat downloads and verification activity; Freebuff and GitHub figures are reported separately and should not be added together.
 
 Pipo is still early. If you try him, feedback, bug reports and thoughtful contributions are welcome.
 
