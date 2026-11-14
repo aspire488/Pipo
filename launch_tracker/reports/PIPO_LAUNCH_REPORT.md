@@ -1,6 +1,6 @@
 # Pipo - Launch Intelligence Report
 
-**Generated:** 2026-11-14T10:29:24Z  
+**Generated:** 2026-11-14T10:59:05Z  
 **Platforms:** 8 configured, 5 measured, 2 needing attention  
 **Method:** public endpoints only; no app analytics, no install telemetry.  
 **Snapshot:** `launch_tracker/data/latest.json` (git-ignored)
@@ -23,11 +23,11 @@
 
 | Signal | Value | Source | Observed |
 |---|---|---|---|
-| GitHub APK downloads | 25 | GitHub REST API | 2026-11-14T10:29:17Z |
-| Freebuff downloads | 23 | manual observation | 2026-11-14T10:29:21Z |
-| Latest GitHub release | v1.0 | GitHub REST API | 2026-11-14T10:29:17Z |
-| F-Droid package page | 404 | f-droid.org | 2026-11-14T10:29:20Z |
-| F-Droid MR | opened | gitlab.com API | 2026-11-14T10:29:20Z |
+| GitHub APK downloads | 25 | GitHub REST API | 2026-11-14T10:59:00Z |
+| Freebuff downloads | 23 | manual observation | 2026-11-14T10:59:03Z |
+| Latest GitHub release | v1.0 | GitHub REST API | 2026-11-14T10:59:00Z |
+| F-Droid package page | 404 | f-droid.org | 2026-11-14T10:59:03Z |
+| F-Droid MR | opened | gitlab.com API | 2026-11-14T10:59:03Z |
 
 Reported downloads across counters: **48** (GitHub 25 + Freebuff 23). This is a non-deduplicated sum of two different platform counters, not a number of people.
 
@@ -120,14 +120,14 @@ Reported downloads across counters: **48** (GitHub 25 + Freebuff 23). This is a 
 
 | Platform | Status | Source | Observed |
 |---|---|---|---|
-| GitHub | measured | https://github.com/aspire488/Pipo, https://api.github.com/repos/aspire488/Pipo | 2026-11-14T10:29:17Z |
-| F-Droid | measured | https://gitlab.com/fdroid/fdroiddata/-/merge_requests/57356, https://f-droid.org/packages/com.pipo.robot/ | 2026-11-14T10:29:20Z |
-| Reddit | BLOCKED by platform | https://www.reddit.com/r/fossdroid/comments/1xvygzx/app_pipo_an_autonomous_little_robot_living_on/ | 2026-11-14T10:29:20Z |
-| Hacker News | measured | https://hn.algolia.com, https://news.ycombinator.com | 2026-11-14T10:29:21Z |
-| Product Hunt | needs credentials | https://www.producthunt.com/products/pipo-2, https://api.producthunt.com/v2/api/graphql | 2026-11-14T10:29:21Z |
-| Freebuff | manual observation | -- | 2026-11-14T10:29:21Z |
-| Public surfaces | partial | https://github.com/aspire488/Pipo, https://github.com/aspire488/Pipo/releases/tag/v1.0, https://aspire488.github.io/Pipo/ | 2026-11-14T10:29:24Z |
-| XERJ | unsupported | -- | 2026-11-14T10:29:24Z |
+| GitHub | measured | https://github.com/aspire488/Pipo, https://api.github.com/repos/aspire488/Pipo | 2026-11-14T10:59:00Z |
+| F-Droid | measured | https://gitlab.com/fdroid/fdroiddata/-/merge_requests/57356, https://f-droid.org/packages/com.pipo.robot/ | 2026-11-14T10:59:03Z |
+| Reddit | BLOCKED by platform | https://www.reddit.com/r/fossdroid/comments/1xvygzx/app_pipo_an_autonomous_little_robot_living_on/ | 2026-11-14T10:59:03Z |
+| Hacker News | measured | https://hn.algolia.com, https://news.ycombinator.com | 2026-11-14T10:59:03Z |
+| Product Hunt | needs credentials | https://www.producthunt.com/products/pipo-2, https://api.producthunt.com/v2/api/graphql | 2026-11-14T10:59:03Z |
+| Freebuff | manual observation | -- | 2026-11-14T10:59:03Z |
+| Public surfaces | partial | https://github.com/aspire488/Pipo, https://github.com/aspire488/Pipo/releases/tag/v1.0, https://aspire488.github.io/Pipo/ | 2026-11-14T10:59:05Z |
+| XERJ | unsupported | -- | 2026-11-14T10:59:05Z |
 
 ## Measurement definitions
 

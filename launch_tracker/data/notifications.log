@@ -1,4 +1,0 @@
-2026-11-14T10:24:37Z channel webhook failed: LAUNCH_WEBHOOK_URL not set
-2026-11-14T10:24:37Z channel email failed: not configured: missing SMTP_PASSWORD, SMTP_USERNAME, LAUNCH_ALERT_FROM, LAUNCH_ALERT_EMAIL
-2026-11-14T10:29:24Z channel webhook failed: LAUNCH_WEBHOOK_URL not set
-2026-11-14T10:29:24Z channel email failed: not configured: missing SMTP_PASSWORD, SMTP_USERNAME, LAUNCH_ALERT_FROM, LAUNCH_ALERT_EMAIL
