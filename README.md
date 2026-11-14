@@ -185,6 +185,9 @@ Usually a truncated download. Check the SHA-256 above, re-download, try again.
 A copy signed with a different key must be uninstalled first. That **deletes his save** — the save
 lives only on your phone.
 
+Future **F-Droid builds are signed with F-Droid's own key**, so moving from the GitHub APK to F-Droid
+also needs an uninstall first — which deletes his save too.
+
 **Nothing happens when I open the APK.**
 Allow installs for the app you downloaded it with: Settings → Apps → *(your browser or Files)* →
 Install unknown apps.
