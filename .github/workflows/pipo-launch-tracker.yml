@@ -1,0 +1,137 @@
+name: Pipo launch tracker
+
+on:
+  schedule:
+    # every 6 hours, offset from the hour to avoid the busy cron minute
+    - cron: "17 */6 * * *"
+    # daily digest: 03:30 UTC == 09:00 Asia/Kolkata (IST)
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: "Comma-separated platforms (github, fdroid, reddit, hackernews, product_hunt, freebuff, website, xerj). Empty = all."
+        required: false
+        default: ""
+      digest_only:
+        description: "Send the daily digest email now"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pipo-launch-tracker
+  cancel-in-progress: false
+
+env:
+  PYTHONUNBUFFERED: "1"
+  SMTP_HOST: ${{ secrets.SMTP_HOST }}
+  SMTP_PORT: ${{ secrets.SMTP_PORT }}
+  SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+  SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+  LAUNCH_ALERT_FROM: ${{ secrets.LAUNCH_ALERT_FROM }}
+  LAUNCH_ALERT_EMAIL: ${{ vars.LAUNCH_ALERT_EMAIL }}
+  LAUNCH_WEBHOOK_URL: ${{ secrets.LAUNCH_WEBHOOK_URL }}
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Restore history from launch-data (first run may be empty)
+        continue-on-error: true
+        run: |
+          git fetch --depth=1 origin launch-data
+          git archive FETCH_HEAD launch_tracker/data launch_tracker/reports | tar -x
+          echo "restored $(wc -l < launch_tracker/data/history/snapshots.jsonl 2>/dev/null || echo 0) snapshots"
+
+      - name: Run tracker tests
+        run: python -m unittest discover -s launch_tracker/tests -t . -v
+
+      - name: Collect launch signals
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRODUCT_HUNT_TOKEN: ${{ secrets.PRODUCT_HUNT_TOKEN }}
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          PLATFORMS="${{ inputs.platforms }}"
+          ARGS=(--quiet)
+          if [ -n "$PLATFORMS" ]; then
+            IFS=',' read -ra LIST <<< "$PLATFORMS"
+            for p in "${LIST[@]}"; do ARGS+=(--platform "$p"); done
+          else
+            ARGS+=(--all)
+          fi
+          python launch_tracker/launch_tracker.py "${ARGS[@]}"
+
+      - name: Send daily digest (09:00 IST)
+        if: ${{ github.event.schedule == '30 3 * * *' || inputs.digest_only == true }}
+        run: python launch_tracker/launch_tracker.py --digest
+
+      - name: Show recent events
+        if: always()
+        run: python launch_tracker/launch_tracker.py --events 15 || true
+
+      - name: Show adapter health
+        if: always()
+        run: python launch_tracker/launch_tracker.py --health || true
+
+      - name: Show delivery records
+        if: always()
+        run: python launch_tracker/launch_tracker.py --deliveries 10 || true
+
+      - name: Upload report and data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipo-launch-snapshot-${{ github.run_id }}
+          path: |
+            launch_tracker/reports/
+            launch_tracker/data/
+          retention-days: 90
+          if-no-files-found: warn
+
+  # Durable history. Gated on the repository variable LAUNCH_PERSIST=true.
+  # This is the only job with write access, and it only ever pushes to the
+  # isolated launch-data branch -- never to main.
+  persist-history:
+    needs: track
+    if: ${{ vars.LAUNCH_PERSIST == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pipo-launch-snapshot-${{ github.run_id }}
+          path: snapshot
+
+      - name: Publish snapshots to launch-data
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git init -q history
+          cd history
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch -q --depth=1 origin launch-data || true
+          git checkout -q -B launch-data
+          mkdir -p launch_tracker
+          rm -rf launch_tracker/data launch_tracker/reports
+          cp -R ../snapshot/data launch_tracker/data
+          cp -R ../snapshot/reports launch_tracker/reports
+          git add -A
+          git -c user.name="pipo-launch-bot" \
+              -c user.email="actions@users.noreply.github.com" \
+              commit -q -m "chore: launch snapshot ${GITHUB_RUN_ID}" || exit 0
+          git push -q origin launch-data

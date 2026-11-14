@@ -1,0 +1,188 @@
+{
+  "version": 1,
+  "repo": "aspire488/Pipo",
+  "github": {
+    "repo": "aspire488/Pipo",
+    "token_env": "GITHUB_TOKEN",
+    "env": ["GITHUB_TOKEN"]
+  },
+  "fdroid": {
+    "appid": "com.pipo.robot",
+    "mr_url": "https://gitlab.com/fdroid/fdroiddata/-/merge_requests/57356",
+    "fork_project": 88755444,
+    "upstream_project": 36528,
+    "source_branch": "new-app-pipo",
+    "refresh_legacy_report": true,
+    "env": []
+  },
+  "reddit": {
+    "posts": [
+      {
+        "url": "https://www.reddit.com/r/fossdroid/comments/1xvygzx/app_pipo_an_autonomous_little_robot_living_on/",
+        "label": "r/fossdroid launch"
+      }
+    ],
+    "client_id_env": "REDDIT_CLIENT_ID",
+    "client_secret_env": "REDDIT_CLIENT_SECRET",
+    "env": ["REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET"]
+  },
+  "hackernews": {
+    "queries": ["aspire488", "Pipo android robot"],
+    "submission_ids": [],
+    "env": []
+  },
+  "product_hunt": {
+    "slug": "pipo-2",
+    "product_url": "https://www.producthunt.com/products/pipo-2",
+    "token_env": "PRODUCT_HUNT_TOKEN",
+    "env": ["PRODUCT_HUNT_TOKEN"]
+  },
+  "freebuff": {
+    "listing_url": null,
+    "manual_file": "data/manual/freebuff.json",
+    "env": []
+  },
+  "xerj": {
+    "base_url": null,
+    "env": []
+  },
+  "website": {
+    "surfaces": [
+      "https://github.com/aspire488/Pipo",
+      "https://github.com/aspire488/Pipo/releases/tag/v1.0",
+      "https://aspire488.github.io/Pipo/",
+      "https://aspire488.github.io/Pipo/privacy/",
+      "https://aspire488.itch.io/pipo",
+      "https://f-droid.org/packages/com.pipo.robot/",
+      "https://www.producthunt.com/products/pipo-2"
+    ]
+  },
+  "severity": {
+    "github.apk_downloads": "normal",
+    "github.stars": "normal",
+    "github.forks": "normal",
+    "github.external_contributions": "high",
+    "github.external_issues": "high",
+    "freebuff.downloads": "normal",
+    "reddit.score": "low",
+    "reddit.comments": "normal",
+    "hackernews.points": "normal",
+    "product_hunt.votes": "normal"
+  },
+  "meta_watch": {
+    "github": [
+      {
+        "key": "latest_release_tag",
+        "type": "new_release",
+        "severity": "normal",
+        "message": "New GitHub release: {current} (was {previous})"
+      }
+    ],
+    "fdroid": [],
+    "product_hunt": [
+      {
+        "key": "listing_status",
+        "type": "listing_change",
+        "severity": "normal",
+        "message": "Product Hunt listing: {previous} -> {current}"
+      }
+    ]
+  },
+  "milestones": [
+    {
+      "platform": "github",
+      "metric": "apk_downloads",
+      "label": "GitHub APK downloads",
+      "unit": "downloads",
+      "thresholds": [25, 50, 100, 250, 500, 1000],
+      "major": [50, 500]
+    },
+    {
+      "platform": "freebuff",
+      "metric": "downloads",
+      "label": "Freebuff downloads",
+      "unit": "downloads",
+      "thresholds": [25, 50, 100, 250, 500, 1000],
+      "major": [50, 500]
+    },
+    {
+      "platform": "github",
+      "metric": "stars",
+      "label": "GitHub stars",
+      "unit": "stars",
+      "thresholds": [10, 25, 50, 100, 250, 500],
+      "major": [50, 500]
+    },
+    {
+      "platform": "github",
+      "metric": "external_issues",
+      "label": "First external issue",
+      "unit": "issues",
+      "thresholds": [1],
+      "major": [1]
+    },
+    {
+      "platform": "github",
+      "metric": "external_contributions",
+      "label": "First external issue or PR",
+      "unit": "items",
+      "thresholds": [1],
+      "major": [1]
+    },
+    {
+      "platform": "fdroid",
+      "metric": "listing_live",
+      "label": "F-Droid listing live",
+      "unit": "",
+      "thresholds": [1],
+      "major": [1]
+    }
+  ],
+  "definitions": {
+    "default": "Platform-reported value; see the platform column for its source.",
+    "stars": "GitHub stargazers. Interest signal, not discovery.",
+    "forks": "GitHub forks. Code-reuse intent, not users.",
+    "watchers": "GitHub subscribers (not the star alias).",
+    "open_issues": "Open GitHub issues, excluding pull requests.",
+    "open_prs": "Open GitHub pull requests, including bots.",
+    "external_contributions": "Open issues/PRs by humans other than the owner.",
+    "external_issues": "Open issues by humans other than the owner.",
+    "apk_downloads": "GitHub release APK asset download counter. Downloads, not installs.",
+    "all_asset_downloads": "Every release asset download on GitHub, including non-APK files.",
+    "releases": "Published GitHub releases returned by the API.",
+    "downloads": "Platform-reported Freebuff downloads from a dated human observation.",
+    "score": "Reddit post score, which Reddit fuzzes intentionally.",
+    "comments": "Comment count reported by the platform.",
+    "posts_found": "Tracked posts that returned data in this run.",
+    "submissions": "Hacker News stories matched to Pipo by the relevance filter.",
+    "points": "Sum of Hacker News story points across matched submissions.",
+    "votes": "Product Hunt vote counter.",
+    "rating": "Product Hunt review rating, where present.",
+    "indexed_documents": "Document count reported by XERJ itself; no schema is documented.",
+    "surfaces_up": "Configured public URLs answering with HTTP 2xx/3xx.",
+    "surfaces_total": "Configured public URLs probed.",
+    "listing_live": "1 when f-droid.org serves the package page (HTTP 200), else 0.",
+    "package_page_status": "HTTP status of the f-droid.org package page.",
+    "pipeline_jobs": "Jobs created in the latest F-Droid MR pipeline.",
+    "mr_comments": "Comments on the F-Droid merge request.",
+    "metadata_checks_passed": "Local structural checks that passed for the submitted metadata."
+  },
+  "reporting": {
+    "dir": "reports",
+    "filename": "PIPO_LAUNCH_REPORT.md"
+  },
+  "notifications": {
+    "min_severity": "normal",
+    "console": true,
+    "windows": true,
+    "summary": true,
+    "webhook": true,
+    "webhook_env": "LAUNCH_WEBHOOK_URL",
+    "email": true,
+    "email_min_severity": "normal",
+    "digest": {
+      "enabled": true,
+      "hour_ist": 9
+    }
+  }
+}

@@ -35,8 +35,21 @@ simulation_25k_5yr/*
 !simulation_25k_5yr/simulate_5yr.py
 !simulation_25k_5yr/LONGITUDINAL_REPORT_5YR.md
 
-# Personal launch analytics — local only, never committed
-launch_tracker/
+# Personal launch analytics — data stays local, the tracker code is committed
+# (the GitHub Actions workflow needs the code and tests to run)
+launch_tracker/*
+!launch_tracker/*.py
+!launch_tracker/config/
+!launch_tracker/core/
+!launch_tracker/adapters/
+!launch_tracker/tests/
+launch_tracker/data/
+launch_tracker/reports/
+launch_tracker/*.jsonl
+launch_tracker/*.md
+!launch_tracker/README.md
+launch_tracker/**/__pycache__/
+launch_tracker/check_progress.py
 
 # Local agent handoff and old UI captures; the screenshot shows the owner's first name
 docs/preview/
