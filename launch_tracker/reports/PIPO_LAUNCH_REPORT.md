@@ -1,6 +1,6 @@
 # Pipo - Launch Intelligence Report
 
-**Generated:** 2026-11-14T10:27:28Z  
+**Generated:** 2026-11-14T10:29:24Z  
 **Platforms:** 8 configured, 5 measured, 2 needing attention  
 **Method:** public endpoints only; no app analytics, no install telemetry.  
 **Snapshot:** `launch_tracker/data/latest.json` (git-ignored)
@@ -16,18 +16,20 @@
 | Measured successfully | 5 |
 | Needing attention | Reddit, Product Hunt |
 | Unsupported | XERJ |
-| Latest significant event | GitHub APK downloads reached 25 downloads |
+| Latest significant event | freebuff adapter: partial -> manual |
 | Critical events in this run | 0 |
 
 ## Distribution
 
 | Signal | Value | Source | Observed |
 |---|---|---|---|
-| GitHub APK downloads | 25 | GitHub REST API | 2026-11-14T10:27:21Z |
-| Freebuff downloads | -- | manual observation | 2026-11-14T10:27:26Z |
-| Latest GitHub release | v1.0 | GitHub REST API | 2026-11-14T10:27:21Z |
-| F-Droid package page | 404 | f-droid.org | 2026-11-14T10:27:25Z |
-| F-Droid MR | opened | gitlab.com API | 2026-11-14T10:27:25Z |
+| GitHub APK downloads | 25 | GitHub REST API | 2026-11-14T10:29:17Z |
+| Freebuff downloads | 23 | manual observation | 2026-11-14T10:29:21Z |
+| Latest GitHub release | v1.0 | GitHub REST API | 2026-11-14T10:29:17Z |
+| F-Droid package page | 404 | f-droid.org | 2026-11-14T10:29:20Z |
+| F-Droid MR | opened | gitlab.com API | 2026-11-14T10:29:20Z |
+
+Reported downloads across counters: **48** (GitHub 25 + Freebuff 23). This is a non-deduplicated sum of two different platform counters, not a number of people.
 
 ## Community traction
 
@@ -64,6 +66,9 @@
 | When (UTC) | Severity | Platform | Event |
 |---|---|---|---|
 | 2026-11-14 10:24 | normal | GitHub | GitHub APK downloads reached 25 downloads |
+| 2026-11-14 10:29 | normal | Freebuff | freebuff adapter: partial -> manual |
+| 2026-11-14 10:29 | low | Freebuff | freebuff started reporting downloads: 23 |
+| 2026-11-14 10:29 | low | Freebuff | freebuff started reporting observations: 1 |
 
 ## Issues requiring attention
 
@@ -87,12 +92,12 @@
 | GitHub APK downloads | 250 | 25 | pending |
 | GitHub APK downloads | 500 | 25 | pending |
 | GitHub APK downloads | 1000 | 25 | pending |
-| Freebuff downloads | 25 | -- | pending |
-| Freebuff downloads | 50 | -- | pending |
-| Freebuff downloads | 100 | -- | pending |
-| Freebuff downloads | 250 | -- | pending |
-| Freebuff downloads | 500 | -- | pending |
-| Freebuff downloads | 1000 | -- | pending |
+| Freebuff downloads | 25 | 23 | pending |
+| Freebuff downloads | 50 | 23 | pending |
+| Freebuff downloads | 100 | 23 | pending |
+| Freebuff downloads | 250 | 23 | pending |
+| Freebuff downloads | 500 | 23 | pending |
+| Freebuff downloads | 1000 | 23 | pending |
 | GitHub stars | 10 | 1 | pending |
 | GitHub stars | 25 | 1 | pending |
 | GitHub stars | 50 | 1 | pending |
@@ -115,14 +120,14 @@
 
 | Platform | Status | Source | Observed |
 |---|---|---|---|
-| GitHub | measured | https://github.com/aspire488/Pipo, https://api.github.com/repos/aspire488/Pipo | 2026-11-14T10:27:21Z |
-| F-Droid | measured | https://gitlab.com/fdroid/fdroiddata/-/merge_requests/57356, https://f-droid.org/packages/com.pipo.robot/ | 2026-11-14T10:27:25Z |
-| Reddit | BLOCKED by platform | https://www.reddit.com/r/fossdroid/comments/1xvygzx/app_pipo_an_autonomous_little_robot_living_on/ | 2026-11-14T10:27:25Z |
-| Hacker News | measured | https://hn.algolia.com, https://news.ycombinator.com | 2026-11-14T10:27:26Z |
-| Product Hunt | needs credentials | https://www.producthunt.com/products/pipo-2, https://api.producthunt.com/v2/api/graphql | 2026-11-14T10:27:26Z |
-| Freebuff | partial | -- | 2026-11-14T10:27:26Z |
-| Public surfaces | partial | https://github.com/aspire488/Pipo, https://github.com/aspire488/Pipo/releases/tag/v1.0, https://aspire488.github.io/Pipo/ | 2026-11-14T10:27:28Z |
-| XERJ | unsupported | -- | 2026-11-14T10:27:28Z |
+| GitHub | measured | https://github.com/aspire488/Pipo, https://api.github.com/repos/aspire488/Pipo | 2026-11-14T10:29:17Z |
+| F-Droid | measured | https://gitlab.com/fdroid/fdroiddata/-/merge_requests/57356, https://f-droid.org/packages/com.pipo.robot/ | 2026-11-14T10:29:20Z |
+| Reddit | BLOCKED by platform | https://www.reddit.com/r/fossdroid/comments/1xvygzx/app_pipo_an_autonomous_little_robot_living_on/ | 2026-11-14T10:29:20Z |
+| Hacker News | measured | https://hn.algolia.com, https://news.ycombinator.com | 2026-11-14T10:29:21Z |
+| Product Hunt | needs credentials | https://www.producthunt.com/products/pipo-2, https://api.producthunt.com/v2/api/graphql | 2026-11-14T10:29:21Z |
+| Freebuff | manual observation | -- | 2026-11-14T10:29:21Z |
+| Public surfaces | partial | https://github.com/aspire488/Pipo, https://github.com/aspire488/Pipo/releases/tag/v1.0, https://aspire488.github.io/Pipo/ | 2026-11-14T10:29:24Z |
+| XERJ | unsupported | -- | 2026-11-14T10:29:24Z |
 
 ## Measurement definitions
 
@@ -131,6 +136,7 @@
 | all_asset_downloads | Every release asset download on GitHub, including non-APK files. |
 | apk_downloads | GitHub release APK asset download counter. Downloads, not installs. |
 | comments | Comment count reported by the platform. |
+| downloads | Platform-reported Freebuff downloads from a dated human observation. |
 | external_contributions | Open issues/PRs by humans other than the owner. |
 | external_issues | Open issues by humans other than the owner. |
 | forks | GitHub forks. Code-reuse intent, not users. |
@@ -138,6 +144,7 @@
 | metadata_checks_passed | Local structural checks that passed for the submitted metadata. |
 | metadata_checks_total | Platform-reported value; see the platform column for its source. |
 | mr_comments | Comments on the F-Droid merge request. |
+| observations | Platform-reported value; see the platform column for its source. |
 | open_issues | Open GitHub issues, excluding pull requests. |
 | open_prs | Open GitHub pull requests, including bots. |
 | package_page_status | HTTP status of the f-droid.org package page. |

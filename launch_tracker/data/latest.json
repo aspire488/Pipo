@@ -1,13 +1,13 @@
 {
   "schema_version": 2,
   "tracker_version": "1.0.0",
-  "timestamp_utc": "2026-11-14T10:27:28Z",
-  "duration_ms": 8135,
+  "timestamp_utc": "2026-11-14T10:29:24Z",
+  "duration_ms": 8991,
   "platforms": {
     "github": {
       "platform": "github",
       "status": "ok",
-      "collected_at": "2026-11-14T10:27:21Z",
+      "collected_at": "2026-11-14T10:29:17Z",
       "source": [
         "https://github.com/aspire488/Pipo",
         "https://api.github.com/repos/aspire488/Pipo"
@@ -27,26 +27,26 @@
       "meta": {
         "default_branch": "main",
         "created_at": "2026-09-29T04:23:17Z",
-        "pushed_at": "2026-11-14T10:27:10Z",
+        "pushed_at": "2026-11-14T10:29:05Z",
         "license": "MIT",
         "latest_release_tag": "v1.0",
         "latest_release_date": "2026-10-04T01:17:28Z",
         "latest_release_url": "https://github.com/aspire488/Pipo/releases/tag/v1.0",
-        "latest_commit_sha": "235ad070db4e",
-        "latest_commit_date": "2026-11-14T10:27:05Z",
-        "latest_commit_message": "fix(launch): base the history branch on the fetched tip"
+        "latest_commit_sha": "f000d2308932",
+        "latest_commit_date": "2026-11-14T10:29:01Z",
+        "latest_commit_message": "fix(launch): keep the Freebuff baseline available to cloud runs"
       },
       "errors": [],
       "notes": [
         "traffic unavailable: HTTP 403 (1) (token lacks push access)",
         "release asset downloads are not installs"
       ],
-      "duration_ms": 1335
+      "duration_ms": 1875
     },
     "fdroid": {
       "platform": "fdroid",
       "status": "ok",
-      "collected_at": "2026-11-14T10:27:25Z",
+      "collected_at": "2026-11-14T10:29:20Z",
       "source": [
         "https://gitlab.com/fdroid/fdroiddata/-/merge_requests/57356",
         "https://f-droid.org/packages/com.pipo.robot/"
@@ -83,12 +83,12 @@
       "notes": [
         "pipeline failed with zero jobs: runner availability, not a lint result"
       ],
-      "duration_ms": 3777
+      "duration_ms": 2984
     },
     "reddit": {
       "platform": "reddit",
       "status": "blocked",
-      "collected_at": "2026-11-14T10:27:25Z",
+      "collected_at": "2026-11-14T10:29:20Z",
       "source": [
         "https://www.reddit.com/r/fossdroid/comments/1xvygzx/app_pipo_an_autonomous_little_robot_living_on/"
       ],
@@ -104,12 +104,12 @@
       "notes": [
         "no Reddit credentials; using the public JSON endpoint"
       ],
-      "duration_ms": 58
+      "duration_ms": 156
     },
     "hackernews": {
       "platform": "hackernews",
       "status": "ok",
-      "collected_at": "2026-11-14T10:27:26Z",
+      "collected_at": "2026-11-14T10:29:21Z",
       "source": [
         "https://hn.algolia.com",
         "https://news.ycombinator.com"
@@ -126,12 +126,12 @@
       "notes": [
         "a successful search returning nothing is a measured zero, not missing data"
       ],
-      "duration_ms": 482
+      "duration_ms": 637
     },
     "product_hunt": {
       "platform": "product_hunt",
       "status": "auth_required",
-      "collected_at": "2026-11-14T10:27:26Z",
+      "collected_at": "2026-11-14T10:29:21Z",
       "source": [
         "https://www.producthunt.com/products/pipo-2",
         "https://api.producthunt.com/v2/api/graphql"
@@ -144,18 +144,24 @@
       "notes": [
         "Product Hunt requires a developer token; votes and comments are not inferred"
       ],
-      "duration_ms": 82
+      "duration_ms": 126
     },
     "freebuff": {
       "platform": "freebuff",
-      "status": "partial",
-      "collected_at": "2026-11-14T10:27:26Z",
+      "status": "manual",
+      "collected_at": "2026-11-14T10:29:21Z",
       "source": [],
-      "metrics": {},
-      "meta": {},
-      "errors": [
-        "no observation recorded; add data/manual/freebuff.json"
-      ],
+      "metrics": {
+        "downloads": 23,
+        "observations": 1
+      },
+      "meta": {
+        "last_observation_date": "2026-11-13",
+        "observation_age_days": 1.4,
+        "observation_source": "README.md launch note: 'On 13 November 2026, Freebuff reported 23 downloads.'",
+        "listing_status": "reported"
+      },
+      "errors": [],
       "notes": [
         "Freebuff has no public API; the value is a dated human observation"
       ],
@@ -164,7 +170,7 @@
     "website": {
       "platform": "website",
       "status": "partial",
-      "collected_at": "2026-11-14T10:27:28Z",
+      "collected_at": "2026-11-14T10:29:24Z",
       "source": [
         "https://github.com/aspire488/Pipo",
         "https://github.com/aspire488/Pipo/releases/tag/v1.0",
@@ -189,12 +195,12 @@
       "notes": [
         "not OK: https://f-droid.org/packages/com.pipo.robot/, https://www.producthunt.com/products/pipo-2"
       ],
-      "duration_ms": 2398
+      "duration_ms": 3209
     },
     "xerj": {
       "platform": "xerj",
       "status": "unsupported",
-      "collected_at": "2026-11-14T10:27:28Z",
+      "collected_at": "2026-11-14T10:29:24Z",
       "source": [],
       "metrics": {},
       "meta": {
