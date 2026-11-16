@@ -2,3 +2,5 @@
 {"timestamp_utc": "2026-11-14T22:20:24Z", "event_id": "c02d986680854451", "channel": "email", "status": "sent", "attempts": 1, "subject": "[Pipo Launch Alert] NORMAL - Launch metric changed", "error": null}
 {"timestamp_utc": "2026-11-15T06:23:08Z", "event_id": "c9df707c097adb3d", "channel": "email", "status": "sent", "attempts": 1, "subject": "[Pipo Launch Alert] NORMAL - Launch metric changed", "error": null}
 {"timestamp_utc": "2026-11-15T11:23:26Z", "event_id": "digest:2026-11-15", "channel": "email", "status": "sent", "attempts": 1, "subject": "[Pipo Launch Digest] 15 Nov 2026 - 3 events, 2 needing attention", "error": null}
+{"timestamp_utc": "2026-11-16T11:54:43Z", "event_id": "ae0f0f395a9fa9e8", "channel": "email", "status": "sent", "attempts": 1, "subject": "[Pipo Launch Alert] NORMAL - Launch metric changed", "error": null}
+{"timestamp_utc": "2026-11-16T11:54:45Z", "event_id": "digest:2026-11-16", "channel": "email", "status": "sent", "attempts": 1, "subject": "[Pipo Launch Digest] 16 Nov 2026 - 1 event, 2 needing attention", "error": null}
