@@ -1,6 +1,6 @@
 # Pipo - Launch Intelligence Report
 
-**Generated:** 2026-11-18T12:04:33Z  
+**Generated:** 2026-11-18T20:27:39Z  
 **Platforms:** 8 configured, 5 measured, 2 needing attention  
 **Method:** public endpoints only; no app analytics, no install telemetry.  
 **Snapshot:** `launch_tracker/data/latest.json` (git-ignored)
@@ -16,20 +16,20 @@
 | Measured successfully | 5 |
 | Needing attention | Reddit, Product Hunt |
 | Unsupported | XERJ |
-| Latest significant event | github apk downloads up: 34 -> 36 |
+| Latest significant event | github apk downloads up: 36 -> 37 |
 | Critical events in this run | 0 |
 
 ## Distribution
 
 | Signal | Value | Source | Observed |
 |---|---|---|---|
-| GitHub APK downloads | 36 | GitHub REST API | 2026-11-18T12:04:26Z |
-| Freebuff downloads | 23 | manual observation | 2026-11-18T12:04:31Z |
-| Latest GitHub release | v1.0 | GitHub REST API | 2026-11-18T12:04:26Z |
-| F-Droid package page | 404 | f-droid.org | 2026-11-18T12:04:30Z |
-| F-Droid MR | opened | gitlab.com API | 2026-11-18T12:04:30Z |
+| GitHub APK downloads | 37 | GitHub REST API | 2026-11-18T20:27:31Z |
+| Freebuff downloads | 23 | manual observation | 2026-11-18T20:27:35Z |
+| Latest GitHub release | v1.0 | GitHub REST API | 2026-11-18T20:27:31Z |
+| F-Droid package page | 404 | f-droid.org | 2026-11-18T20:27:35Z |
+| F-Droid MR | opened | gitlab.com API | 2026-11-18T20:27:35Z |
 
-Reported downloads across counters: **59** (GitHub 36 + Freebuff 23). This is a non-deduplicated sum of two different platform counters, not a number of people.
+Reported downloads across counters: **60** (GitHub 37 + Freebuff 23). This is a non-deduplicated sum of two different platform counters, not a number of people.
 
 ## Community traction
 
@@ -52,7 +52,7 @@ Reported downloads across counters: **59** (GitHub 36 + Freebuff 23). This is a 
 
 | Metric | Now | 24h | 7d | 30d |
 |---|---|---|---|---|
-| GitHub APK downloads | 36 | +2 | -- | -- |
+| GitHub APK downloads | 37 | +3 | -- | -- |
 | GitHub stars | 1 | 0 | -- | -- |
 | GitHub forks | 0 | 0 | -- | -- |
 | Reddit score | -- | -- | -- | -- |
@@ -79,6 +79,8 @@ Reported downloads across counters: **59** (GitHub 36 + Freebuff 23). This is a 
 | 2026-11-16 11:54 | normal | GitHub | github apk downloads up: 28 -> 34 |
 | 2026-11-18 07:22 | low | GitHub | github all asset downloads up: 34 -> 36 |
 | 2026-11-18 07:22 | normal | GitHub | github apk downloads up: 34 -> 36 |
+| 2026-11-18 20:27 | low | GitHub | github all asset downloads up: 36 -> 37 |
+| 2026-11-18 20:27 | normal | GitHub | github apk downloads up: 36 -> 37 |
 
 ## Issues requiring attention
 
@@ -96,12 +98,12 @@ Reported downloads across counters: **59** (GitHub 36 + Freebuff 23). This is a 
 
 | Milestone | Target | Now | State |
 |---|---|---|---|
-| GitHub APK downloads | 25 | 36 | reached 2026-11-14 |
-| GitHub APK downloads | 50 | 36 | pending |
-| GitHub APK downloads | 100 | 36 | pending |
-| GitHub APK downloads | 250 | 36 | pending |
-| GitHub APK downloads | 500 | 36 | pending |
-| GitHub APK downloads | 1000 | 36 | pending |
+| GitHub APK downloads | 25 | 37 | reached 2026-11-14 |
+| GitHub APK downloads | 50 | 37 | pending |
+| GitHub APK downloads | 100 | 37 | pending |
+| GitHub APK downloads | 250 | 37 | pending |
+| GitHub APK downloads | 500 | 37 | pending |
+| GitHub APK downloads | 1000 | 37 | pending |
 | Freebuff downloads | 25 | 23 | pending |
 | Freebuff downloads | 50 | 23 | pending |
 | Freebuff downloads | 100 | 23 | pending |
@@ -122,21 +124,21 @@ Reported downloads across counters: **59** (GitHub 36 + Freebuff 23). This is a 
 
 1. Ask an F-Droid maintainer to run CI upstream for MR https://gitlab.com/fdroid/fdroiddata/-/merge_requests/57356; the fork pipeline never reached a runner.
 2. GitHub stars are 1/10: one honest post in a FOSS community is the cheapest next step.
-3. APK downloads are 36/50; record the count before and 24h after any post.
+3. APK downloads are 37/50; record the count before and 24h after any post.
 4. Configure `PRODUCT_HUNT_TOKEN` for Product Hunt.
 
 ## Sources
 
 | Platform | Status | Source | Observed |
 |---|---|---|---|
-| GitHub | measured | https://github.com/aspire488/Pipo, https://api.github.com/repos/aspire488/Pipo | 2026-11-18T12:04:26Z |
-| F-Droid | measured | https://gitlab.com/fdroid/fdroiddata/-/merge_requests/57356, https://f-droid.org/packages/com.pipo.robot/ | 2026-11-18T12:04:30Z |
-| Reddit | BLOCKED by platform | https://www.reddit.com/r/fossdroid/comments/1xvygzx/app_pipo_an_autonomous_little_robot_living_on/ | 2026-11-18T12:04:30Z |
-| Hacker News | measured | https://hn.algolia.com, https://news.ycombinator.com | 2026-11-18T12:04:31Z |
-| Product Hunt | needs credentials | https://www.producthunt.com/products/pipo-2, https://api.producthunt.com/v2/api/graphql | 2026-11-18T12:04:31Z |
-| Freebuff | manual observation | -- | 2026-11-18T12:04:31Z |
-| Public surfaces | partial | https://github.com/aspire488/Pipo, https://github.com/aspire488/Pipo/releases/tag/v1.0, https://aspire488.github.io/Pipo/ | 2026-11-18T12:04:33Z |
-| XERJ | unsupported | -- | 2026-11-18T12:04:33Z |
+| GitHub | measured | https://github.com/aspire488/Pipo, https://api.github.com/repos/aspire488/Pipo | 2026-11-18T20:27:31Z |
+| F-Droid | measured | https://gitlab.com/fdroid/fdroiddata/-/merge_requests/57356, https://f-droid.org/packages/com.pipo.robot/ | 2026-11-18T20:27:35Z |
+| Reddit | BLOCKED by platform | https://www.reddit.com/r/fossdroid/comments/1xvygzx/app_pipo_an_autonomous_little_robot_living_on/ | 2026-11-18T20:27:35Z |
+| Hacker News | measured | https://hn.algolia.com, https://news.ycombinator.com | 2026-11-18T20:27:35Z |
+| Product Hunt | needs credentials | https://www.producthunt.com/products/pipo-2, https://api.producthunt.com/v2/api/graphql | 2026-11-18T20:27:35Z |
+| Freebuff | manual observation | -- | 2026-11-18T20:27:35Z |
+| Public surfaces | partial | https://github.com/aspire488/Pipo, https://github.com/aspire488/Pipo/releases/tag/v1.0, https://aspire488.github.io/Pipo/ | 2026-11-18T20:27:39Z |
+| XERJ | unsupported | -- | 2026-11-18T20:27:39Z |
 
 ## Measurement definitions
 
