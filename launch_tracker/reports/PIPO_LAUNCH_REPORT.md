@@ -1,6 +1,6 @@
 # Pipo - Launch Intelligence Report
 
-**Generated:** 2026-11-21T07:00:34Z  
+**Generated:** 2026-11-21T11:35:53Z  
 **Platforms:** 8 configured, 5 measured, 2 needing attention  
 **Method:** public endpoints only; no app analytics, no install telemetry.  
 **Snapshot:** `launch_tracker/data/latest.json` (git-ignored)
@@ -23,11 +23,11 @@
 
 | Signal | Value | Source | Observed |
 |---|---|---|---|
-| GitHub APK downloads | 39 | GitHub REST API | 2026-11-21T07:00:18Z |
-| Freebuff downloads | 23 | manual observation | 2026-11-21T07:00:32Z |
-| Latest GitHub release | v1.0 | GitHub REST API | 2026-11-21T07:00:18Z |
-| F-Droid package page | 404 | f-droid.org | 2026-11-21T07:00:21Z |
-| F-Droid MR | opened | gitlab.com API | 2026-11-21T07:00:21Z |
+| GitHub APK downloads | 39 | GitHub REST API | 2026-11-21T11:35:48Z |
+| Freebuff downloads | 23 | manual observation | 2026-11-21T11:35:52Z |
+| Latest GitHub release | v1.0 | GitHub REST API | 2026-11-21T11:35:48Z |
+| F-Droid package page | 404 | f-droid.org | 2026-11-21T11:35:51Z |
+| F-Droid MR | opened | gitlab.com API | 2026-11-21T11:35:51Z |
 
 Reported downloads across counters: **62** (GitHub 39 + Freebuff 23). This is a non-deduplicated sum of two different platform counters, not a number of people.
 
@@ -52,12 +52,12 @@ Reported downloads across counters: **62** (GitHub 39 + Freebuff 23). This is a 
 
 | Metric | Now | 24h | 7d | 30d |
 |---|---|---|---|---|
-| GitHub APK downloads | 39 | +2 | -- | -- |
-| GitHub stars | 2 | 0 | -- | -- |
-| GitHub forks | 0 | 0 | -- | -- |
+| GitHub APK downloads | 39 | +2 | +14 | -- |
+| GitHub stars | 2 | 0 | +1 | -- |
+| GitHub forks | 0 | 0 | 0 | -- |
 | Reddit score | -- | -- | -- | -- |
 | Reddit comments | -- | -- | -- | -- |
-| HN points | 0 | 0 | -- | -- |
+| HN points | 0 | 0 | 0 | -- |
 
 `--` means no snapshot old enough exists yet; it does not mean zero.
 
@@ -129,21 +129,21 @@ Reported downloads across counters: **62** (GitHub 39 + Freebuff 23). This is a 
 1. Ask an F-Droid maintainer to run CI upstream for MR https://gitlab.com/fdroid/fdroiddata/-/merge_requests/57356; the fork pipeline never reached a runner.
 2. GitHub stars are 2/10: one honest post in a FOSS community is the cheapest next step.
 3. APK downloads are 39/50; record the count before and 24h after any post.
-4. Freebuff observation is 8.3 days old; update `data/manual/freebuff.json`.
+4. Freebuff observation is 8.5 days old; update `data/manual/freebuff.json`.
 5. Configure `PRODUCT_HUNT_TOKEN` for Product Hunt.
 
 ## Sources
 
 | Platform | Status | Source | Observed |
 |---|---|---|---|
-| GitHub | measured | https://github.com/aspire488/Pipo, https://api.github.com/repos/aspire488/Pipo | 2026-11-21T07:00:18Z |
-| F-Droid | measured | https://gitlab.com/fdroid/fdroiddata/-/merge_requests/57356, https://f-droid.org/packages/com.pipo.robot/ | 2026-11-21T07:00:21Z |
-| Reddit | BLOCKED by platform | https://www.reddit.com/r/fossdroid/comments/1xvygzx/app_pipo_an_autonomous_little_robot_living_on/ | 2026-11-21T07:00:21Z |
-| Hacker News | measured | https://hn.algolia.com, https://news.ycombinator.com | 2026-11-21T07:00:32Z |
-| Product Hunt | needs credentials | https://www.producthunt.com/products/pipo-2, https://api.producthunt.com/v2/api/graphql | 2026-11-21T07:00:32Z |
-| Freebuff | manual observation | -- | 2026-11-21T07:00:32Z |
-| Public surfaces | partial | https://github.com/aspire488/Pipo, https://github.com/aspire488/Pipo/releases/tag/v1.0, https://aspire488.github.io/Pipo/ | 2026-11-21T07:00:34Z |
-| XERJ | unsupported | -- | 2026-11-21T07:00:34Z |
+| GitHub | measured | https://github.com/aspire488/Pipo, https://api.github.com/repos/aspire488/Pipo | 2026-11-21T11:35:48Z |
+| F-Droid | measured | https://gitlab.com/fdroid/fdroiddata/-/merge_requests/57356, https://f-droid.org/packages/com.pipo.robot/ | 2026-11-21T11:35:51Z |
+| Reddit | BLOCKED by platform | https://www.reddit.com/r/fossdroid/comments/1xvygzx/app_pipo_an_autonomous_little_robot_living_on/ | 2026-11-21T11:35:51Z |
+| Hacker News | measured | https://hn.algolia.com, https://news.ycombinator.com | 2026-11-21T11:35:52Z |
+| Product Hunt | needs credentials | https://www.producthunt.com/products/pipo-2, https://api.producthunt.com/v2/api/graphql | 2026-11-21T11:35:52Z |
+| Freebuff | manual observation | -- | 2026-11-21T11:35:52Z |
+| Public surfaces | partial | https://github.com/aspire488/Pipo, https://github.com/aspire488/Pipo/releases/tag/v1.0, https://aspire488.github.io/Pipo/ | 2026-11-21T11:35:53Z |
+| XERJ | unsupported | -- | 2026-11-21T11:35:53Z |
 
 ## Measurement definitions
 
