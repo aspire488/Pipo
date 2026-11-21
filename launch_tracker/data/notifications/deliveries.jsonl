@@ -13,3 +13,4 @@
 {"timestamp_utc": "2026-11-20T12:01:05Z", "event_id": "digest:2026-11-20", "channel": "email", "status": "sent", "attempts": 1, "subject": "[Pipo Launch Digest] 20 Nov 2026 - 1 event, 2 needing attention", "error": null}
 {"timestamp_utc": "2026-11-20T20:10:01Z", "event_id": "cb5138d1da094e7f", "channel": "email", "status": "sent", "attempts": 1, "subject": "[Pipo Launch Alert] NORMAL - Launch metric changed", "error": null}
 {"timestamp_utc": "2026-11-20T20:10:02Z", "event_id": "62a50db8935d749d", "channel": "email", "status": "sent", "attempts": 1, "subject": "[Pipo Launch Alert] CRITICAL - A public listing stopped responding", "error": null}
+{"timestamp_utc": "2026-11-21T07:00:36Z", "event_id": "783cfe714b1222ac", "channel": "email", "status": "sent", "attempts": 1, "subject": "[Pipo Launch Alert] NORMAL - Launch metric changed", "error": null}
