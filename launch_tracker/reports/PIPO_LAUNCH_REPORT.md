@@ -1,6 +1,6 @@
 # Pipo - Launch Intelligence Report
 
-**Generated:** 2026-11-25T08:26:12Z  
+**Generated:** 2026-11-25T13:21:06Z  
 **Platforms:** 8 configured, 5 measured, 2 needing attention  
 **Method:** public endpoints only; no app analytics, no install telemetry.  
 **Snapshot:** `launch_tracker/data/latest.json` (git-ignored)
@@ -23,11 +23,11 @@
 
 | Signal | Value | Source | Observed |
 |---|---|---|---|
-| GitHub APK downloads | 43 | GitHub REST API | 2026-11-25T08:26:04Z |
-| Freebuff downloads | 23 | manual observation | 2026-11-25T08:26:09Z |
-| Latest GitHub release | v1.0 | GitHub REST API | 2026-11-25T08:26:04Z |
-| F-Droid package page | 404 | f-droid.org | 2026-11-25T08:26:08Z |
-| F-Droid MR | closed | gitlab.com API | 2026-11-25T08:26:08Z |
+| GitHub APK downloads | 43 | GitHub REST API | 2026-11-25T13:21:00Z |
+| Freebuff downloads | 23 | manual observation | 2026-11-25T13:21:04Z |
+| Latest GitHub release | v1.0 | GitHub REST API | 2026-11-25T13:21:00Z |
+| F-Droid package page | 404 | f-droid.org | 2026-11-25T13:21:03Z |
+| F-Droid MR | closed | gitlab.com API | 2026-11-25T13:21:03Z |
 
 Reported downloads across counters: **66** (GitHub 43 + Freebuff 23). This is a non-deduplicated sum of two different platform counters, not a number of people.
 
@@ -94,7 +94,7 @@ Reported downloads across counters: **66** (GitHub 43 + Freebuff 23). This is a 
 - _Hacker News_: a successful search returning nothing is a measured zero, not missing data
 - **Product Hunt** (needs credentials): PRODUCT_HUNT_TOKEN not set; public page probe: HTTP 403 (1) Provide `PRODUCT_HUNT_TOKEN`.
 - _Freebuff_: Freebuff has no public API; the value is a dated human observation
-- _Public surfaces_: not OK: https://aspire488.itch.io/pipo, https://f-droid.org/packages/com.pipo.robot/, https://www.producthunt.com/products/pipo-2
+- _Public surfaces_: not OK: https://f-droid.org/packages/com.pipo.robot/, https://www.producthunt.com/products/pipo-2
 - **XERJ** (unsupported): no public XERJ endpoint exists or is documented; configure base_url to enable
 
 ## Milestones
@@ -128,21 +128,21 @@ Reported downloads across counters: **66** (GitHub 43 + Freebuff 23). This is a 
 1. Ask an F-Droid maintainer to run CI upstream for MR https://gitlab.com/fdroid/fdroiddata/-/merge_requests/57356; the fork pipeline never reached a runner.
 2. GitHub stars are 2/10: one honest post in a FOSS community is the cheapest next step.
 3. APK downloads are 43/50; record the count before and 24h after any post.
-4. Freebuff observation is 12.4 days old; update `data/manual/freebuff.json`.
+4. Freebuff observation is 12.6 days old; update `data/manual/freebuff.json`.
 5. Configure `PRODUCT_HUNT_TOKEN` for Product Hunt.
 
 ## Sources
 
 | Platform | Status | Source | Observed |
 |---|---|---|---|
-| GitHub | measured | https://github.com/aspire488/Pipo, https://api.github.com/repos/aspire488/Pipo | 2026-11-25T08:26:04Z |
-| F-Droid | measured | https://gitlab.com/fdroid/fdroiddata/-/merge_requests/57356, https://f-droid.org/packages/com.pipo.robot/ | 2026-11-25T08:26:08Z |
-| Reddit | BLOCKED by platform | https://www.reddit.com/r/fossdroid/comments/1xvygzx/app_pipo_an_autonomous_little_robot_living_on/ | 2026-11-25T08:26:08Z |
-| Hacker News | measured | https://hn.algolia.com, https://news.ycombinator.com | 2026-11-25T08:26:08Z |
-| Product Hunt | needs credentials | https://www.producthunt.com/products/pipo-2, https://api.producthunt.com/v2/api/graphql | 2026-11-25T08:26:09Z |
-| Freebuff | manual observation | -- | 2026-11-25T08:26:09Z |
-| Public surfaces | partial | https://github.com/aspire488/Pipo, https://github.com/aspire488/Pipo/releases/tag/v1.0, https://aspire488.github.io/Pipo/ | 2026-11-25T08:26:12Z |
-| XERJ | unsupported | -- | 2026-11-25T08:26:12Z |
+| GitHub | measured | https://github.com/aspire488/Pipo, https://api.github.com/repos/aspire488/Pipo | 2026-11-25T13:21:00Z |
+| F-Droid | measured | https://gitlab.com/fdroid/fdroiddata/-/merge_requests/57356, https://f-droid.org/packages/com.pipo.robot/ | 2026-11-25T13:21:03Z |
+| Reddit | BLOCKED by platform | https://www.reddit.com/r/fossdroid/comments/1xvygzx/app_pipo_an_autonomous_little_robot_living_on/ | 2026-11-25T13:21:03Z |
+| Hacker News | measured | https://hn.algolia.com, https://news.ycombinator.com | 2026-11-25T13:21:04Z |
+| Product Hunt | needs credentials | https://www.producthunt.com/products/pipo-2, https://api.producthunt.com/v2/api/graphql | 2026-11-25T13:21:04Z |
+| Freebuff | manual observation | -- | 2026-11-25T13:21:04Z |
+| Public surfaces | partial | https://github.com/aspire488/Pipo, https://github.com/aspire488/Pipo/releases/tag/v1.0, https://aspire488.github.io/Pipo/ | 2026-11-25T13:21:06Z |
+| XERJ | unsupported | -- | 2026-11-25T13:21:06Z |
 
 ## Measurement definitions
 
