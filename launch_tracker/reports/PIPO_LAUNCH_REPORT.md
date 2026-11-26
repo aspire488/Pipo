@@ -1,6 +1,6 @@
 # Pipo - Launch Intelligence Report
 
-**Generated:** 2026-11-26T12:59:49Z  
+**Generated:** 2026-11-26T21:27:57Z  
 **Platforms:** 8 configured, 5 measured, 2 needing attention  
 **Method:** public endpoints only; no app analytics, no install telemetry.  
 **Snapshot:** `launch_tracker/data/latest.json` (git-ignored)
@@ -23,23 +23,23 @@
 
 | Signal | Value | Source | Observed |
 |---|---|---|---|
-| GitHub APK downloads | 45 | GitHub REST API | 2026-11-26T12:59:45Z |
-| Freebuff downloads | 23 | manual observation | 2026-11-26T12:59:47Z |
-| Latest GitHub release | v1.0 | GitHub REST API | 2026-11-26T12:59:45Z |
-| F-Droid package page | 404 | f-droid.org | 2026-11-26T12:59:47Z |
-| F-Droid MR | closed | gitlab.com API | 2026-11-26T12:59:47Z |
+| GitHub APK downloads | 46 | GitHub REST API | 2026-11-26T21:27:51Z |
+| Freebuff downloads | 23 | manual observation | 2026-11-26T21:27:55Z |
+| Latest GitHub release | v1.0 | GitHub REST API | 2026-11-26T21:27:51Z |
+| F-Droid package page | 404 | f-droid.org | 2026-11-26T21:27:54Z |
+| F-Droid MR | closed | gitlab.com API | 2026-11-26T21:27:54Z |
 
-Reported downloads across counters: **68** (GitHub 45 + Freebuff 23). This is a non-deduplicated sum of two different platform counters, not a number of people.
+Reported downloads across counters: **69** (GitHub 46 + Freebuff 23). This is a non-deduplicated sum of two different platform counters, not a number of people.
 
 ## Community traction
 
 | Signal | Value |
 |---|---|
-| GitHub stars | 2 |
+| GitHub stars | 3 |
 | GitHub forks | 0 |
 | GitHub watchers | 0 |
 | Open issues | 0 |
-| Open pull requests | 8 |
+| Open pull requests | 10 |
 | External issues/PRs | 0 |
 | Reddit score (tracked posts) | -- |
 | Reddit comments | -- |
@@ -52,8 +52,8 @@ Reported downloads across counters: **68** (GitHub 45 + Freebuff 23). This is a 
 
 | Metric | Now | 24h | 7d | 30d |
 |---|---|---|---|---|
-| GitHub APK downloads | 45 | +2 | +8 | -- |
-| GitHub stars | 2 | 0 | +1 | -- |
+| GitHub APK downloads | 46 | +3 | +9 | -- |
+| GitHub stars | 3 | +1 | +1 | -- |
 | GitHub forks | 0 | 0 | 0 | -- |
 | Reddit score | -- | -- | -- | -- |
 | Reddit comments | -- | -- | -- | -- |
@@ -65,10 +65,6 @@ Reported downloads across counters: **68** (GitHub 45 + Freebuff 23). This is a 
 
 | When (UTC) | Severity | Platform | Event |
 |---|---|---|---|
-| 2026-11-20 07:08 | low | F-Droid | fdroid started reporting pipeline_jobs: 0 |
-| 2026-11-20 20:10 | low | GitHub | github all asset downloads up: 37 -> 38 |
-| 2026-11-20 20:10 | normal | GitHub | github apk downloads up: 37 -> 38 |
-| 2026-11-20 20:10 | low | Public surfaces | website surfaces up down: 5 -> 4 |
 | 2026-11-20 20:10 | critical | Public surfaces | A public surface stopped responding: https://aspire488.itch.io/pipo (HTTP 429) |
 | 2026-11-21 07:00 | low | GitHub | github all asset downloads up: 38 -> 39 |
 | 2026-11-21 07:00 | normal | GitHub | github apk downloads up: 38 -> 39 |
@@ -85,6 +81,10 @@ Reported downloads across counters: **68** (GitHub 45 + Freebuff 23). This is a 
 | 2026-11-24 14:07 | low | F-Droid | fdroid mr comments up: 1 -> 2 |
 | 2026-11-26 08:10 | low | GitHub | github all asset downloads up: 43 -> 45 |
 | 2026-11-26 08:10 | normal | GitHub | github apk downloads up: 43 -> 45 |
+| 2026-11-26 21:27 | low | GitHub | github all asset downloads up: 45 -> 46 |
+| 2026-11-26 21:27 | normal | GitHub | github apk downloads up: 45 -> 46 |
+| 2026-11-26 21:27 | low | GitHub | github open prs up: 8 -> 10 |
+| 2026-11-26 21:27 | normal | GitHub | github stars up: 2 -> 3 |
 
 ## Issues requiring attention
 
@@ -101,24 +101,24 @@ Reported downloads across counters: **68** (GitHub 45 + Freebuff 23). This is a 
 
 | Milestone | Target | Now | State |
 |---|---|---|---|
-| GitHub APK downloads | 25 | 45 | reached 2026-11-14 |
-| GitHub APK downloads | 50 | 45 | pending |
-| GitHub APK downloads | 100 | 45 | pending |
-| GitHub APK downloads | 250 | 45 | pending |
-| GitHub APK downloads | 500 | 45 | pending |
-| GitHub APK downloads | 1000 | 45 | pending |
+| GitHub APK downloads | 25 | 46 | reached 2026-11-14 |
+| GitHub APK downloads | 50 | 46 | pending |
+| GitHub APK downloads | 100 | 46 | pending |
+| GitHub APK downloads | 250 | 46 | pending |
+| GitHub APK downloads | 500 | 46 | pending |
+| GitHub APK downloads | 1000 | 46 | pending |
 | Freebuff downloads | 25 | 23 | pending |
 | Freebuff downloads | 50 | 23 | pending |
 | Freebuff downloads | 100 | 23 | pending |
 | Freebuff downloads | 250 | 23 | pending |
 | Freebuff downloads | 500 | 23 | pending |
 | Freebuff downloads | 1000 | 23 | pending |
-| GitHub stars | 10 | 2 | pending |
-| GitHub stars | 25 | 2 | pending |
-| GitHub stars | 50 | 2 | pending |
-| GitHub stars | 100 | 2 | pending |
-| GitHub stars | 250 | 2 | pending |
-| GitHub stars | 500 | 2 | pending |
+| GitHub stars | 10 | 3 | pending |
+| GitHub stars | 25 | 3 | pending |
+| GitHub stars | 50 | 3 | pending |
+| GitHub stars | 100 | 3 | pending |
+| GitHub stars | 250 | 3 | pending |
+| GitHub stars | 500 | 3 | pending |
 | First external issue | 1 | 0 | pending |
 | First external issue or PR | 1 | 0 | pending |
 | F-Droid listing live | 1 | 0 | pending |
@@ -126,23 +126,23 @@ Reported downloads across counters: **68** (GitHub 45 + Freebuff 23). This is a 
 ## Next actions
 
 1. Ask an F-Droid maintainer to run CI upstream for MR https://gitlab.com/fdroid/fdroiddata/-/merge_requests/57356; the fork pipeline never reached a runner.
-2. GitHub stars are 2/10: one honest post in a FOSS community is the cheapest next step.
-3. APK downloads are 45/50; record the count before and 24h after any post.
-4. Freebuff observation is 13.5 days old; update `data/manual/freebuff.json`.
+2. GitHub stars are 3/10: one honest post in a FOSS community is the cheapest next step.
+3. APK downloads are 46/50; record the count before and 24h after any post.
+4. Freebuff observation is 13.9 days old; update `data/manual/freebuff.json`.
 5. Configure `PRODUCT_HUNT_TOKEN` for Product Hunt.
 
 ## Sources
 
 | Platform | Status | Source | Observed |
 |---|---|---|---|
-| GitHub | measured | https://github.com/aspire488/Pipo, https://api.github.com/repos/aspire488/Pipo | 2026-11-26T12:59:45Z |
-| F-Droid | measured | https://gitlab.com/fdroid/fdroiddata/-/merge_requests/57356, https://f-droid.org/packages/com.pipo.robot/ | 2026-11-26T12:59:47Z |
-| Reddit | BLOCKED by platform | https://www.reddit.com/r/fossdroid/comments/1xvygzx/app_pipo_an_autonomous_little_robot_living_on/ | 2026-11-26T12:59:47Z |
-| Hacker News | measured | https://hn.algolia.com, https://news.ycombinator.com | 2026-11-26T12:59:47Z |
-| Product Hunt | needs credentials | https://www.producthunt.com/products/pipo-2, https://api.producthunt.com/v2/api/graphql | 2026-11-26T12:59:47Z |
-| Freebuff | manual observation | -- | 2026-11-26T12:59:47Z |
-| Public surfaces | partial | https://github.com/aspire488/Pipo, https://github.com/aspire488/Pipo/releases/tag/v1.0, https://aspire488.github.io/Pipo/ | 2026-11-26T12:59:49Z |
-| XERJ | unsupported | -- | 2026-11-26T12:59:49Z |
+| GitHub | measured | https://github.com/aspire488/Pipo, https://api.github.com/repos/aspire488/Pipo | 2026-11-26T21:27:51Z |
+| F-Droid | measured | https://gitlab.com/fdroid/fdroiddata/-/merge_requests/57356, https://f-droid.org/packages/com.pipo.robot/ | 2026-11-26T21:27:54Z |
+| Reddit | BLOCKED by platform | https://www.reddit.com/r/fossdroid/comments/1xvygzx/app_pipo_an_autonomous_little_robot_living_on/ | 2026-11-26T21:27:54Z |
+| Hacker News | measured | https://hn.algolia.com, https://news.ycombinator.com | 2026-11-26T21:27:55Z |
+| Product Hunt | needs credentials | https://www.producthunt.com/products/pipo-2, https://api.producthunt.com/v2/api/graphql | 2026-11-26T21:27:55Z |
+| Freebuff | manual observation | -- | 2026-11-26T21:27:55Z |
+| Public surfaces | partial | https://github.com/aspire488/Pipo, https://github.com/aspire488/Pipo/releases/tag/v1.0, https://aspire488.github.io/Pipo/ | 2026-11-26T21:27:57Z |
+| XERJ | unsupported | -- | 2026-11-26T21:27:57Z |
 
 ## Measurement definitions
 
