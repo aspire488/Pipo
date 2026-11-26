@@ -130,7 +130,7 @@ dependencies {
     // "Pipo" wake word: offline speech recognition on the phone (Apache 2.0). The model itself is
     // downloaded once, checksum-pinned, when you switch Pipo Voice on (voice/WakeModel.kt).
     implementation("com.alphacephei:vosk-android:0.3.75")
-    implementation("net.java.dev.jna:jna:5.18.1@aar")
+    implementation("net.java.dev.jna:jna:5.19.1@aar")
     debugImplementation("androidx.compose.ui:ui-tooling")
     // Unity world, only when it has been exported (see settings.gradle.kts)
     if (rootProject.findProject(":unityLibrary") != null) implementation(project(":unityLibrary"))
